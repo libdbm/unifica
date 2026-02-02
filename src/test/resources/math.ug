@@ -1,0 +1,51 @@
+# Mathematical Expression Unification Grammar
+# Supports arithmetic operations with proper precedence and associativity
+# Demonstrates expression parsing and evaluation
+
+start expr;
+
+# Expression grammar with precedence levels
+# expr (lowest precedence: addition/subtraction)
+# term (multiplication/division)
+# factor (exponentiation)
+# atom (highest precedence: numbers, variables, parentheses)
+
+expr --> term;
+expr --> expr '+' term;
+expr --> expr '-' term;
+
+term --> factor;
+term --> term '*' factor;
+term --> term '/' factor;
+term --> term '%' factor;
+
+factor --> atom;
+factor --> atom '^' factor;
+factor --> '-' factor;
+factor --> '+' factor;
+
+atom --> number;
+atom --> variable;
+atom --> '(' expr ')';
+atom --> function '(' expr ')';
+atom --> function '(' expr ',' expr ')';
+
+# Functions
+function --> 'sin';
+function --> 'cos';
+function --> 'tan';
+function --> 'sqrt';
+function --> 'abs';
+function --> 'log';
+function --> 'ln';
+function --> 'exp';
+function --> 'pow';
+function --> 'min';
+function --> 'max';
+
+# Lexical rules
+number --> [0-9]+;
+number --> [0-9]+ '.' [0-9]+;
+number --> [0-9]+ '.' [0-9]+ 'e' ('+' | '-')? [0-9]+;
+
+variable --> [a-zA-Z_][a-zA-Z0-9_]*;

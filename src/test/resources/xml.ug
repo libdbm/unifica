@@ -1,0 +1,140 @@
+# XML subset Unification Grammar
+#
+# This grammar uses state-based lexical scanning.
+# States: DEFAULT, CONTENT, ATTRVALUE, CLOSETAG, COMMENT, CDATA
+#
+# State transitions happen at terminals using ==> syntax.
+# Constraints like `where in_state("X")` restrict when rules apply.
+
+start document;
+
+# Document is a single element
+document --> element;
+
+# Element types
+element --> normal_element;
+element --> empty_element;
+
+# Normal element: <name>content</name> or <name ws? attrs>content</name>
+normal_element --> open_bracket tagname close_open content close_tag;
+normal_element --> open_bracket tagname ws attributes close_open content close_tag;
+
+# Empty element: <name/> or <name ws? attrs/>
+empty_element --> open_bracket tagname empty_close;
+empty_element --> open_bracket tagname ws attributes empty_close;
+
+# Opening bracket - just '<'
+# When in CONTENT state, push DEFAULT to parse nested element
+# When already in DEFAULT, no state change needed
+open_bracket --> '<' where in_state("CONTENT") ==> DEFAULT;
+open_bracket --> '<' where in_state("DEFAULT");
+
+# Closing '>' of open tag - pushes CONTENT state
+close_open --> '>' where in_state("DEFAULT") ==> CONTENT;
+
+# Empty close '/>' - pops DEFAULT (back to parent's CONTENT or initial DEFAULT)
+empty_close --> '/>' where in_state("DEFAULT") ==> _;
+
+# Closing tag: </name>
+close_tag --> close_open_bracket tagname close_bracket;
+
+# '</' opens a closing tag - pushes CLOSETAG state
+close_open_bracket --> '</' where in_state("CONTENT") ==> CLOSETAG;
+
+# '>' at end of close tag - pops CLOSETAG then CONTENT
+# (lexer can only pop once, so we rely on parser to handle the rest)
+close_bracket --> '>' where in_state("CLOSETAG") ==> _;
+
+# Tag names: alphanumeric with hyphens/underscores
+# Matches in DEFAULT (open tag) or CLOSETAG (close tag) states
+tagname --> [a-zA-Z][a-zA-Z0-9_\-]* where in_state("DEFAULT");
+tagname --> [a-zA-Z][a-zA-Z0-9_\-]* where in_state("CLOSETAG");
+
+# Whitespace between elements in DEFAULT state (between tagname and attributes)
+ws --> [ \t\n\r]+ where in_state("DEFAULT");
+
+# Attributes: one or more attribute (with optional whitespace between)
+attributes --> ws? attribute ws_attr*;
+ws_attr --> ws attribute;
+
+# Attribute: name="value"
+attribute --> attrname '=' attrvalue;
+
+attrname --> [a-zA-Z][a-zA-Z0-9_\-]*;
+
+# Attribute value: quoted string with state transitions
+attrvalue --> open_quote stringcontent close_quote;
+attrvalue --> open_quote close_quote;
+
+# Quote handling with state transitions
+# open_quote only in DEFAULT state (not in ATTRVALUE or CONTENT)
+open_quote --> '"' where in_state("DEFAULT") ==> ATTRVALUE;
+close_quote --> '"' where in_state("ATTRVALUE") ==> _;
+
+# String content inside attribute values - only in ATTRVALUE state
+stringcontent --> stringpart+;
+
+# String parts: text or references (excludes " < &)
+# Only active in ATTRVALUE state
+stringpart --> [^"<&]+ where in_state("ATTRVALUE");
+stringpart --> char_ref where in_state("ATTRVALUE");
+stringpart --> entity_ref where in_state("ATTRVALUE");
+
+# Content: mixed content (text and/or elements in any order)
+# Only active in CONTENT state
+content --> content_item+ where in_state("CONTENT");
+
+# Content item: text, nested element, comment, or CDATA
+content_item --> textcontent where in_state("CONTENT");
+content_item --> element where in_state("CONTENT");
+content_item --> comment where in_state("CONTENT");
+content_item --> cdata_section where in_state("CONTENT");
+
+# Text content: plain text and references
+textcontent --> textpart+;
+
+# Text parts: text or references (excludes < &)
+# Only active in CONTENT state
+textpart --> [^<&]+ where in_state("CONTENT");
+textpart --> char_ref where in_state("CONTENT");
+textpart --> entity_ref where in_state("CONTENT");
+
+# Character references: &#65; (decimal) or &#x41; (hexadecimal)
+char_ref --> '&#' [0-9]+ ';';
+char_ref --> '&#x' [0-9a-fA-F]+ ';';
+char_ref --> '&#X' [0-9a-fA-F]+ ';';
+
+# Entity references: &lt; &gt; &amp; &apos; &quot; or custom &name;
+entity_ref --> '&' [a-zA-Z] [a-zA-Z0-9]* ';';
+
+# Comments: <!-- content -->
+# Comment can appear in CONTENT state (inside elements)
+comment --> comment_open comment_text+ comment_close;
+comment --> comment_open comment_close;
+
+# Comment delimiters with state transitions
+comment_open --> '<!--' where in_state("CONTENT") ==> COMMENT;
+comment_close --> '-->' where in_state("COMMENT") ==> _;
+
+# Comment text: matches text that doesn't contain --
+# Pattern: any char except -, or - followed by non-dash char
+comment_text --> [^-]+ where in_state("COMMENT");
+comment_text --> [\-][^->] where in_state("COMMENT");
+comment_text --> '-' where in_state("COMMENT");
+
+# CDATA sections: <![CDATA[ content ]]>
+# CDATA preserves all content exactly, including whitespace and special chars
+cdata_section --> cdata_open cdata_content cdata_close;
+cdata_section --> cdata_open cdata_close;
+
+# CDATA delimiters with state transitions
+cdata_open --> '<![CDATA[' where in_state("CONTENT") ==> CDATA;
+cdata_close --> ']]>' where in_state("CDATA") ==> _;
+
+# CDATA content: matches everything except ]]>
+# Pattern matches: any char except ], or ] not followed by ], or ]] not followed by >
+cdata_content --> cdata_text+;
+cdata_text --> [^\]]+ where in_state("CDATA");
+cdata_text --> [\]][^\]>] where in_state("CDATA");
+cdata_text --> [\]][\]][^>] where in_state("CDATA");
+cdata_text --> ']' where in_state("CDATA");
