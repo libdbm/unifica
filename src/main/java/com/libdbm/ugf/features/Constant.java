@@ -7,15 +7,15 @@ package com.libdbm.ugf.features;
  * callers can distinguish variables and structured values from atomic constants.
  */
 public sealed interface Constant extends Value
-    permits StringConstant, NumericConstant, BooleanConstant {
+        permits StringConstant, NumericConstant, BooleanConstant {
 
-  @Override
-  default boolean isVariable() {
-    return false;
-  }
+    @Override
+    default boolean isVariable() {
+        return false;
+    }
 
-  @Override
-  default boolean isAtomic() {
-    return true;
-  }
+    @Override
+    default boolean isAtomic() {
+        return true;
+    }
 }

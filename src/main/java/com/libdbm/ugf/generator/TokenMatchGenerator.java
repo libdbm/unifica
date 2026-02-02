@@ -1,6 +1,7 @@
 package com.libdbm.ugf.generator;
 
 import com.libdbm.ugf.features.Value;
+
 import java.util.Map;
 import java.util.Optional;
 
@@ -22,16 +23,16 @@ import java.util.Optional;
 @FunctionalInterface
 public interface TokenMatchGenerator {
 
-  /**
-   * Generate text for a TokenMatch element.
-   *
-   * <p>The bindings map contains any variable bindings accumulated during generation, which may
-   * include constraints on the token's features. The label (if present) can be used to look up
-   * specific feature requirements in the bindings.
-   *
-   * @param label the label associated with this token match (may be null)
-   * @param bindings variable bindings that may constrain the token generation
-   * @return generated text, or empty if generation fails
-   */
-  Optional<String> generate(String label, Map<String, Value> bindings);
+    /**
+     * Generate text for a TokenMatch element.
+     *
+     * <p>The bindings map contains any variable bindings accumulated during generation, which may
+     * include constraints on the token's features. The label (if present) can be used to look up
+     * specific feature requirements in the bindings.
+     *
+     * @param label    the label associated with this token match (may be null)
+     * @param bindings variable bindings that may constrain the token generation
+     * @return generated text, or empty if generation fails
+     */
+    Optional<String> generate(String label, Map<String, Value> bindings);
 }

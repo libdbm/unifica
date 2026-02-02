@@ -20,30 +20,30 @@ import java.util.List;
 @FunctionalInterface
 public interface TokenTransducer {
 
-  /**
-   * Identity transducer that passes tokens through unchanged.
-   *
-   * @return identity transducer
-   */
-  static TokenTransducer identity() {
-    return tokens -> tokens;
-  }
+    /**
+     * Identity transducer that passes tokens through unchanged.
+     *
+     * @return identity transducer
+     */
+    static TokenTransducer identity() {
+        return tokens -> tokens;
+    }
 
-  /**
-   * Transform a token stream.
-   *
-   * @param tokens input tokens
-   * @return transformed tokens (may be same, filtered, or augmented)
-   */
-  List<Token> transduce(List<Token> tokens);
+    /**
+     * Transform a token stream.
+     *
+     * @param tokens input tokens
+     * @return transformed tokens (may be same, filtered, or augmented)
+     */
+    List<Token> transduce(List<Token> tokens);
 
-  /**
-   * Compose this transducer with another.
-   *
-   * @param next the transducer to apply after this one
-   * @return composed transducer
-   */
-  default TokenTransducer andThen(final TokenTransducer next) {
-    return tokens -> next.transduce(this.transduce(tokens));
-  }
+    /**
+     * Compose this transducer with another.
+     *
+     * @param next the transducer to apply after this one
+     * @return composed transducer
+     */
+    default TokenTransducer andThen(final TokenTransducer next) {
+        return tokens -> next.transduce(this.transduce(tokens));
+    }
 }

@@ -15,44 +15,44 @@ import java.util.List;
 @FunctionalInterface
 public interface TokenEnhancer {
 
-  /**
-   * Create an enhancer that does nothing (identity function). Useful as a default or starting point
-   * for pipelines.
-   */
-  static TokenEnhancer identity() {
-    return tokens -> tokens;
-  }
-
-  /**
-   * Create a pipeline from multiple enhancers. Enhancers are applied in order from first to last.
-   *
-   * @param enhancers The enhancers to chain together
-   * @return A single enhancer that applies all in sequence
-   */
-  static TokenEnhancer pipeline(final TokenEnhancer... enhancers) {
-    var result = identity();
-    for (final var enhancer : enhancers) {
-      result = result.andThen(enhancer);
+    /**
+     * Create an enhancer that does nothing (identity function). Useful as a default or starting point
+     * for pipelines.
+     */
+    static TokenEnhancer identity() {
+        return tokens -> tokens;
     }
-    return result;
-  }
 
-  /**
-   * Enhance a list of tokens with additional information. The enhancer may modify tokens in place
-   * or return new token instances.
-   *
-   * @param tokens The tokens to enhance (may be modified in place)
-   * @return The enhanced tokens (may be the same list or a new list)
-   */
-  List<Token> enhance(List<Token> tokens);
+    /**
+     * Create a pipeline from multiple enhancers. Enhancers are applied in order from first to last.
+     *
+     * @param enhancers The enhancers to chain together
+     * @return A single enhancer that applies all in sequence
+     */
+    static TokenEnhancer pipeline(final TokenEnhancer... enhancers) {
+        var result = identity();
+        for (final var enhancer : enhancers) {
+            result = result.andThen(enhancer);
+        }
+        return result;
+    }
 
-  /**
-   * Chain this enhancer with another to form a pipeline. The other enhancer runs after this one.
-   *
-   * @param after The enhancer to run after this one
-   * @return A new enhancer that runs both in sequence
-   */
-  default TokenEnhancer andThen(final TokenEnhancer after) {
-    return tokens -> after.enhance(this.enhance(tokens));
-  }
+    /**
+     * Enhance a list of tokens with additional information. The enhancer may modify tokens in place
+     * or return new token instances.
+     *
+     * @param tokens The tokens to enhance (may be modified in place)
+     * @return The enhanced tokens (may be the same list or a new list)
+     */
+    List<Token> enhance(List<Token> tokens);
+
+    /**
+     * Chain this enhancer with another to form a pipeline. The other enhancer runs after this one.
+     *
+     * @param after The enhancer to run after this one
+     * @return A new enhancer that runs both in sequence
+     */
+    default TokenEnhancer andThen(final TokenEnhancer after) {
+        return tokens -> after.enhance(this.enhance(tokens));
+    }
 }

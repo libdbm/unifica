@@ -8,11 +8,11 @@ package com.libdbm.ugf.grammar.loader;
  */
 public class GrammarSyntaxException extends RuntimeException {
 
-  public GrammarSyntaxException(final String message) {
-    super(message);
-  }
+    public GrammarSyntaxException(final String message) {
+        super(message);
+    }
 
-  public GrammarSyntaxException(final String message, final Throwable cause) {
-    super(message, cause);
-  }
+    public GrammarSyntaxException(final String message, final Throwable cause) {
+        super(message, cause);
+    }
 }

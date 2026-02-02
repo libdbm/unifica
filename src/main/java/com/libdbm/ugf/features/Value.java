@@ -6,12 +6,18 @@ package com.libdbm.ugf.features;
  */
 public sealed interface Value permits Constant, Variable, Structure, Binding, FeaturePath {
 
-  /** Checks if this value is a variable. */
-  boolean isVariable();
+    /**
+     * Checks if this value is a variable.
+     */
+    boolean isVariable();
 
-  /** Checks if this value is atomic. */
-  boolean isAtomic();
+    /**
+     * Checks if this value is atomic.
+     */
+    boolean isAtomic();
 
-  /** Returns a string representation for display. */
-  String display();
+    /**
+     * Returns a string representation for display.
+     */
+    String display();
 }

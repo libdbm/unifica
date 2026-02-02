@@ -2,6 +2,7 @@ package com.libdbm.ugf.parser;
 
 import com.libdbm.ugf.constraints.Constraint;
 import com.libdbm.ugf.features.Structure;
+
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -22,27 +23,33 @@ import java.util.regex.Pattern;
  * </ul>
  */
 public record LexicalRule(
-    Pattern pattern,
-    String text,
-    String name,
-    Structure features,
-    int priority,
-    boolean literal,
-    List<Constraint> constraints,
-    String next) {
+        Pattern pattern,
+        String text,
+        String name,
+        Structure features,
+        int priority,
+        boolean literal,
+        List<Constraint> constraints,
+        String next) {
 
-  /** Create a copy with the given name. */
-  public LexicalRule withCategory(final String cat) {
-    return new LexicalRule(pattern, text, cat, features, priority, literal, constraints, next);
-  }
+    /**
+     * Create a copy with the given name.
+     */
+    public LexicalRule withCategory(final String cat) {
+        return new LexicalRule(pattern, text, cat, features, priority, literal, constraints, next);
+    }
 
-  /** Create a copy with the given features. */
-  public LexicalRule withFeatures(final Structure feat) {
-    return new LexicalRule(pattern, text, name, feat, priority, literal, constraints, next);
-  }
+    /**
+     * Create a copy with the given features.
+     */
+    public LexicalRule withFeatures(final Structure feat) {
+        return new LexicalRule(pattern, text, name, feat, priority, literal, constraints, next);
+    }
 
-  /** Check if this rule has any constraints. */
-  public boolean hasConstraints() {
-    return constraints != null && !constraints.isEmpty();
-  }
+    /**
+     * Check if this rule has any constraints.
+     */
+    public boolean hasConstraints() {
+        return constraints != null && !constraints.isEmpty();
+    }
 }

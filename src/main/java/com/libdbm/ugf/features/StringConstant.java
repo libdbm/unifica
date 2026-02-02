@@ -9,21 +9,21 @@ import java.util.Objects;
  */
 public record StringConstant(String value) implements Constant {
 
-  public StringConstant {
-    Objects.requireNonNull(value, "value must not be null");
-  }
+    public StringConstant {
+        Objects.requireNonNull(value, "value must not be null");
+    }
 
-  public static StringConstant of(final String str) {
-    return new StringConstant(str);
-  }
+    public static StringConstant of(final String str) {
+        return new StringConstant(str);
+    }
 
-  @Override
-  public String display() {
-    return value;
-  }
+    @Override
+    public String display() {
+        return value;
+    }
 
-  @Override
-  public String toString() {
-    return value;
-  }
+    @Override
+    public String toString() {
+        return value;
+    }
 }

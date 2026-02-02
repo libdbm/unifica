@@ -3,6 +3,7 @@ package com.libdbm.ugf.parser;
 import com.libdbm.ugf.constraints.Context;
 import com.libdbm.ugf.grammar.Grammar;
 import com.libdbm.ugf.grammar.GrammarNormalizer;
+
 import java.util.List;
 
 /**
@@ -30,89 +31,105 @@ import java.util.List;
  */
 public final class ParserFactory {
 
-  private final Grammar grammar;
-  private final LexicalAnalyzer lexer;
-  private final TokenEnhancer enhancer;
-  private final ChartParser parser;
+    private final Grammar grammar;
+    private final LexicalAnalyzer lexer;
+    private final TokenEnhancer enhancer;
+    private final ChartParser parser;
 
-  private ParserFactory(
-      final Grammar grammar,
-      final LexicalAnalyzer lexer,
-      final TokenEnhancer enhancer,
-      final ParseObserver observer) {
-    // Normalize grammar once during factory construction
-    this.grammar = GrammarNormalizer.normalize(grammar);
-    this.lexer = lexer;
-    this.enhancer = enhancer;
-    // Create parser with lexer, enhancer, and observer (grammar is already normalized)
-    this.parser = new ChartParser(
-        Utilities.context(), this.grammar, lexer, enhancer, observer);
-  }
+    private ParserFactory(
+            final Grammar grammar,
+            final LexicalAnalyzer lexer,
+            final TokenEnhancer enhancer,
+            final ParseObserver observer) {
+        // Normalize grammar once during factory construction
+        this.grammar = GrammarNormalizer.normalize(grammar);
+        this.lexer = lexer;
+        this.enhancer = enhancer;
+        // Create parser with lexer, enhancer, and observer (grammar is already normalized)
+        this.parser = new ChartParser(
+                Utilities.context(), this.grammar, lexer, enhancer, observer);
+    }
 
-  /** Creates a factory with the given grammar and default lexer. */
-  public static ParserFactory create(final Grammar grammar) {
-    return new ParserFactory(
-        grammar, LexicalAnalyzer.build(grammar), TokenEnhancer.identity(), ParseObserver.NOOP);
-  }
+    /**
+     * Creates a factory with the given grammar and default lexer.
+     */
+    public static ParserFactory create(final Grammar grammar) {
+        return new ParserFactory(
+                grammar, LexicalAnalyzer.build(grammar), TokenEnhancer.identity(), ParseObserver.NOOP);
+    }
 
-  /** Creates a factory with grammar and observer. */
-  public static ParserFactory create(final Grammar grammar, final ParseObserver observer) {
-    return new ParserFactory(
-        grammar, LexicalAnalyzer.build(grammar), TokenEnhancer.identity(), observer);
-  }
+    /**
+     * Creates a factory with grammar and observer.
+     */
+    public static ParserFactory create(final Grammar grammar, final ParseObserver observer) {
+        return new ParserFactory(
+                grammar, LexicalAnalyzer.build(grammar), TokenEnhancer.identity(), observer);
+    }
 
-  /** Creates a factory with grammar, lexer, and enhancer. */
-  public static ParserFactory create(
-      final Grammar grammar, final LexicalAnalyzer lexer, final TokenEnhancer enhancer) {
-    return new ParserFactory(grammar, lexer, enhancer, ParseObserver.NOOP);
-  }
+    /**
+     * Creates a factory with grammar, lexer, and enhancer.
+     */
+    public static ParserFactory create(
+            final Grammar grammar, final LexicalAnalyzer lexer, final TokenEnhancer enhancer) {
+        return new ParserFactory(grammar, lexer, enhancer, ParseObserver.NOOP);
+    }
 
-  /** Creates a factory with grammar, lexer, enhancer, and observer. */
-  public static ParserFactory create(
-      final Grammar grammar,
-      final LexicalAnalyzer lexer,
-      final TokenEnhancer enhancer,
-      final ParseObserver observer) {
-    return new ParserFactory(grammar, lexer, enhancer, observer);
-  }
+    /**
+     * Creates a factory with grammar, lexer, enhancer, and observer.
+     */
+    public static ParserFactory create(
+            final Grammar grammar,
+            final LexicalAnalyzer lexer,
+            final TokenEnhancer enhancer,
+            final ParseObserver observer) {
+        return new ParserFactory(grammar, lexer, enhancer, observer);
+    }
 
-  /**
-   * Parse input text and return full result with diagnostics.
-   *
-   * @param text the input text
-   * @return parse result with tree, penalty, and diagnostics
-   */
-  public ParseResult parse(final String text) {
-    return parser.parse(text);
-  }
+    /**
+     * Parse input text and return full result with diagnostics.
+     *
+     * @param text the input text
+     * @return parse result with tree, penalty, and diagnostics
+     */
+    public ParseResult parse(final String text) {
+        return parser.parse(text);
+    }
 
-  /**
-   * Tokenize text using the grammar-driven lexer.
-   *
-   * @param text the input text
-   * @return token lattice (list of alternatives per position)
-   */
-  public List<List<Token>> tokenize(final String text) {
-    return lexer.tokenizeAmbiguous(new Context(), text);
-  }
+    /**
+     * Tokenize text using the grammar-driven lexer.
+     *
+     * @param text the input text
+     * @return token lattice (list of alternatives per position)
+     */
+    public List<List<Token>> tokenize(final String text) {
+        return lexer.tokenizeAmbiguous(new Context(), text);
+    }
 
-  /** Returns the ChartParser for direct parsing. */
-  public ChartParser parser() {
-    return parser;
-  }
+    /**
+     * Returns the ChartParser for direct parsing.
+     */
+    public ChartParser parser() {
+        return parser;
+    }
 
-  /** Returns the normalized grammar. */
-  public Grammar grammar() {
-    return grammar;
-  }
+    /**
+     * Returns the normalized grammar.
+     */
+    public Grammar grammar() {
+        return grammar;
+    }
 
-  /** Returns the lexical analyzer. */
-  public LexicalAnalyzer lexer() {
-    return lexer;
-  }
+    /**
+     * Returns the lexical analyzer.
+     */
+    public LexicalAnalyzer lexer() {
+        return lexer;
+    }
 
-  /** Returns the token enhancer. */
-  public TokenEnhancer enhancer() {
-    return enhancer;
-  }
+    /**
+     * Returns the token enhancer.
+     */
+    public TokenEnhancer enhancer() {
+        return enhancer;
+    }
 }

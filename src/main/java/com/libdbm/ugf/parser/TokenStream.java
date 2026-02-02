@@ -1,6 +1,7 @@
 package com.libdbm.ugf.parser;
 
 import com.libdbm.ugf.constraints.Context;
+
 import java.util.List;
 import java.util.function.Function;
 
@@ -36,37 +37,37 @@ import java.util.function.Function;
 @FunctionalInterface
 public interface TokenStream {
 
-  /**
-   * Create a TokenStream from a simple tokenizer that returns a flat token list.
-   *
-   * <p>Each token is wrapped in a singleton list (no lexical ambiguity).
-   *
-   * @param simple function that tokenizes text to a flat list
-   * @return TokenStream wrapping the simple tokenizer
-   */
-  static TokenStream from(final Function<String, List<Token>> simple) {
-    return (context, text) -> simple.apply(text).stream().map(List::of).toList();
-  }
+    /**
+     * Create a TokenStream from a simple tokenizer that returns a flat token list.
+     *
+     * <p>Each token is wrapped in a singleton list (no lexical ambiguity).
+     *
+     * @param simple function that tokenizes text to a flat list
+     * @return TokenStream wrapping the simple tokenizer
+     */
+    static TokenStream from(final Function<String, List<Token>> simple) {
+        return (context, text) -> simple.apply(text).stream().map(List::of).toList();
+    }
 
-  /**
-   * Tokenize input text into a lattice of token alternatives.
-   *
-   * <p>Each position in the returned list may have multiple token alternatives. For non-ambiguous
-   * tokenizers, each position should contain a single-element list.
-   *
-   * @param context the constraint evaluation context
-   * @param text the input text to tokenize
-   * @return lattice where each position has one or more token alternatives
-   */
-  List<List<Token>> tokenize(Context context, String text);
+    /**
+     * Tokenize input text into a lattice of token alternatives.
+     *
+     * <p>Each position in the returned list may have multiple token alternatives. For non-ambiguous
+     * tokenizers, each position should contain a single-element list.
+     *
+     * @param context the constraint evaluation context
+     * @param text    the input text to tokenize
+     * @return lattice where each position has one or more token alternatives
+     */
+    List<List<Token>> tokenize(Context context, String text);
 
-  /**
-   * Tokenize without explicit context.
-   *
-   * @param text the input text to tokenize
-   * @return lattice where each position has one or more token alternatives
-   */
-  default List<List<Token>> tokenize(final String text) {
-    return tokenize(Utilities.context(), text);
-  }
+    /**
+     * Tokenize without explicit context.
+     *
+     * @param text the input text to tokenize
+     * @return lattice where each position has one or more token alternatives
+     */
+    default List<List<Token>> tokenize(final String text) {
+        return tokenize(Utilities.context(), text);
+    }
 }

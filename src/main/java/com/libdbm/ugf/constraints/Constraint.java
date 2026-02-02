@@ -15,42 +15,48 @@ import java.util.List;
  * </ul>
  */
 public sealed interface Constraint
-    permits Constraint.And, Constraint.Not, Constraint.Or, Predicate {
+        permits Constraint.And, Constraint.Not, Constraint.Or, Predicate {
 
-  Strength strength();
+    Strength strength();
 
-  int priority();
+    int priority();
 
-  /** Logical conjunction */
-  record And(List<Constraint> conjuncts, Strength strength, int priority) implements Constraint {
-    public And(final List<Constraint> conjuncts) {
-      this(conjuncts, Strength.REQUIRED, 0);
+    /**
+     * Logical conjunction
+     */
+    record And(List<Constraint> conjuncts, Strength strength, int priority) implements Constraint {
+        public And(final List<Constraint> conjuncts) {
+            this(conjuncts, Strength.REQUIRED, 0);
+        }
+
+        public static And defeasible(final List<Constraint> conjuncts, final int priority) {
+            return new And(conjuncts, Strength.DEFEASIBLE, priority);
+        }
     }
 
-    public static And defeasible(final List<Constraint> conjuncts, final int priority) {
-      return new And(conjuncts, Strength.DEFEASIBLE, priority);
-    }
-  }
+    /**
+     * Logical disjunction
+     */
+    record Or(List<Constraint> disjuncts, Strength strength, int priority) implements Constraint {
+        public Or(final List<Constraint> disjuncts) {
+            this(disjuncts, Strength.REQUIRED, 0);
+        }
 
-  /** Logical disjunction */
-  record Or(List<Constraint> disjuncts, Strength strength, int priority) implements Constraint {
-    public Or(final List<Constraint> disjuncts) {
-      this(disjuncts, Strength.REQUIRED, 0);
-    }
-
-    public static Or defeasible(final List<Constraint> disjuncts, final int priority) {
-      return new Or(disjuncts, Strength.DEFEASIBLE, priority);
-    }
-  }
-
-  /** Logical negation */
-  record Not(Constraint constraint, Strength strength, int priority) implements Constraint {
-    public Not(final Constraint constraint) {
-      this(constraint, Strength.REQUIRED, 0);
+        public static Or defeasible(final List<Constraint> disjuncts, final int priority) {
+            return new Or(disjuncts, Strength.DEFEASIBLE, priority);
+        }
     }
 
-    public static Not defeasible(final Constraint constraint, final int priority) {
-      return new Not(constraint, Strength.DEFEASIBLE, priority);
+    /**
+     * Logical negation
+     */
+    record Not(Constraint constraint, Strength strength, int priority) implements Constraint {
+        public Not(final Constraint constraint) {
+            this(constraint, Strength.REQUIRED, 0);
+        }
+
+        public static Not defeasible(final Constraint constraint, final int priority) {
+            return new Not(constraint, Strength.DEFEASIBLE, priority);
+        }
     }
-  }
 }
