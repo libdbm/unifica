@@ -19,8 +19,9 @@ import java.util.Objects;
  * derivation path are considered equivalent for the purposes of continuing the parse.
  *
  * <p>When multiple derivations with equal penalty exist (structural ambiguity), the {@code
- * alternatives} field stores additional derivation paths. Use {@link #allDerivations()} to
- * enumerate all valid parse trees.
+ * alternatives} field stores the additional derivation paths, and {@code ambiguous} is set. The mark
+ * is inherited by every item built from an ambiguous one, so a tie deep inside a constituent
+ * reaches the complete parse.
  */
 record Item(
         GrammarRule rule,
@@ -29,7 +30,8 @@ record Item(
         List<ParseTree> children,
         Structure features,
         int penalty,
-        List<List<ParseTree>> alternatives) {
+        List<List<ParseTree>> alternatives,
+        boolean ambiguous) {
 
     /**
      * Canonical constructor adds validation and defensive copying to keep Items immutable and safe
@@ -74,7 +76,7 @@ record Item(
             final int origin,
             final List<ParseTree> children,
             final Structure features) {
-        this(rule, dot, origin, children, features, 0, List.of());
+        this(rule, dot, origin, children, features, 0, List.of(), false);
     }
 
     /**
@@ -87,7 +89,21 @@ record Item(
             final List<ParseTree> children,
             final Structure features,
             final int penalty) {
-        this(rule, dot, origin, children, features, penalty, List.of());
+        this(rule, dot, origin, children, features, penalty, List.of(), false);
+    }
+
+    /**
+     * Constructor with penalty and an inherited ambiguity mark but no alternatives.
+     */
+    Item(
+            final GrammarRule rule,
+            final int dot,
+            final int origin,
+            final List<ParseTree> children,
+            final Structure features,
+            final int penalty,
+            final boolean ambiguous) {
+        this(rule, dot, origin, children, features, penalty, List.of(), ambiguous);
     }
 
     /**
@@ -110,7 +126,14 @@ record Item(
     Item withAlternative(final List<ParseTree> alt) {
         final var alts = new ArrayList<>(alternatives);
         alts.add(alt);
-        return new Item(rule, dot, origin, children, features, penalty, List.copyOf(alts));
+        return new Item(rule, dot, origin, children, features, penalty, List.copyOf(alts), true);
+    }
+
+    /**
+     * This item marked ambiguous, because an item it was built from is.
+     */
+    Item mark() {
+        return new Item(rule, dot, origin, children, features, penalty, alternatives, true);
     }
 
     @Override

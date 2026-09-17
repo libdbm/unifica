@@ -339,4 +339,113 @@ class ParseDiagnosticsTests {
       assertThrows(UnsupportedOperationException.class, () -> issues.clear());
     }
   }
+
+  @Nested
+  @DisplayName("Span threading")
+  class SpanThreading {
+
+    @Test
+    @DisplayName("legacy 5-arg constraint failure carries null span")
+    void legacy_constraint_null_span() {
+      final var constraint = Predicate.of("eq", List.of());
+      diagnostics.recordConstraintFailure("r", constraint, "why", 3, true);
+      assertNull(diagnostics.constraintFailures().getFirst().span());
+    }
+
+    @Test
+    @DisplayName("new span overload preserves character offsets")
+    void constraint_span_preserved() {
+      final var constraint = Predicate.of("eq", List.of());
+      final var span = new ParseDiagnostics.Span(2, 7, 12);
+      diagnostics.recordConstraintFailure("r", constraint, "why", 2, true, span);
+      assertEquals(span, diagnostics.constraintFailures().getFirst().span());
+    }
+
+    @Test
+    @DisplayName("unification failure span carries token offsets")
+    void unification_span() {
+      final var span = new ParseDiagnostics.Span(1, 4, 7);
+      diagnostics.recordUnificationFailure(
+          "NP", new Structure(), new Structure(), new Structure(), "conflict", 1, span);
+      assertEquals(span, diagnostics.unificationFailures().getFirst().span());
+    }
+
+    @Test
+    @DisplayName("report includes char offsets when span is present")
+    void report_includes_char_offsets() {
+      final var constraint = Predicate.of("eq", List.of());
+      final var span = new ParseDiagnostics.Span(2, 7, 12);
+      diagnostics.recordConstraintFailure("r", constraint, "why", 2, true, span);
+      final var report = diagnostics.generateReport();
+      assertTrue(report.contains("chars 7..12"), "report should mention char range: " + report);
+    }
+  }
+
+  @Nested
+  @DisplayName("Parse lattice")
+  class LatticeRecording {
+
+    @Test
+    @DisplayName("records and returns lattice snapshot")
+    void records_lattice() {
+      final var span = new ParseDiagnostics.Span(0, 0, 3);
+      final var item =
+          new ParseDiagnostics.LatticeItem(
+              "S → NP • VP", 1, 0, 0, ParseDiagnostics.State.ACTIVE, "{}");
+      final var failure =
+          new ParseDiagnostics.PathFailure(
+              item, span, "blocked waiting for VP", ParseDiagnostics.FailureKind.DEAD_END);
+      final var column =
+          new ParseDiagnostics.Column(
+              1, span, List.of(item), List.of("VP"), List.of(failure));
+      final var lattice = new ParseDiagnostics.ParseLattice(List.of(column), 1, span);
+
+      diagnostics.recordLattice(lattice);
+
+      assertEquals(lattice, diagnostics.lattice());
+      assertEquals(1, diagnostics.lattice().allFailures().size());
+      assertTrue(diagnostics.hasFailures(), "lattice presence implies failures");
+    }
+
+    @Test
+    @DisplayName("lattice render produces structured section")
+    void lattice_render() {
+      final var span = new ParseDiagnostics.Span(1, 4, 7);
+      final var item =
+          new ParseDiagnostics.LatticeItem(
+              "S → NP • VP", 1, 0, 0, ParseDiagnostics.State.ACTIVE, "{}");
+      final var failure =
+          new ParseDiagnostics.PathFailure(
+              item, span, "blocked waiting for VP", ParseDiagnostics.FailureKind.DEAD_END);
+      final var column =
+          new ParseDiagnostics.Column(
+              1, span, List.of(item), List.of("VP"), List.of(failure));
+      final var lattice = new ParseDiagnostics.ParseLattice(List.of(column), 1, span);
+
+      final var rendered = lattice.render();
+
+      assertTrue(rendered.contains("=== Parse Lattice ==="));
+      assertTrue(rendered.contains("Furthest progress: column 1"));
+      assertTrue(rendered.contains("expected: VP"));
+      assertTrue(rendered.contains("[DEAD_END]"));
+      assertTrue(rendered.contains("chars 4..7"));
+    }
+
+    @Test
+    @DisplayName("generateReport includes lattice section when present")
+    void report_contains_lattice_section() {
+      final var span = new ParseDiagnostics.Span(0, 0, 0);
+      final var lattice =
+          new ParseDiagnostics.ParseLattice(
+              List.of(
+                  new ParseDiagnostics.Column(
+                      0, span, List.of(), List.of(), List.of())),
+              0,
+              span);
+      diagnostics.recordLattice(lattice);
+
+      final var report = diagnostics.generateReport();
+      assertTrue(report.contains("=== Parse Lattice ==="));
+    }
+  }
 }

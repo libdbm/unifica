@@ -7,10 +7,19 @@ import java.util.Optional;
  *
  * <p>A penalty of 0 indicates a perfect parse with no soft constraint violations. Higher penalties
  * indicate more or more severe soft constraint violations.
+ *
+ * <p>{@code ambiguous} is true when two or more distinct derivations share the lowest penalty. The
+ * penalties could not rank them, so {@code tree} is one of them chosen arbitrarily; a caller that
+ * must not guess should refuse the parse.
  */
-public record ParseResult(ParseTree tree, int penalty, ParseDiagnostics diagnostics) {
+public record ParseResult(
+        ParseTree tree, int penalty, ParseDiagnostics diagnostics, boolean ambiguous) {
+    public ParseResult(final ParseTree tree, final int penalty, final ParseDiagnostics diagnostics) {
+        this(tree, penalty, diagnostics, false);
+    }
+
     public ParseResult(final ParseTree tree, final int penalty) {
-        this(tree, penalty, null);
+        this(tree, penalty, null, false);
     }
 
     /**

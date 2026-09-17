@@ -8,6 +8,7 @@ import com.libdbm.ugf.grammar.Grammar;
 import com.libdbm.ugf.grammar.GrammarNormalizer;
 import com.libdbm.ugf.grammar.GrammarRule;
 import com.libdbm.ugf.grammar.RuleElement;
+import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -462,6 +463,391 @@ class ChartParserTests {
 
       final var report = result.diagnostics().generateReport();
       assertTrue(report.contains("Feature Unification Failures"), "Report should include unification failures section");
+    }
+  }
+
+  @Nested
+  @DisplayName("Parse lattice diagnostics")
+  class LatticeDiagnostics {
+
+    @Test
+    @DisplayName("Failed parse records a lattice with a DEAD_END failure")
+    void records_dead_end() {
+      // S --> 'a' 'b' 'c'; input 'a b' is a prefix that can't complete.
+      final var grammar =
+          Grammar.builder()
+              .start("S")
+              .add(
+                  new GrammarRule(
+                      "S",
+                      List.of(
+                          new RuleElement.Terminal("a"),
+                          new RuleElement.Terminal("b"),
+                          new RuleElement.Terminal("c"))))
+              .build();
+
+      final var parser = new ChartParser(grammar);
+      final var result = parser.parse("a b");
+
+      assertFalse(result.success(), "truncated input must fail");
+      final var lattice = result.diagnostics().lattice();
+      assertNotNull(lattice, "failed parse must carry a lattice");
+
+      final var deadEnds =
+          lattice.allFailures().stream()
+              .filter(f -> f.kind() == ParseDiagnostics.FailureKind.DEAD_END)
+              .toList();
+      assertFalse(deadEnds.isEmpty(), "must report at least one DEAD_END: " + lattice.render());
+      final var first = deadEnds.getFirst();
+      assertTrue(
+          first.reason().contains("'c'"),
+          "reason should mention the expected terminal: " + first.reason());
+    }
+
+    @Test
+    @DisplayName("Lattice furthest-progress column matches the farthest token consumed")
+    void furthest_progress() {
+      final var grammar =
+          Grammar.builder()
+              .start("S")
+              .add(
+                  new GrammarRule(
+                      "S",
+                      List.of(
+                          new RuleElement.Terminal("a"),
+                          new RuleElement.Terminal("b"),
+                          new RuleElement.Terminal("c"))))
+              .build();
+
+      final var parser = new ChartParser(grammar);
+      final var result = parser.parse("a b");
+
+      final var lattice = result.diagnostics().lattice();
+      // After scanning 'a' and 'b', the chart has progressed to column 2 (dot before 'c').
+      assertEquals(2, lattice.furthestColumn(), "expected to reach column 2 after 2 tokens");
+      assertNotNull(lattice.furthestSpan(), "furthest span should be populated");
+    }
+
+    @Test
+    @DisplayName("Unification-failure span carries real character offsets")
+    void unification_span_has_char_offsets() {
+      final var sg = Structure.builder().with("num", "sg").build();
+      final var pl = Structure.builder().with("num", "pl").build();
+      final var agreement = Structure.builder().with("num", Variable.of("n")).build();
+
+      final var grammar =
+          Grammar.builder()
+              .start("S")
+              .add(
+                  new GrammarRule(
+                      "S",
+                      List.of(
+                          new RuleElement.Nonterminal("NP", null, agreement),
+                          new RuleElement.Nonterminal("VP", null, agreement))))
+              .add(
+                  new GrammarRule(
+                      new GrammarRule.LHS("NP", sg),
+                      List.of(new RuleElement.Terminal("cat")),
+                      List.of()))
+              .add(
+                  new GrammarRule(
+                      new GrammarRule.LHS("VP", pl),
+                      List.of(new RuleElement.Terminal("run")),
+                      List.of()))
+              .build();
+
+      final var parser = new ChartParser(grammar);
+      final var result = parser.parse("cat run");
+
+      final var failure = result.diagnostics().unificationFailures().getFirst();
+      assertNotNull(failure.span(), "unification failure should carry a span");
+      // 'run' starts at char 4 and ends at char 7 in "cat run"
+      assertEquals(4, failure.span().charStart());
+      assertEquals(7, failure.span().charEnd());
+    }
+
+    @Test
+    @DisplayName("Constraint failure contributes a CONSTRAINT entry to the lattice")
+    void constraint_failure_in_lattice() {
+      final var grammar =
+          Grammar.builder()
+              .start("S")
+              .add(new GrammarRule("WORD", List.of(new RuleElement.Terminal("test"))))
+              .add(
+                  new GrammarRule(
+                      "S",
+                      List.of(new RuleElement.Nonterminal("WORD")),
+                      List.of(
+                          new com.libdbm.ugf.constraints.Predicate(
+                              "always_fails",
+                              List.of(),
+                              com.libdbm.ugf.constraints.Strength.REQUIRED,
+                              0))))
+              .build();
+
+      final var context =
+          new com.libdbm.ugf.constraints.Context()
+              .withPredicate(
+                  "always_fails",
+                  (ctx, args) -> com.libdbm.ugf.constraints.Result.fail("nope"));
+
+      final var parser = new ChartParser(context, grammar, LexicalAnalyzer.build(grammar));
+      final var result = parser.parse("test");
+
+      assertFalse(result.success());
+      final var lattice = result.diagnostics().lattice();
+      assertNotNull(lattice);
+      final var hasConstraint =
+          lattice.allFailures().stream()
+              .anyMatch(f -> f.kind() == ParseDiagnostics.FailureKind.CONSTRAINT);
+      assertTrue(
+          hasConstraint,
+          "lattice should contain a CONSTRAINT path failure: " + lattice.render());
+    }
+
+    @Test
+    @DisplayName("Successful parse does not record a lattice")
+    void success_has_no_lattice() {
+      final var grammar =
+          Grammar.builder()
+              .start("S")
+              .add(new GrammarRule("S", List.of(new RuleElement.Terminal("a"))))
+              .build();
+
+      final var parser = new ChartParser(grammar);
+      final var result = parser.parse("a");
+
+      assertTrue(result.success());
+      assertNull(
+          result.diagnostics().lattice(),
+          "successful parse should not pay the lattice-snapshot cost");
+    }
+
+    @Test
+    @DisplayName("Report includes parse lattice section on failure")
+    void report_includes_lattice_on_failure() {
+      final var grammar =
+          Grammar.builder()
+              .start("S")
+              .add(
+                  new GrammarRule(
+                      "S",
+                      List.of(
+                          new RuleElement.Terminal("a"), new RuleElement.Terminal("b"))))
+              .build();
+
+      final var parser = new ChartParser(grammar);
+      final var result = parser.parse("a");
+
+      final var report = result.diagnostics().generateReport();
+      assertTrue(report.contains("=== Parse Lattice ==="), "report: " + report);
+      assertTrue(report.contains("Furthest progress"), "report: " + report);
+    }
+  }
+
+  @Nested
+  @DisplayName("Ambiguity")
+  class Ambiguity {
+
+    private static final String NESTED =
+        """
+        start s;
+        s --> y 'z';
+        y --> x x;
+        x --> 'a';
+        x --> 'a' 'a';
+        """;
+
+    private ParseResult parse(final String grammar, final String input) {
+      return new ChartParser(UnificationGrammarParserFactory.parse(grammar)).parse(input);
+    }
+
+    @Test
+    @DisplayName("two derivations of the whole input at the same penalty are ambiguous")
+    void testTopLevelTieIsAmbiguous() {
+      final var result =
+          parse(
+              """
+              start s;
+              s --> x x;
+              x --> 'a';
+              x --> 'a' 'a';
+              """,
+              "a a a");
+
+      assertTrue(result.success());
+      assertTrue(result.ambiguous(), "(a)(a a) and (a a)(a) tie");
+    }
+
+    @Test
+    @DisplayName("a tie inside a constituent makes the whole parse ambiguous")
+    void testNestedTieIsAmbiguous() {
+      final var result = parse(NESTED, "a a a z");
+
+      assertTrue(result.success());
+      assertTrue(result.ambiguous(), "the tie is inside y, below the start symbol");
+    }
+
+    @Test
+    @DisplayName("diagnostics name the constituent where the tie arose")
+    void testDiagnosticsNameTheTie() {
+      final var result = parse(NESTED, "a a a z");
+
+      final var ambiguities = result.diagnostics().ambiguities();
+      assertFalse(ambiguities.isEmpty(), "an ambiguous parse must say where");
+      assertEquals("y", ambiguities.getFirst().symbol());
+      assertTrue(
+          result.diagnostics().generateReport().contains("=== Ambiguities ==="),
+          result.diagnostics().generateReport());
+    }
+
+    @Test
+    @DisplayName("two lexical rules matching the same word do not make one derivation look like two")
+    void testSharedLiteralIsNotAmbiguous() {
+      final var result =
+          parse(
+              """
+              start s;
+              s --> y;
+              x --> 'a';
+              y --> 'a';
+              """,
+              "a");
+
+      assertTrue(result.success());
+      assertFalse(result.ambiguous(), () -> result.diagnostics().generateReport());
+    }
+
+    @Test
+    @DisplayName("a tie the penalties break is not ambiguous")
+    void testPenaltyBreaksTheTie() {
+      final var result =
+          parse(
+              """
+              start s;
+              s --> x y;
+              x --> 'a';
+              x --> 'a' 'a' where equals("p", "q"):50;
+              y --> 'a';
+              y --> 'a' 'a';
+              """,
+              "a a a");
+
+      assertTrue(result.success());
+      assertFalse(
+          result.ambiguous(),
+          () ->
+              "(a a)(a) costs 50, so (a)(a a) wins outright; penalty "
+                  + result.penalty()
+                  + "\n"
+                  + result.diagnostics().generateReport());
+      assertEquals(0, result.penalty());
+    }
+
+    @Test
+    @DisplayName("start items that differ only in their features are ambiguous")
+    void testFeatureTieIsAmbiguous() {
+      final var grammar =
+          Grammar.builder()
+              .start("S")
+              .add(new GrammarRule("S", List.of(new RuleElement.Terminal("a"))))
+              .add(
+                  new GrammarRule(
+                      new GrammarRule.LHS("S", Structure.builder().with("kind", "other").build()),
+                      List.of(new RuleElement.Terminal("a")),
+                      List.of()))
+              .build();
+
+      final var result = new ChartParser(grammar).parse("a");
+
+      assertTrue(result.success());
+      assertTrue(result.ambiguous());
+    }
+
+    @Test
+    @DisplayName("a grammar with one derivation is not ambiguous")
+    void testSingleDerivationIsNotAmbiguous() {
+      final var result =
+          parse(
+              """
+              start s;
+              s --> x 'b';
+              x --> 'a';
+              """,
+              "a b");
+
+      assertTrue(result.success());
+      assertFalse(result.ambiguous());
+      assertTrue(result.diagnostics().ambiguities().isEmpty());
+    }
+  }
+
+  @Nested
+  @DisplayName("Constraint penalties")
+  class Penalties {
+
+    private ParseResult parse(final String grammar, final String input) {
+      return new ChartParser(UnificationGrammarParserFactory.parse(grammar)).parse(input);
+    }
+
+    @Test
+    @DisplayName("a rule over terminals pays its penalty once")
+    void testTerminalRulePaysOnce() {
+      final var result =
+          parse(
+              """
+              start s;
+              s --> x;
+              x --> 'a' 'a' where equals("p", "q"):50;
+              """,
+              "a a");
+
+      assertEquals(50, result.penalty());
+    }
+
+    @Test
+    @DisplayName("a rule over nonterminals pays its penalty once")
+    void testNonterminalRulePaysOnce() {
+      final var result =
+          parse(
+              """
+              start s;
+              s --> x;
+              x --> z z where equals("p", "q"):50;
+              z --> 'a';
+              """,
+              "a a");
+
+      assertEquals(50, result.penalty());
+    }
+
+    @Test
+    @DisplayName("the start rule pays its own penalty when completed by a token")
+    void testStartRulePaysWhenScanned() {
+      final var result =
+          parse(
+              """
+              start s;
+              s --> 'a' where equals("p", "q"):30;
+              """,
+              "a");
+
+      assertEquals(30, result.penalty());
+    }
+
+    @Test
+    @DisplayName("the start rule pays its own penalty when completed by a constituent")
+    void testStartRulePaysWhenCompleted() {
+      final var result =
+          parse(
+              """
+              start s;
+              s --> x where equals("p", "q"):30;
+              x --> 'a';
+              """,
+              "a");
+
+      assertEquals(30, result.penalty());
     }
   }
 }

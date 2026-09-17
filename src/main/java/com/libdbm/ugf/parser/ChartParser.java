@@ -64,6 +64,12 @@ public final class ChartParser {
     private ParseDiagnostics diagnostics;
 
     /**
+     * Token lattice for current parse (reset at start of each parse). Used to attach character
+     * spans to failure records.
+     */
+    private List<List<Token>> currentTokens;
+
+    /**
      * Creates a parser with full configuration.
      *
      * <p>Use this constructor when you need to register custom predicates before parsing. The context
@@ -173,6 +179,7 @@ public final class ChartParser {
 
         // Initialize fresh diagnostics for this parse
         diagnostics = new ParseDiagnostics();
+        currentTokens = lattice;
 
         // Re-register parser's state predicates (lexer may have overwritten them)
         context.withPredicate("in_state", (ctx, args) -> Result.ok());
@@ -227,7 +234,7 @@ public final class ChartParser {
             observer.onPosition(new ParseEvents.Position(i, items, complete, items.size() - complete));
         }
 
-        final var result = extract(chart, n, start);
+        final var result = extract(chart, lattice, n, start);
 
         // Emit End event
         observer.onEnd(new ParseEvents.End(result, Duration.between(begin, Instant.now())));
@@ -255,7 +262,21 @@ public final class ChartParser {
             }
 
             final var features = rule.lhs().features().copy();
-            final var item = new Item(rule, 0, pos, List.of(), features, result.penalty());
+            var item = new Item(rule, 0, pos, List.of(), features, result.penalty());
+
+            // An empty rule is complete as soon as it is predicted, so its own constraints are checked
+            // now; every other item is checked when a token or a constituent completes it.
+            if (item.complete()) {
+                final var own = own(item, pos);
+                if (!own.passed()) {
+                    LOGGER.debug("Predict[{}]: REJECTED empty {} - {}", pos, rule.lhs().symbol(), own.reason());
+                    observer.onPredict(new ParseEvents.Predict(pos, nt, rule, false, own.reason(), null));
+                    continue;
+                }
+                if (own.penalty() > 0) {
+                    item = new Item(rule, 0, pos, List.of(), features, item.penalty() + own.penalty());
+                }
+            }
 
             final var added = cell.add(item);
             if (added) {
@@ -288,9 +309,18 @@ public final class ChartParser {
                     case RuleElement.TokenMatch tm -> true; // Always include text for TokenMatch
                     default -> false;
                 };
+        // A literal or regex matched the token's text, so the category the lexer attached (the name of
+        // whichever lexical rule produced the token) says nothing about this match. Copying it would
+        // make the same derivation look like two whenever two lexical rules match the same text.
+        final var literal = !(next instanceof RuleElement.TokenMatch);
         if (labeled) {
             // Build features structure with text for constraint access
-            final var features = token.features().copy();
+            final var features = new Structure();
+            for (final var key : token.features().keys()) {
+                if (!(literal && "cat".equals(key))) {
+                    features.set(key, token.features().get(key));
+                }
+            }
             features.set("text", new StringConstant(token.text()));
             leaf = new ParseTree.Leaf(token.text(), token.start(), token.end(), features);
         } else {
@@ -301,7 +331,7 @@ public final class ChartParser {
         // Merge token features into item features (excluding internal _penalty)
         final var features = item.features().copy();
         for (final var key : token.features().keys()) {
-            if (!key.startsWith("_")) {
+            if (!key.startsWith("_") && !(literal && "cat".equals(key))) {
                 features.set(key, token.features().get(key));
             }
         }
@@ -313,8 +343,43 @@ public final class ChartParser {
             penalty += nc.value().intValue();
         }
 
-        final var advanced =
-                new Item(item.rule(), item.dot() + 1, item.origin(), children, features, penalty);
+        var advanced =
+                new Item(
+                        item.rule(), item.dot() + 1, item.origin(), children, features, penalty, item.ambiguous());
+
+        // A token that completes the item: its own constraints are checked now, as for an item
+        // completed by a constituent, so the item carries its own penalty. The exception is a token
+        // the lexer produced from this very rule, whose penalty the token already carries.
+        if (advanced.complete() && !lexical(advanced, token)) {
+            final var own = own(advanced, pos + 1);
+            if (!own.passed()) {
+                LOGGER.debug("Scan[{}]: REJECTED {} - {}", pos, advanced.rule().lhs().symbol(), own.reason());
+                final var constraints = advanced.rule().constraints();
+                if (diagnostics != null && constraints != null && !constraints.isEmpty()) {
+                    diagnostics.recordConstraintFailure(
+                            advanced.rule().lhs().symbol(),
+                            constraints.getFirst(),
+                            own.reason(),
+                            pos + 1,
+                            true,
+                            spanAt(pos));
+                }
+                chart.get(pos + 1).reject(advanced, "constraint failed: " + own.reason());
+                observer.onScan(new ParseEvents.Scan(pos, item, token, true, leaf, null));
+                return;
+            }
+            if (own.penalty() > 0) {
+                advanced =
+                        new Item(
+                                advanced.rule(),
+                                advanced.dot(),
+                                advanced.origin(),
+                                advanced.children(),
+                                advanced.features(),
+                                advanced.penalty() + own.penalty(),
+                                advanced.ambiguous());
+            }
+        }
 
         final var added = chart.get(pos + 1).add(advanced);
         if (added) {
@@ -369,7 +434,12 @@ public final class ChartParser {
                         constraints.stream()
                                 .anyMatch(c -> c.strength() == com.libdbm.ugf.constraints.Strength.REQUIRED);
                 diagnostics.recordConstraintFailure(
-                        completed.rule().lhs().symbol(), constraints.getFirst(), result.reason(), pos, isHard);
+                        completed.rule().lhs().symbol(),
+                        constraints.getFirst(),
+                        result.reason(),
+                        pos,
+                        isHard,
+                        spanAt(pos));
                 LOGGER.debug("Complete[{}]: Recorded constraint failure for {}", pos, symbol);
             }
             observer.onComplete(new ParseEvents.Complete(pos, completed, List.of(), List.of(), result));
@@ -417,14 +487,17 @@ public final class ChartParser {
                             completed.features(),
                             nt.features(),
                             unify.reason(),
-                            pos);
+                            pos,
+                            spanBetween(completed.origin(), pos));
                 }
                 continue;
             }
             final var unified = unify.structure();
 
             final var children = append(wait.children(), node);
-            var advPenalty = wait.penalty() + completed.penalty() + result.penalty();
+            // The completed item already carries the penalty of its own constraints, added when it was
+            // created; adding result.penalty() here as well counted it twice.
+            var advPenalty = wait.penalty() + completed.penalty();
             final var adv =
                     new Item(
                             wait.rule(),
@@ -432,7 +505,8 @@ public final class ChartParser {
                             wait.origin(),
                             children,
                             unified.get(),
-                            advPenalty);
+                            advPenalty,
+                            wait.ambiguous() || completed.ambiguous());
 
             // If advanced item is now complete, check its constraints BEFORE adding to chart
             if (adv.complete()) {
@@ -460,8 +534,10 @@ public final class ChartParser {
                                     advConstraints.getFirst(),
                                     advResult.reason(),
                                     pos,
-                                    true);
+                                    true,
+                                    spanAt(pos));
                         }
+                        cell.reject(adv, "constraint failed: " + advResult.reason());
                         continue;
                     }
                     // Add any penalty from soft constraints
@@ -478,7 +554,8 @@ public final class ChartParser {
                             adv.origin(),
                             adv.children(),
                             adv.features(),
-                            advPenalty)
+                            advPenalty,
+                            adv.ambiguous())
                             : adv;
 
             if (cell.add(finalItem)) {
@@ -489,6 +566,32 @@ public final class ChartParser {
 
         // Emit Complete event
         observer.onComplete(new ParseEvents.Complete(pos, completed, waiting, advanced, result));
+    }
+
+    /**
+     * Whether the lexer has already checked this item's constraints. {@link TerminalExtractor} turns a
+     * rule of literals or regexes into a lexical rule named after it, constraints included, so a
+     * one-element rule scanned from a token of that same name already carries the rule's penalty on
+     * the token. A token match is never lexical: pre-tagged tokens reach the parser unchecked.
+     */
+    private static boolean lexical(final Item item, final Token token) {
+        final var rhs = item.rule().rhs();
+        return rhs.size() == 1
+                && !(rhs.getFirst() instanceof RuleElement.TokenMatch)
+                && token.features().get("cat") instanceof StringConstant(String cat)
+                && cat.equals(item.rule().lhs().symbol());
+    }
+
+    /**
+     * The constraints of a complete item's own rule, checked with its children bound. Every complete
+     * item is checked when it is created and carries the resulting penalty itself, so a parent never
+     * adds it again.
+     */
+    private Result own(final Item item, final int pos) {
+        final var extended = context.extend();
+        extended.withBinding("position", pos);
+        bindChildren(extended, item);
+        return ConstraintChecker.check(extended, item.rule().constraints());
     }
 
     /**
@@ -619,15 +722,33 @@ public final class ChartParser {
 
     /**
      * Extract completed parse tree from chart, selecting lowest penalty parse.
+     *
+     * <p>On failure (no winning item found) builds and records a {@link ParseDiagnostics.ParseLattice}
+     * snapshot into the current diagnostics so callers can inspect every attempted path.
      */
-    private ParseResult extract(final List<ChartCell> chart, final int n, final String start) {
+    private ParseResult extract(
+            final List<ChartCell> chart,
+            final List<List<Token>> tokens,
+            final int n,
+            final String start) {
         LOGGER.debug("Extracting parse tree for start symbol '{}' at position {}", start, n);
         Item best = null;
         int bestPenalty = Integer.MAX_VALUE;
         int candidates = 0;
+        final var valid = new ArrayList<Item>();
+
+        // Per-item rejection reasons collected during extraction; used to attribute failures in
+        // the lattice snapshot if no winner is found.
+        final var extractFailures = new LinkedHashMap<Item, String>();
 
         for (final var item : chart.get(n).items()) {
-            if (!item.complete() || item.origin() != 0 || !item.rule().lhs().symbol().equals(start)) {
+            if (!item.complete() || item.origin() != 0) {
+                continue;
+            }
+            if (!item.rule().lhs().symbol().equals(start)) {
+                extractFailures.put(
+                        item,
+                        "completes '" + item.rule().lhs().symbol() + "' but expected start '" + start + "'");
                 continue;
             }
             candidates++;
@@ -636,16 +757,18 @@ public final class ChartParser {
             // This catches edge cases where constraints weren't properly checked during completion
             final var constraints = item.rule().constraints();
             if (constraints != null && !constraints.isEmpty()) {
-                final var ctx = context.extend();
-                ctx.withBinding("position", n);
-                bindChildren(ctx, item);
-                final var result = ConstraintChecker.check(ctx, constraints);
+                final var extended = context.extend();
+                extended.withBinding("position", n);
+                bindChildren(extended, item);
+                final var result = ConstraintChecker.check(extended, constraints);
                 if (!result.passed()) {
                     LOGGER.debug("Extract: REJECTED {} - {}", item.rule().lhs().symbol(), result.reason());
+                    extractFailures.put(item, "constraint failed: " + result.reason());
                     continue;
                 }
             }
 
+            valid.add(item);
             if (item.penalty() < bestPenalty) {
                 best = item;
                 bestPenalty = item.penalty();
@@ -654,12 +777,313 @@ public final class ChartParser {
 
         if (best == null) {
             LOGGER.debug("No complete parse found (checked {} candidates)", candidates);
+            if (diagnostics != null) {
+                diagnostics.recordLattice(snapshot(chart, tokens, n, start, extractFailures));
+            }
             return new ParseResult(null, 0, diagnostics);
         }
 
         LOGGER.debug("Selected parse from {} candidates with penalty {}", candidates, bestPenalty);
         final var tree = new ParseTree.Node(start, null, best.children(), best.features());
-        return new ParseResult(tree, bestPenalty, diagnostics);
+
+        // Ambiguous when the penalties cannot rank the readings: two start items tie at the lowest
+        // penalty, or the winning item was built from a constituent that had two derivations.
+        final var level = bestPenalty;
+        final var tops = valid.stream().filter(item -> item.penalty() == level).toList();
+        final var ambiguous = tops.size() > 1 || best.ambiguous();
+        if (ambiguous && diagnostics != null) {
+            locate(chart, tree, start, n, tops.size() > 1 ? tops : List.of());
+        }
+        return new ParseResult(tree, bestPenalty, diagnostics, ambiguous);
+    }
+
+    /**
+     * Record where an ambiguous parse had more than one derivation: the start symbol when two start
+     * items tied, and every tied constituent the returned tree contains. A tie in a constituent the
+     * tree does not use is not reported, since it did not make this parse ambiguous.
+     */
+    private void locate(
+            final List<ChartCell> chart,
+            final ParseTree tree,
+            final String start,
+            final int n,
+            final List<Item> tops) {
+        final var nodes = new HashSet<String>();
+        collect(tree, nodes);
+        final var found = new LinkedHashSet<ParseDiagnostics.Ambiguity>();
+        if (!tops.isEmpty()) {
+            final var readings =
+                    tops.stream().map(item -> item.rule() + " " + item.features().display() + " = " + sketch(item.children())).toList();
+            found.add(new ParseDiagnostics.Ambiguity(start, covering(0, n), readings));
+        }
+        for (int column = 0; column < chart.size(); column++) {
+            for (final var item : chart.get(column).ties()) {
+                final var symbol = item.rule().lhs().symbol();
+                final var span = covering(item.origin(), column);
+                if (item.complete() && nodes.contains(key(symbol, span.charStart(), span.charEnd()))) {
+                    final var readings = new ArrayList<String>();
+                    readings.add(item.rule() + " = " + sketch(item.children()));
+                    item.alternatives().forEach(alternative -> readings.add(item.rule() + " = " + sketch(alternative)));
+                    found.add(new ParseDiagnostics.Ambiguity(symbol, span, readings));
+                }
+            }
+        }
+        if (found.isEmpty()) {
+            // No tie sits at a node of the returned tree, which happens when the tie is inside a rule
+            // that had not yet completed: two derivations of its first elements, differing only in
+            // their features. Report every tie, complete or not, so the cause is still visible.
+            for (int column = 0; column < chart.size(); column++) {
+                for (final var item : chart.get(column).ties()) {
+                    final var readings = new ArrayList<String>();
+                    readings.add(item + " = " + sketch(item.children()));
+                    item.alternatives().forEach(alternative -> readings.add(item + " = " + sketch(alternative)));
+                    found.add(
+                            new ParseDiagnostics.Ambiguity(
+                                    item.rule().lhs().symbol(), covering(item.origin(), column), readings));
+                }
+            }
+        }
+        if (found.isEmpty()) {
+            found.add(new ParseDiagnostics.Ambiguity(start, covering(0, n)));
+        }
+        found.forEach(
+                ambiguity ->
+                        diagnostics.recordAmbiguity(ambiguity.symbol(), ambiguity.span(), ambiguity.readings()));
+    }
+
+    /** A short rendering of a derivation: each child with its features, three levels deep. */
+    private static String sketch(final List<ParseTree> children) {
+        return String.join(" ", children.stream().map(child -> sketch(child, 3)).toList());
+    }
+
+    private static String sketch(final ParseTree tree, final int depth) {
+        return switch (tree) {
+            case ParseTree.Leaf leaf -> "'" + leaf.text() + "'";
+            case ParseTree.Node node -> {
+                final var features = node.features().isEmpty() ? "" : node.features().display();
+                if (depth <= 1 || node.children().isEmpty()) {
+                    yield node.symbol() + features;
+                }
+                yield node.symbol()
+                        + features
+                        + "("
+                        + String.join(" ", node.children().stream().map(child -> sketch(child, depth - 1)).toList())
+                        + ")";
+            }
+        };
+    }
+
+    /** Every non-empty node of a tree, keyed by symbol and character span. */
+    private static void collect(final ParseTree tree, final Set<String> nodes) {
+        if (tree instanceof ParseTree.Node node && !node.children().isEmpty()) {
+            nodes.add(key(node.symbol(), node.start(), node.end()));
+            node.children().forEach(child -> collect(child, nodes));
+        }
+    }
+
+    private static String key(final String symbol, final int start, final int end) {
+        return symbol + "@" + start + ".." + end;
+    }
+
+    /**
+     * The characters covered by the tokens from column {@code origin} up to, but not including,
+     * column {@code end}. An empty range is anchored at the start of its column.
+     */
+    private ParseDiagnostics.Span covering(final int origin, final int end) {
+        if (currentTokens == null || end <= origin || origin >= currentTokens.size()) {
+            final var at = currentTokens == null ? null : spanAt(origin);
+            final var offset = at != null ? at.charStart() : 0;
+            return new ParseDiagnostics.Span(origin, offset, offset);
+        }
+        final var first = currentTokens.get(origin);
+        final var last = currentTokens.get(Math.min(end, currentTokens.size()) - 1);
+        final var charStart = first.stream().mapToInt(Token::start).min().orElse(0);
+        final var charEnd = last.stream().mapToInt(Token::end).max().orElse(charStart);
+        return new ParseDiagnostics.Span(origin, charStart, charEnd);
+    }
+
+    /**
+     * Build a lattice snapshot of the failed chart.
+     *
+     * <p>Walks every column of the chart, capturing active, completed and rejected items, the
+     * character span covered by the column, the set of next symbols each active item was still
+     * expecting, and any path-level failures. The final column also contributes failures for every
+     * completed-but-wrong-symbol candidate (from {@code extractFailures}) plus {@code DEAD_END}
+     * entries for partial parses rooted at the start position.
+     */
+    private ParseDiagnostics.ParseLattice snapshot(
+            final List<ChartCell> chart,
+            final List<List<Token>> tokens,
+            final int n,
+            final String start,
+            final Map<Item, String> extractFailures) {
+
+        final var columns = new ArrayList<ParseDiagnostics.Column>(chart.size());
+        int furthest = 0;
+        ParseDiagnostics.Span furthestSpan = columnSpan(tokens, 0, n);
+
+        for (int i = 0; i < chart.size(); i++) {
+            final var cell = chart.get(i);
+            final var span = columnSpan(tokens, i, n);
+
+            final var items = new ArrayList<ParseDiagnostics.LatticeItem>();
+            final var expectedSet = new LinkedHashSet<String>();
+
+            for (final var item : cell.items()) {
+                final var state =
+                        item.complete()
+                                ? ParseDiagnostics.State.COMPLETE
+                                : ParseDiagnostics.State.ACTIVE;
+                items.add(toLatticeItem(item, state));
+                if (!item.complete()) {
+                    expectedSet.add(describe(item.next()));
+                }
+            }
+
+            final var failures = new ArrayList<ParseDiagnostics.PathFailure>();
+
+            for (final var rejected : cell.rejected()) {
+                final var latticeItem = toLatticeItem(rejected.item(), ParseDiagnostics.State.REJECTED);
+                items.add(latticeItem);
+                final var kind =
+                        rejected.reason().startsWith("constraint failed")
+                                ? ParseDiagnostics.FailureKind.CONSTRAINT
+                                : rejected.reason().startsWith("unification failed")
+                                        ? ParseDiagnostics.FailureKind.UNIFICATION
+                                        : ParseDiagnostics.FailureKind.DROPPED;
+                failures.add(
+                        new ParseDiagnostics.PathFailure(latticeItem, span, rejected.reason(), kind));
+            }
+
+            // Final-column attribution: wrong-start, extract-time constraint failures, and dead ends.
+            if (i == n) {
+                for (final var entry : extractFailures.entrySet()) {
+                    final var item = entry.getKey();
+                    final var reason = entry.getValue();
+                    final var kind =
+                            reason.startsWith("constraint failed")
+                                    ? ParseDiagnostics.FailureKind.CONSTRAINT
+                                    : ParseDiagnostics.FailureKind.WRONG_START;
+                    failures.add(
+                            new ParseDiagnostics.PathFailure(
+                                    toLatticeItem(item, ParseDiagnostics.State.COMPLETE), span, reason, kind));
+                }
+                for (final var item : cell.items()) {
+                    if (item.complete() || item.origin() != 0) continue;
+                    final var expected = describe(item.next());
+                    failures.add(
+                            new ParseDiagnostics.PathFailure(
+                                    toLatticeItem(item, ParseDiagnostics.State.ACTIVE),
+                                    span,
+                                    "blocked waiting for " + expected,
+                                    ParseDiagnostics.FailureKind.DEAD_END));
+                }
+            }
+
+            columns.add(
+                    new ParseDiagnostics.Column(
+                            i, span, items, List.copyOf(expectedSet), failures));
+
+            // Furthest = highest column with any non-predicted progress (complete items or items with
+            // dot > 0). Column 0 only has seeded predictions, so it rarely qualifies.
+            final var progressed =
+                    cell.items().stream().anyMatch(item -> item.complete() || item.dot() > 0);
+            if (progressed) {
+                furthest = i;
+                furthestSpan = span;
+            }
+        }
+
+        return new ParseDiagnostics.ParseLattice(columns, furthest, furthestSpan);
+    }
+
+    private ParseDiagnostics.LatticeItem toLatticeItem(
+            final Item item, final ParseDiagnostics.State state) {
+        return new ParseDiagnostics.LatticeItem(
+                item.toString(),
+                item.dot(),
+                item.origin(),
+                item.penalty(),
+                state,
+                item.features().toString());
+    }
+
+    /**
+     * Convenience wrapper that computes a {@link ParseDiagnostics.Span} for the given chart position
+     * against the current parse's token lattice. Returns {@code null} if no lattice is available.
+     */
+    private ParseDiagnostics.Span spanAt(final int pos) {
+        if (currentTokens == null) return null;
+        return columnSpan(currentTokens, pos, currentTokens.size());
+    }
+
+    /**
+     * Build a span that covers the input range consumed between two chart columns (the extent of a
+     * completed item from {@code originColumn} up to but not including {@code endColumn}). Returns
+     * {@code null} if no lattice is available.
+     */
+    private ParseDiagnostics.Span spanBetween(final int originColumn, final int endColumn) {
+        if (currentTokens == null) return null;
+        final var start = columnSpan(currentTokens, originColumn, currentTokens.size());
+        final var end = columnSpan(currentTokens, endColumn, currentTokens.size());
+        final int charStart = start != null ? start.charStart() : 0;
+        int charEnd = end != null ? end.charStart() : charStart;
+        // If endColumn > 0 but columnSpan returned a zero-width end-of-input, use the last real token
+        if (charEnd < charStart) charEnd = charStart;
+        return new ParseDiagnostics.Span(originColumn, charStart, charEnd);
+    }
+
+    /**
+     * Compute the character span covered by a chart column. Column {@code i} represents the state of
+     * the parser <em>before</em> consuming token {@code i}; the returned span is the input range of
+     * the next token (or a zero-width span at the end of input for {@code i == n}).
+     */
+    private ParseDiagnostics.Span columnSpan(
+            final List<List<Token>> tokens, final int index, final int n) {
+        if (tokens.isEmpty()) {
+            return new ParseDiagnostics.Span(index, 0, 0);
+        }
+        if (index < n && index < tokens.size() && !tokens.get(index).isEmpty()) {
+            int start = Integer.MAX_VALUE;
+            int end = Integer.MIN_VALUE;
+            for (final var token : tokens.get(index)) {
+                if (token.start() < start) start = token.start();
+                if (token.end() > end) end = token.end();
+            }
+            return new ParseDiagnostics.Span(index, start, end);
+        }
+        // index == n (end of input) or empty alternatives — anchor at end of last real token
+        int end = 0;
+        for (int j = Math.min(index, tokens.size()) - 1; j >= 0; j--) {
+            if (!tokens.get(j).isEmpty()) {
+                for (final var token : tokens.get(j)) {
+                    if (token.end() > end) end = token.end();
+                }
+                break;
+            }
+        }
+        return new ParseDiagnostics.Span(index, end, end);
+    }
+
+    private String describe(final RuleElement element) {
+        if (element == null) return "<end>";
+        return switch (element) {
+            case RuleElement.Terminal t -> "'" + t.text() + "'";
+            case RuleElement.Regex r -> "[" + r.pattern() + "]";
+            case RuleElement.Nonterminal nt -> nt.name();
+            case RuleElement.Alternation a -> "(alt)";
+            case RuleElement.Repetition r -> describe(r.element()) + quant(r.quantifier());
+            case RuleElement.StateAnnotation s -> "{" + s.state() + "}";
+            case RuleElement.TokenMatch tm -> "{TOKEN}";
+        };
+    }
+
+    private String quant(final RuleElement.Quantifier q) {
+        return switch (q) {
+            case ZERO_OR_MORE -> "*";
+            case ONE_OR_MORE -> "+";
+            case OPTIONAL -> "?";
+        };
     }
 
     /**
@@ -686,18 +1110,36 @@ public final class ChartParser {
     }
 
     /**
+     * An Earley item that was considered but dropped, paired with the reason it was dropped. Used by
+     * the lattice snapshot to surface paths that would otherwise disappear silently.
+     */
+    record RejectedItem(Item item, String reason) {
+    }
+
+    /**
      * Chart cell with penalty-aware item storage.
      *
      * <p>Uses a Map keyed by (rule, dot, origin, features) to ensure only the lowest-penalty item for
      * each parse state is retained. Equal-penalty items are preserved as alternatives for ambiguity
      * detection.
+     *
+     * <p>Items that are dropped — either because a lower-penalty duplicate already exists, or because
+     * an external caller explicitly rejected them via {@link #reject(Item, String)} — are preserved
+     * in a parallel list to support diagnostic lattice snapshots.
      */
     private static final class ChartCell {
         private final Map<ItemKey, Item> items = new LinkedHashMap<>();
         private final List<Item> ordered = new ArrayList<>();
+        private final List<RejectedItem> rejected = new ArrayList<>();
+        private final List<Item> ties = new ArrayList<>();
 
         /**
          * Add an item to the cell.
+         *
+         * <p>The cell holds one item per parse state. {@code ordered} is the processing queue: an item
+         * whose penalty drops, or that becomes ambiguous, is queued again, because items already built
+         * from its earlier version carry the old penalty or lack the mark. Re-processing a derivation
+         * the cell already holds changes nothing, so each state is re-queued a bounded number of times.
          *
          * @return true if item was added, replaced, or merged with existing
          */
@@ -714,31 +1156,67 @@ public final class ChartParser {
             // Replace if new item has lower penalty
             if (item.penalty() < existing.penalty()) {
                 items.put(key, item);
-                // Update ordered list - find and replace
-                for (int i = 0; i < ordered.size(); i++) {
-                    if (ordered.get(i) == existing) {
-                        ordered.set(i, item);
-                        break;
-                    }
-                }
+                requeue(existing, item);
+                rejected.add(new RejectedItem(existing, "replaced by lower-penalty duplicate"));
                 return true;
             }
 
             // Merge as alternative if equal penalty (structural ambiguity)
             if (item.penalty() == existing.penalty()) {
-                // Add item's children as an alternative derivation
-                final var merged = existing.withAlternative(item.children());
+                final var distinct =
+                        !item.children().equals(existing.children())
+                                && !existing.alternatives().contains(item.children());
+                if (!distinct && (!item.ambiguous() || existing.ambiguous())) {
+                    // The same derivation again, with nothing new to say about it
+                    return false;
+                }
+                final var merged = distinct ? existing.withAlternative(item.children()) : existing.mark();
                 items.put(key, merged);
-                for (int i = 0; i < ordered.size(); i++) {
-                    if (ordered.get(i) == existing) {
-                        ordered.set(i, merged);
-                        break;
+                if (existing.ambiguous()) {
+                    replace(existing, merged);
+                } else {
+                    requeue(existing, merged);
+                    if (distinct) {
+                        ties.add(merged);
                     }
                 }
                 return true;
             }
 
+            rejected.add(new RejectedItem(item, "higher penalty than existing duplicate"));
             return false;
+        }
+
+        /** Swap an item for its new version in the queue. */
+        private void replace(final Item existing, final Item replacement) {
+            for (int i = 0; i < ordered.size(); i++) {
+                if (ordered.get(i) == existing) {
+                    ordered.set(i, replacement);
+                    break;
+                }
+            }
+        }
+
+        /** Swap an item for its new version and queue the new version to be processed again. */
+        private void requeue(final Item existing, final Item replacement) {
+            replace(existing, replacement);
+            ordered.add(replacement);
+        }
+
+        /**
+         * The items at which two distinct derivations tied, in the order found, as the cell now holds
+         * them, so alternatives merged after the first tie are included.
+         */
+        List<Item> ties() {
+            return ties.stream().map(item -> items.getOrDefault(new ItemKey(item), item)).toList();
+        }
+
+        /**
+         * Record an item that was considered but deliberately dropped outside {@link #add} (e.g. a
+         * constraint or unification failure during completion).
+         */
+        void reject(final Item item, final String reason) {
+            rejected.add(new RejectedItem(item, reason));
         }
 
         Item get(final int idx) {
@@ -749,8 +1227,13 @@ public final class ChartParser {
             return ordered.size();
         }
 
+        /** One item per parse state; the queue can hold the same state more than once. */
         Collection<Item> items() {
-            return List.copyOf(ordered);
+            return List.copyOf(items.values());
+        }
+
+        List<RejectedItem> rejected() {
+            return List.copyOf(rejected);
         }
     }
 
