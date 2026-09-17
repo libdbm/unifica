@@ -6,7 +6,7 @@
 
     <groupId>com.libdbm</groupId>
     <artifactId>unifica</artifactId>
-    <version>1.0.3-SNAPSHOT</version>
+    <version>1.0.3</version>
     <packaging>jar</packaging>
 
     <name>Unifica</name>
