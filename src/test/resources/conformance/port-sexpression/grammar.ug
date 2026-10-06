@@ -1,0 +1,29 @@
+# Lisp s-expressions: atoms (strings, numbers, symbols) and parenthesised lists.
+# Ported from grammars-v4 sexpression/sexpression.g4 (commit 7df52be9).
+# Copyright (c) 2008 Robert Stehwien, ported to ANTLR 4 by Tom Everett.
+# MIT licence (see NOTICE.md).
+#
+# The ANTLR grammar has a dotted-pair alternative (item : LPAREN item DOT item
+# RPAREN) and DOT as an atom, but its lexer never produces DOT: SYMBOL also
+# matches '.' and is declared first, so '.' is always a SYMBOL. Both are
+# omitted here; the accepted language is the same.
+
+start sexpr;
+whitespace [ \n\t\r]+;
+
+sexpr --> item* ;
+
+item --> atom | list_ ;
+
+list_ --> '(' item* ')' ;
+
+atom --> STRING | SYMBOL | NUMBER ;
+
+STRING --> '"' (?:[\\][\s\S]|[^\\"])* '"' ;
+
+NUMBER --> [+\-]? [0-9]+ (?:[.][0-9]+)? ;
+
+# ANTLR declares NUMBER before SYMBOL, so a signed number such as '-1.5' is a
+# NUMBER although SYMBOL matches the same text. Equal-length matches are
+# alternatives here, so SYMBOL excludes exactly those texts.
+SYMBOL --> (?![+\-][0-9]+(?:[.][0-9]+)?(?![a-zA-Z+\-*/.0-9])) [a-zA-Z+\-*/.] [a-zA-Z+\-*/.0-9]* ;

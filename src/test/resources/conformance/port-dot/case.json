@@ -1,0 +1,4 @@
+{
+  "rules": ["S-G1", "S-G3", "S-G4", "S-L2", "S-L4", "S-P8"],
+  "description": "Port of grammars-v4 DOT: case-insensitive keywords excluded from ID by lookahead, skipped comments, edge statements and tree shape with named and anonymous tokens."
+}

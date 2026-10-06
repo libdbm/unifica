@@ -1,0 +1,361 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "x:=1",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "script",
+        "children": [
+          {
+            "symbol": "sequence",
+            "children": [
+              {
+                "symbol": "statements",
+                "children": [
+                  {
+                    "symbol": "expressions",
+                    "children": [
+                      {
+                        "symbol": "expression",
+                        "children": [
+                          {
+                            "symbol": "assignment",
+                            "children": [
+                              {
+                                "symbol": "variable",
+                                "children": [
+                                  {
+                                    "symbol": "IDENTIFIER",
+                                    "children": [
+                                      {
+                                        "text": "x",
+                                        "start": 0,
+                                        "end": 1
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "symbol": "ASSIGNMENT",
+                                "children": [
+                                  {
+                                    "text": ":=",
+                                    "start": 1,
+                                    "end": 3
+                                  }
+                                ]
+                              },
+                              {
+                                "symbol": "expression",
+                                "children": [
+                                  {
+                                    "symbol": "binarySend",
+                                    "children": [
+                                      {
+                                        "symbol": "unarySend",
+                                        "children": [
+                                          {
+                                            "symbol": "operand",
+                                            "children": [
+                                              {
+                                                "symbol": "literal",
+                                                "children": [
+                                                  {
+                                                    "symbol": "parsetimeLiteral",
+                                                    "children": [
+                                                      {
+                                                        "symbol": "number",
+                                                        "children": [
+                                                          {
+                                                            "symbol": "stInteger",
+                                                            "children": [
+                                                              {
+                                                                "text": "1",
+                                                                "start": 3,
+                                                                "end": 4
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "a + b c",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "script",
+        "children": [
+          {
+            "symbol": "sequence",
+            "children": [
+              {
+                "symbol": "statements",
+                "children": [
+                  {
+                    "symbol": "expressions",
+                    "children": [
+                      {
+                        "symbol": "expression",
+                        "children": [
+                          {
+                            "symbol": "binarySend",
+                            "children": [
+                              {
+                                "symbol": "unarySend",
+                                "children": [
+                                  {
+                                    "symbol": "operand",
+                                    "children": [
+                                      {
+                                        "symbol": "reference",
+                                        "children": [
+                                          {
+                                            "symbol": "variable",
+                                            "children": [
+                                              {
+                                                "symbol": "IDENTIFIER",
+                                                "children": [
+                                                  {
+                                                    "text": "a",
+                                                    "start": 0,
+                                                    "end": 1
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "symbol": "binaryTail",
+                                "children": [
+                                  {
+                                    "symbol": "binaryMessage",
+                                    "children": [
+                                      {
+                                        "symbol": "BINARY_SELECTOR",
+                                        "children": [
+                                          {
+                                            "text": "+",
+                                            "start": 2,
+                                            "end": 3
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "symbol": "unarySend",
+                                        "children": [
+                                          {
+                                            "symbol": "operand"
+                                          },
+                                          {
+                                            "symbol": "unaryTail",
+                                            "children": [
+                                              {
+                                                "symbol": "unaryMessage",
+                                                "children": [
+                                                  {
+                                                    "symbol": "unarySelector",
+                                                    "children": [
+                                                      {
+                                                        "symbol": "IDENTIFIER",
+                                                        "children": [
+                                                          {
+                                                            "text": "c",
+                                                            "start": 6,
+                                                            "end": 7
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "#(at:put: \"c\" 1)",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "script",
+        "children": [
+          {
+            "symbol": "sequence",
+            "children": [
+              {
+                "symbol": "statements",
+                "children": [
+                  {
+                    "symbol": "expressions",
+                    "children": [
+                      {
+                        "symbol": "expression",
+                        "children": [
+                          {
+                            "symbol": "binarySend",
+                            "children": [
+                              {
+                                "symbol": "unarySend",
+                                "children": [
+                                  {
+                                    "symbol": "operand",
+                                    "children": [
+                                      {
+                                        "symbol": "literal",
+                                        "children": [
+                                          {
+                                            "symbol": "parsetimeLiteral",
+                                            "children": [
+                                              {
+                                                "symbol": "literalArray",
+                                                "children": [
+                                                  {
+                                                    "symbol": "LITARR_START",
+                                                    "children": [
+                                                      {
+                                                        "text": "#(",
+                                                        "start": 0,
+                                                        "end": 2
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "symbol": "literalArrayRest",
+                                                    "children": [
+                                                      {
+                                                        "symbol": "bareSymbol",
+                                                        "children": [
+                                                          {
+                                                            "symbol": "KEYWORDS",
+                                                            "children": [
+                                                              {
+                                                                "text": "at:put:",
+                                                                "start": 2,
+                                                                "end": 9
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "symbol": "parsetimeLiteral",
+                                                        "children": [
+                                                          {
+                                                            "symbol": "number",
+                                                            "children": [
+                                                              {
+                                                                "symbol": "stInteger",
+                                                                "children": [
+                                                                  {
+                                                                    "text": "1",
+                                                                    "start": 14,
+                                                                    "end": 15
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "symbol": "CLOSE_PAREN",
+                                                        "children": [
+                                                          {
+                                                            "text": ")",
+                                                            "start": 15,
+                                                            "end": 16
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "$z",
+      "outcome": "rejected"
+    },
+    {
+      "input": "a foo; bar baz",
+      "outcome": "rejected"
+    }
+  ]
+}

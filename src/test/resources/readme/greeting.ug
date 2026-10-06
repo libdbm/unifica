@@ -1,0 +1,8 @@
+# The name must be capitalized (required). A name that does not end in a
+# vowel costs 2 (a soft group). Leaving out the comma costs 1 (a production cost).
+start Greeting;
+
+Greeting --> 'hello' ',' Name:n where is_capitalized(n), matches(n, '.*[aeiou]'):2;
+Greeting --> 'hello' Name:n where is_capitalized(n) @1;
+
+Name --> [A-Za-z]+;

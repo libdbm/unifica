@@ -1,0 +1,149 @@
+# Lua 5.4, ported from grammars-v4 lua/LuaLexer.g4 and lua/LuaParser.g4
+# (commit 7df52be9). License: MIT. Author: Ken Domino (October 2023), based
+# on previous work of Kazunori Sakamoto and Alexander Alexeev. See NOTICE.md.
+#
+# The rules follow LuaParser.g4, except that the ANTLR parser's hand-unrolled
+# prefixexp/functioncall rules (written to avoid mutual left recursion) are
+# replaced by the left-recursive rules of the Lua reference manual, and the
+# flat exp rule by one level per Lua 5.4 precedence level.
+
+start chunk;
+whitespace [ \t\u000C\r\n]+;
+skip LONGCOMMENT, LINECOMMENT, SHEBANG;
+
+chunk --> block ;
+
+block --> stat* retstat? ;
+
+# A statement that starts with '(' is the "ambiguous syntax" case of the Lua
+# manual: 'a = f' followed by '(g)()' on the next line can be one call or two
+# statements. Lua (and ANTLR, greedily) reads one call; a soft constraint
+# with weight 1 makes the two-statement reading cost more.
+stat --> ';' ;
+stat --> varlist:vars '=' explist where (!starts_with(vars, '(')):1 ;
+stat --> functioncall:call where (!starts_with(call, '(')):1 ;
+stat --> label
+      | 'break'
+      | 'goto' NAME
+      | 'do' block 'end'
+      | 'while' exp 'do' block 'end'
+      | 'repeat' block 'until' exp
+      | 'if' exp 'then' block ('elseif' exp 'then' block)* ('else' block)? 'end'
+      | 'for' NAME '=' exp ',' exp (',' exp)? 'do' block 'end'
+      | 'for' namelist 'in' explist 'do' block 'end'
+      | 'function' funcname funcbody
+      | 'local' 'function' NAME funcbody
+      | 'local' attnamelist ('=' explist)? ;
+
+attnamelist --> NAME attrib (',' NAME attrib)* ;
+
+attrib --> '<' NAME '>' | ;
+
+retstat --> 'return' explist? ';'? ;
+
+label --> '::' NAME '::' ;
+
+funcname --> NAME ('.' NAME)* (':' NAME)? ;
+
+varlist --> var (',' var)* ;
+
+namelist --> NAME (',' NAME)* ;
+
+explist --> exp (',' exp)* ;
+
+# Precedence, lowest first (Lua 5.4 manual, section 3.4.8):
+# or; and; comparison; |; ~; &; << >>; .. (right); + -; * / // %;
+# unary not # - ~; ^ (right, binds tighter than unary on its left).
+exp --> exp 'or' andexp | andexp ;
+
+andexp --> andexp 'and' compareexp | compareexp ;
+
+compareexp --> compareexp ('<' | '>' | '<=' | '>=' | '~=' | '==') borexp | borexp ;
+
+borexp --> borexp '|' bxorexp | bxorexp ;
+
+bxorexp --> bxorexp '~' bandexp | bandexp ;
+
+bandexp --> bandexp '&' shiftexp | shiftexp ;
+
+shiftexp --> shiftexp ('<<' | '>>') concatexp | concatexp ;
+
+concatexp --> addexp '..' concatexp | addexp ;
+
+addexp --> addexp ('+' | '-') mulexp | mulexp ;
+
+mulexp --> mulexp ('*' | '/' | '%' | '//') unaryexp | unaryexp ;
+
+unaryexp --> ('not' | '#' | '-' | '~') unaryexp | powexp ;
+
+powexp --> simpleexp '^' unaryexp | simpleexp ;
+
+simpleexp --> 'nil'
+           | 'false'
+           | 'true'
+           | number
+           | string
+           | '...'
+           | functiondef
+           | prefixexp
+           | tableconstructor ;
+
+var --> NAME | prefixexp '[' exp ']' | prefixexp '.' NAME ;
+
+prefixexp --> var | functioncall | '(' exp ')' ;
+
+functioncall --> prefixexp args | prefixexp ':' NAME args ;
+
+args --> '(' explist? ')' | tableconstructor | string ;
+
+functiondef --> 'function' funcbody ;
+
+funcbody --> '(' parlist ')' block 'end' ;
+
+# lparser.c checks whether the next token is ')', so parlist can be empty.
+parlist --> namelist (',' '...')? | '...' | ;
+
+tableconstructor --> '{' fieldlist? '}' ;
+
+fieldlist --> field (fieldsep field)* fieldsep? ;
+
+field --> '[' exp ']' '=' exp | NAME '=' exp | exp ;
+
+fieldsep --> (',' | ';') ;
+
+number --> (INT | HEX | FLOAT | HEX_FLOAT) ;
+
+string --> (NORMALSTRING | CHARSTRING | LONGSTRING) ;
+
+# ------------------------------------------------------------------ tokens
+
+NAME --> (?!(?:and|break|do|else|elseif|end|false|for|function|goto|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![A-Za-z0-9_]))[A-Za-z_][A-Za-z0-9_]* ;
+
+# EscapeSequence, DecimalEscape, HexEscape and UtfEscape fragments inlined.
+NORMALSTRING --> '"' (?:[\\](?:[abfnrtvz"'|$#\\]|\r?\n|[0-2][0-9][0-9]|[0-9][0-9]?|x[0-9a-fA-F][0-9a-fA-F]|u\{[0-9a-fA-F]+\})|[^\\"])* '"' ;
+
+CHARSTRING --> "'" (?:[\\](?:[abfnrtvz"'|$#\\]|\r?\n|[0-2][0-9][0-9]|[0-9][0-9]?|x[0-9a-fA-F][0-9a-fA-F]|u\{[0-9a-fA-F]+\})|[^\\'])* "'" ;
+
+# Long brackets: ANTLR matches '[' '='* '[' ... ']' '='* ']' with a recursive
+# fragment that does not check the levels agree. Here each level 0 to 7 is
+# spelled out, so the closing bracket must have the same level as the opening
+# one and the body ends at the first such closing bracket. Levels above 7 are
+# not supported.
+LONGSTRING --> (?:\[\[[\s\S]*?\]\]|\[=\[[\s\S]*?\]=\]|\[==\[[\s\S]*?\]==\]|\[===\[[\s\S]*?\]===\]|\[====\[[\s\S]*?\]====\]|\[=====\[[\s\S]*?\]=====\]|\[======\[[\s\S]*?\]======\]|\[=======\[[\s\S]*?\]=======\]) ;
+
+INT --> [0-9]+ ;
+
+HEX --> '0' [xX] [0-9a-fA-F]+ ;
+
+FLOAT --> (?:[0-9]+[.][0-9]*(?:[eE][+-]?[0-9]+)?|[.][0-9]+(?:[eE][+-]?[0-9]+)?|[0-9]+[eE][+-]?[0-9]+) ;
+
+HEX_FLOAT --> '0' [xX] (?:[0-9a-fA-F]+[.][0-9a-fA-F]*(?:[pP][+-]?[0-9]+)?|[.][0-9a-fA-F]+(?:[pP][+-]?[0-9]+)?|[0-9a-fA-F]+[pP][+-]?[0-9]+) ;
+
+# COMMENT is matched by target-language code in ANTLR (LuaLexerBase.HandleComment).
+# A long comment is '--' followed by a long bracket (same levels as LONGSTRING);
+# any other '--' runs to the end of the line.
+LONGCOMMENT --> '--' (?:\[\[[\s\S]*?\]\]|\[=\[[\s\S]*?\]=\]|\[==\[[\s\S]*?\]==\]|\[===\[[\s\S]*?\]===\]|\[====\[[\s\S]*?\]====\]|\[=====\[[\s\S]*?\]=====\]|\[======\[[\s\S]*?\]======\]|\[=======\[[\s\S]*?\]=======\]) ;
+LINECOMMENT --> '--' (?!\[=*\[) [^\n]* ;
+
+# ANTLR hides SHEBANG when its predicate IsLine1Col0 holds.
+SHEBANG --> '#' '!'? [^\n]* where at_char_start() ;

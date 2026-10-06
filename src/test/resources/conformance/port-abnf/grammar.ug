@@ -1,0 +1,44 @@
+# ABNF (RFC 5234, with RFC 7405 case-sensitive strings).
+# Ported from grammars-v4 abnf/Abnf.g4 (commit 7df52be9).
+# Copyright (c) 2013 Rainer Schuster. BSD 3-Clause licence (see NOTICE.md).
+#
+# ABNF has no rule terminator: a rule ends where the next 'ID =' begins,
+# which the Earley parser resolves without lookahead. COMMENT and WS are on
+# ANTLR's hidden channel; here COMMENT is skipped and WS is the whitespace.
+
+start rulelist;
+whitespace [ \t\r\n]+;
+skip COMMENT;
+
+rulelist --> rule_* ;
+
+rule_ --> ID '=' '/'? elements ;
+
+elements --> alternation ;
+
+alternation --> concatenation ('/' concatenation)* ;
+
+concatenation --> repetition+ ;
+
+repetition --> repeat_? element ;
+
+repeat_ --> INT | INT? '*' INT? ;
+
+element --> ID | group | option | STRING | NumberValue | ProseValue ;
+
+group --> '(' alternation ')' ;
+
+option --> '[' alternation ']' ;
+
+# '%' (BinaryValue | DecimalValue | HexValue)
+NumberValue --> '%' (?:b[01]+(?:(?:[.][01]+)+|-[01]+)?|d[0-9]+(?:(?:[.][0-9]+)+|-[0-9]+)?|x[0-9a-fA-F]+(?:(?:[.][0-9a-fA-F]+)+|-[0-9a-fA-F]+)?) ;
+
+ProseValue --> '<' [^>]* '>' ;
+
+ID --> [a-zA-Z] [a-zA-Z0-9_-]* ;
+
+INT --> [0-9]+ ;
+
+COMMENT --> ';' [^\n\r]* [\r]? [\n] ;
+
+STRING --> (?:%s|%i)? '"' [^"]* '"' ;

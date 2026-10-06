@@ -1,0 +1,8 @@
+{
+  "rules": [
+    "S-G4",
+    "S-P1",
+    "S-P4"
+  ],
+  "description": "Review 2: S -> A A with nullable A. Completion must join in both arrival orders. \"a\" has two derivations."
+}

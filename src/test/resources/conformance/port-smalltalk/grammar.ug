@@ -1,0 +1,167 @@
+# Smalltalk expressions and method bodies (Amber Smalltalk dialect).
+# Ported from grammars-v4 smalltalk/Smalltalk.g4 (commit 7df52be9).
+# Converted to ANTLR 4 by James Ladd (Redline Smalltalk Project), adapted
+# from the Amber Smalltalk grammar parser.pegjs. No licence is stated in
+# the source (see NOTICE.md).
+#
+# The ANTLR grammar keeps whitespace and comments as tokens (SEPARATOR,
+# COMMENT) and threads an optional 'ws' rule through the parser rules.
+# Every use of 'ws' is optional, so here whitespace is skipped implicitly,
+# comments are a skip category and 'ws' is gone. Constructs that relied on
+# adjacency (multi-digit numbers, keyword selectors in symbols) are lexical
+# tokens instead.
+
+start script;
+skip COMMENT;
+
+script --> sequence ;
+
+sequence --> temps statements? | statements ;
+
+temps --> PIPE IDENTIFIER+ PIPE ;
+
+statements --> answer | expressions PERIOD answer | expressions PERIOD? ;
+
+answer --> CARROT expression PERIOD? ;
+
+expression --> assignment | cascade | keywordSend | binarySend | primitive ;
+
+expressions --> expression expressionList* ;
+
+expressionList --> PERIOD expression ;
+
+cascade --> (keywordSend | binarySend) (SEMI_COLON message)+ ;
+
+message --> binaryMessage | unaryMessage | keywordMessage ;
+
+assignment --> variable ASSIGNMENT expression ;
+
+variable --> IDENTIFIER ;
+
+binarySend --> unarySend binaryTail? ;
+
+unarySend --> operand unaryTail? ;
+
+keywordSend --> binarySend keywordMessage ;
+
+keywordMessage --> keywordPair+ ;
+
+keywordPair --> KEYWORD binarySend ;
+
+operand --> literal | reference | subexpression ;
+
+subexpression --> OPEN_PAREN expression CLOSE_PAREN ;
+
+literal --> runtimeLiteral | parsetimeLiteral ;
+
+runtimeLiteral --> dynamicDictionary | dynamicArray | block ;
+
+# ANTLR: BLOCK_START blockParamList? ws? sequence? BLOCK_END, which has no
+# '|' between the parameters and the body, so '[:x | x]' is rejected there.
+# Here the parameters are followed by '|' before a body, as in Smalltalk.
+block --> BLOCK_START (sequence? | blockParamList (PIPE sequence?)?) BLOCK_END ;
+
+blockParamList --> BLOCK_PARAM+ ;
+
+dynamicDictionary --> DYNDICT_START expressions? DYNARR_END ;
+
+dynamicArray --> DYNARR_START expressions? DYNARR_END ;
+
+parsetimeLiteral --> pseudoVariable | number | charConstant | literalArray | string | symbol ;
+
+number --> numberExp | hex_ | stFloat | stInteger ;
+
+# ANTLR builds numbers from single-character DIGIT tokens and the EXP, HEX
+# and HEXDIGIT tokens. Its lexer never produces EXP ('e' is an IDENTIFIER),
+# HEXDIGIT or MINUS (BINARY_SELECTOR wins), so exponents, radix 16 digits
+# and negative literals are unreachable there. Here each number form is one
+# token; exponents and hex digits work, negative literals are still absent.
+numberExp --> [0-9]+ (?:[.][0-9]+)? 'e' [0-9]+ ;
+hex_ --> '16r' [0-9a-fA-F]+ ;
+stFloat --> [0-9]+ '.' [0-9]+ ;
+stInteger --> [0-9]+ ;
+
+charConstant --> CHARACTER_CONSTANT ;
+
+pseudoVariable --> RESERVED_WORD ;
+
+string --> STRING ;
+
+# ANTLR: symbol : HASH bareSymbol, with bareSymbol also allowing a string.
+# A string is also a parsetimeLiteral inside literal arrays, which made
+# #('abc') ambiguous, so the string form moves here.
+symbol --> HASH (bareSymbol | string) ;
+
+# ANTLR's LT/GT tokens are never produced (BINARY_SELECTOR wins on '<' and
+# '>'), so primitive is unreachable there; here LT and GT tie with
+# BINARY_SELECTOR and the rule is reachable.
+primitive --> LT KEYWORD stInteger GT ;
+
+bareSymbol --> IDENTIFIER | BINARY_SELECTOR | KEYWORD | KEYWORDS ;
+
+literalArray --> LITARR_START literalArrayRest ;
+
+literalArrayRest --> (parsetimeLiteral | bareLiteralArray | bareSymbol)* CLOSE_PAREN ;
+
+bareLiteralArray --> OPEN_PAREN literalArrayRest ;
+
+unaryTail --> unaryMessage unaryTail? ;
+
+unaryMessage --> unarySelector ;
+
+unarySelector --> IDENTIFIER ;
+
+reference --> variable ;
+
+binaryTail --> binaryMessage binaryTail? ;
+
+# ANTLR: BINARY_SELECTOR ws? (unarySend | operand). unarySend already
+# covers a bare operand, so the second option only duplicated parses
+# (ANTLR always chose unarySend).
+binaryMessage --> BINARY_SELECTOR unarySend ;
+
+STRING --> "'" [^']* "'" ;
+
+COMMENT --> '"' [^"]* '"' ;
+
+BLOCK_START --> '[' ;
+BLOCK_END --> ']' ;
+CLOSE_PAREN --> ')' ;
+OPEN_PAREN --> '(' ;
+PIPE --> '|' ;
+PERIOD --> '.' ;
+SEMI_COLON --> ';' ;
+
+# A single '|' is PIPE in ANTLR (declared first), so 'a | b' is rejected
+# there. Here '|' is both PIPE and BINARY_SELECTOR and the parser decides.
+BINARY_SELECTOR --> [\\+*/=><,@%~|&?-]+ ;
+
+LT --> '<' ;
+GT --> '>' ;
+
+RESERVED_WORD --> (?:nil|true|false|self|super) ;
+
+IDENTIFIER --> (?!(?:nil|true|false|self|super)(?![a-zA-Z0-9_]))[a-zA-Z][a-zA-Z0-9_]* ;
+
+CARROT --> '^' ;
+
+ASSIGNMENT --> ':=' ;
+
+HASH --> '#' ;
+
+LITARR_START --> '#(' ;
+DYNDICT_START --> '#{' ;
+DYNARR_END --> '}' ;
+DYNARR_START --> '{' ;
+
+# In ANTLR 'x:=' lexes as KEYWORD 'x:' followed by '='; the lookahead keeps
+# 'x:=' an assignment.
+KEYWORD --> [a-zA-Z][a-zA-Z0-9_]* ':' (?!=) ;
+
+# Two or more adjacent keywords, as in #at:put: (ANTLR: KEYWORD+ without
+# whitespace between them).
+KEYWORDS --> (?:[a-zA-Z][a-zA-Z0-9_]*:) (?:[a-zA-Z][a-zA-Z0-9_]*:)+ ;
+
+BLOCK_PARAM --> ':' [a-zA-Z][a-zA-Z0-9_]* ;
+
+CHARACTER_CONSTANT --> '$' [0-9a-fA-F$] ;

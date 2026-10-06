@@ -1,0 +1,6 @@
+f() -> ok.
+-module(m).
+-spec f() -> ok.
+% comment\nf(X) when X > 0 -> X - 1; f(_) -> 'end'.
+f() -> end.
+f() -> case X of 1 -> a end

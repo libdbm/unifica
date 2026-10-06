@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-C9"
+  ],
+  "description": "Review 2: string builtins use constituent text for labelled lexical and syntactic constituents."
+}

@@ -1,0 +1,332 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "ab ::= \"x y\" | <c d>",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "start_",
+        "children": [
+          {
+            "symbol": "prods",
+            "children": [
+              {
+                "symbol": "prod",
+                "children": [
+                  {
+                    "symbol": "xlhs",
+                    "children": [
+                      {
+                        "symbol": "ID",
+                        "children": [
+                          {
+                            "text": "ab",
+                            "start": 0,
+                            "end": 2
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "assign",
+                    "children": [
+                      {
+                        "symbol": "ASSIGN1",
+                        "children": [
+                          {
+                            "text": "::=",
+                            "start": 3,
+                            "end": 6
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "xrhs",
+                    "children": [
+                      {
+                        "symbol": "xalt",
+                        "children": [
+                          {
+                            "symbol": "xelem",
+                            "children": [
+                              {
+                                "symbol": "DQUOTED",
+                                "children": [
+                                  {
+                                    "text": "\"x y\"",
+                                    "start": 7,
+                                    "end": 12
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "or",
+                        "children": [
+                          {
+                            "symbol": "OR1",
+                            "children": [
+                              {
+                                "text": "|",
+                                "start": 13,
+                                "end": 14
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "xalt",
+                        "children": [
+                          {
+                            "symbol": "xelem",
+                            "children": [
+                              {
+                                "symbol": "NAME",
+                                "children": [
+                                  {
+                                    "text": "<c d>",
+                                    "start": 15,
+                                    "end": 20
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "<a> ::= b\n<c> --> d e",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "start_",
+        "children": [
+          {
+            "symbol": "prods",
+            "children": [
+              {
+                "symbol": "prod",
+                "children": [
+                  {
+                    "symbol": "xlhs",
+                    "children": [
+                      {
+                        "symbol": "NAME",
+                        "children": [
+                          {
+                            "text": "<a>",
+                            "start": 0,
+                            "end": 3
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "assign",
+                    "children": [
+                      {
+                        "symbol": "ASSIGN1",
+                        "children": [
+                          {
+                            "text": "::=",
+                            "start": 4,
+                            "end": 7
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "xrhs",
+                    "children": [
+                      {
+                        "symbol": "xalt",
+                        "children": [
+                          {
+                            "symbol": "xelem",
+                            "children": [
+                              {
+                                "symbol": "TEXT",
+                                "children": [
+                                  {
+                                    "text": "b",
+                                    "start": 8,
+                                    "end": 9
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "symbol": "prod",
+                "children": [
+                  {
+                    "symbol": "xlhs",
+                    "children": [
+                      {
+                        "symbol": "NAME",
+                        "children": [
+                          {
+                            "text": "<c>",
+                            "start": 10,
+                            "end": 13
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "assign",
+                    "children": [
+                      {
+                        "symbol": "ASSIGN3",
+                        "children": [
+                          {
+                            "text": "-->",
+                            "start": 14,
+                            "end": 17
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "xrhs",
+                    "children": [
+                      {
+                        "symbol": "xalt",
+                        "children": [
+                          {
+                            "symbol": "xelem",
+                            "children": [
+                              {
+                                "symbol": "TEXT",
+                                "children": [
+                                  {
+                                    "text": "d",
+                                    "start": 18,
+                                    "end": 19
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "symbol": "xelem",
+                            "children": [
+                              {
+                                "symbol": "TEXT",
+                                "children": [
+                                  {
+                                    "text": "e",
+                                    "start": 20,
+                                    "end": 21
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "xy ::=",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "start_",
+        "children": [
+          {
+            "symbol": "prods",
+            "children": [
+              {
+                "symbol": "prod",
+                "children": [
+                  {
+                    "symbol": "xlhs",
+                    "children": [
+                      {
+                        "symbol": "ID",
+                        "children": [
+                          {
+                            "text": "xy",
+                            "start": 0,
+                            "end": 2
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "assign",
+                    "children": [
+                      {
+                        "symbol": "ASSIGN1",
+                        "children": [
+                          {
+                            "text": "::=",
+                            "start": 3,
+                            "end": 6
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "xrhs",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "x ::= a",
+      "outcome": "rejected"
+    },
+    {
+      "input": "ab ::= c |",
+      "outcome": "rejected"
+    }
+  ]
+}

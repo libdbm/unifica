@@ -1,0 +1,9 @@
+[autorun]\nopen=example.exe\n
+[s]\nk = "a b", x\n
+[s]\nk = v,,\n\n; note\n[t]\n
+[s]\nk = v, ; note\nw\n
+\n[s]\n
+open=x\n
+[s]\nk == v\n
+[s] k = v\n
+[s]\nk = v

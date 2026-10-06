@@ -1,0 +1,4 @@
+{
+  "rules": ["S-G1", "S-G4", "S-L2", "S-L4", "S-P4", "S-P8"],
+  "description": "Port of grammars-v4 Smalltalk: a negative lookahead keeps 'x:=' from lexing as a keyword, adjacent keywords form one token by maximal munch, comments are skipped inside literal arrays, and unary messages bind tighter than binary ones."
+}

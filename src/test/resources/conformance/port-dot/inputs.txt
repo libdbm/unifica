@@ -1,0 +1,5 @@
+graph{a--b}
+graph{x=1 /* c */ y}
+Digraph G{node[a=b];}
+digraph{node}
+graph{a->}

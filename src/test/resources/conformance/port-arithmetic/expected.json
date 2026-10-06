@@ -1,0 +1,122 @@
+{
+  "grammar": {"ok": true},
+  "inputs": [
+    {
+      "input": "a=1-2-3",
+      "outcome": "accepted", "penalty": 0, "ambiguous": false,
+      "tree": {"symbol": "file_", "children": [
+        {"symbol": "equation", "children": [
+          {"symbol": "expression", "children": [
+            {"symbol": "multiplying", "children": [
+              {"symbol": "powering", "children": [
+                {"symbol": "primary", "children": [
+                  {"symbol": "atom", "children": [
+                    {"symbol": "variable", "children": [
+                      {"symbol": "VARIABLE", "children": [{"text": "a", "start": 0, "end": 1}]}]}]}]}]}]}]},
+          {"symbol": "relop", "children": [{"text": "=", "start": 1, "end": 2}]},
+          {"symbol": "expression", "children": [
+            {"symbol": "expression", "children": [
+              {"symbol": "expression", "children": [
+                {"symbol": "multiplying", "children": [
+                  {"symbol": "powering", "children": [
+                    {"symbol": "primary", "children": [
+                      {"symbol": "atom", "children": [
+                        {"symbol": "scientific", "children": [
+                          {"symbol": "SCIENTIFIC_NUMBER", "children": [{"text": "1", "start": 2, "end": 3}]}]}]}]}]}]}]},
+              {"text": "-", "start": 3, "end": 4},
+              {"symbol": "multiplying", "children": [
+                {"symbol": "powering", "children": [
+                  {"symbol": "primary", "children": [
+                    {"symbol": "atom", "children": [
+                      {"symbol": "scientific", "children": [
+                        {"symbol": "SCIENTIFIC_NUMBER", "children": [{"text": "2", "start": 4, "end": 5}]}]}]}]}]}]}]},
+            {"text": "-", "start": 5, "end": 6},
+            {"symbol": "multiplying", "children": [
+              {"symbol": "powering", "children": [
+                {"symbol": "primary", "children": [
+                  {"symbol": "atom", "children": [
+                    {"symbol": "scientific", "children": [
+                      {"symbol": "SCIENTIFIC_NUMBER", "children": [{"text": "3", "start": 6, "end": 7}]}]}]}]}]}]}]}]}]}
+    },
+    {
+      "input": "a=1.5e-3+2*3",
+      "outcome": "accepted", "penalty": 0, "ambiguous": false,
+      "tree": {"symbol": "file_", "children": [
+        {"symbol": "equation", "children": [
+          {"symbol": "expression"},
+          {"symbol": "relop", "children": [{"text": "="}]},
+          {"symbol": "expression", "children": [
+            {"symbol": "expression", "children": [
+              {"symbol": "multiplying", "children": [
+                {"symbol": "powering", "children": [
+                  {"symbol": "primary", "children": [
+                    {"symbol": "atom", "children": [
+                      {"symbol": "scientific", "children": [
+                        {"symbol": "SCIENTIFIC_NUMBER", "children": [{"text": "1.5e-3", "start": 2, "end": 8}]}]}]}]}]}]}]},
+            {"text": "+"},
+            {"symbol": "multiplying", "children": [
+              {"symbol": "multiplying", "children": [
+                {"symbol": "powering", "children": [
+                  {"symbol": "primary", "children": [
+                    {"symbol": "atom", "children": [
+                      {"symbol": "scientific", "children": [
+                        {"symbol": "SCIENTIFIC_NUMBER", "children": [{"text": "2"}]}]}]}]}]}]},
+              {"text": "*"},
+              {"symbol": "powering", "children": [
+                {"symbol": "primary", "children": [
+                  {"symbol": "atom", "children": [
+                    {"symbol": "scientific", "children": [
+                      {"symbol": "SCIENTIFIC_NUMBER", "children": [{"text": "3"}]}]}]}]}]}]}]}]}]}
+    },
+    {
+      "input": "a=2^3^4",
+      "outcome": "accepted", "penalty": 0, "ambiguous": false,
+      "tree": {"symbol": "file_", "children": [
+        {"symbol": "equation", "children": [
+          {"symbol": "expression"},
+          {"symbol": "relop"},
+          {"symbol": "expression", "children": [
+            {"symbol": "multiplying", "children": [
+              {"symbol": "powering", "children": [
+                {"symbol": "powering", "children": [
+                  {"symbol": "powering", "children": [
+                    {"symbol": "primary", "children": [
+                      {"symbol": "atom", "children": [
+                        {"symbol": "scientific", "children": [
+                          {"symbol": "SCIENTIFIC_NUMBER", "children": [{"text": "2"}]}]}]}]}]},
+                  {"text": "^"},
+                  {"symbol": "primary", "children": [
+                    {"symbol": "atom", "children": [
+                      {"symbol": "scientific", "children": [
+                        {"symbol": "SCIENTIFIC_NUMBER", "children": [{"text": "3"}]}]}]}]}]},
+                {"text": "^"},
+                {"symbol": "primary", "children": [
+                  {"symbol": "atom", "children": [
+                    {"symbol": "scientific", "children": [
+                      {"symbol": "SCIENTIFIC_NUMBER", "children": [{"text": "4"}]}]}]}]}]}]}]}]}]}
+    },
+    {
+      "input": "a=-2^2",
+      "outcome": "accepted", "penalty": 0, "ambiguous": false,
+      "tree": {"symbol": "file_", "children": [
+        {"symbol": "equation", "children": [
+          {"symbol": "expression"},
+          {"symbol": "relop"},
+          {"symbol": "expression", "children": [
+            {"symbol": "multiplying", "children": [
+              {"symbol": "powering", "children": [
+                {"symbol": "powering", "children": [
+                  {"symbol": "primary", "children": [
+                    {"text": "-"},
+                    {"symbol": "atom", "children": [
+                      {"symbol": "scientific", "children": [
+                        {"symbol": "SCIENTIFIC_NUMBER", "children": [{"text": "2"}]}]}]}]}]},
+                {"text": "^"},
+                {"symbol": "primary", "children": [
+                  {"symbol": "atom", "children": [
+                    {"symbol": "scientific", "children": [
+                      {"symbol": "SCIENTIFIC_NUMBER", "children": [{"text": "2"}]}]}]}]}]}]}]}]}]}
+    },
+    {"input": "a=(1+2", "outcome": "rejected"}
+  ]
+}

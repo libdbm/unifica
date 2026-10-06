@@ -1,0 +1,11 @@
+{
+  "rules": [
+    "S-G1",
+    "S-L2",
+    "S-L3",
+    "S-L4",
+    "S-P1",
+    "S-P8"
+  ],
+  "description": "Port of grammars-v4 Java properties with 'whitespace none': one CHARACTER token per character, ANTLR's VALUE mode as a lexical state entered by a delimiter and left by the line break, escaped line breaks continuing a value, at_end() for ANTLR's EOF in eol, a leading blank line, the empty file, and rejection of a comment after a key and a missing key."
+}

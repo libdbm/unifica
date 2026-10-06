@@ -1,0 +1,3 @@
+[database]
+ports = [ 8001, 8001, 8002
+enabled = true

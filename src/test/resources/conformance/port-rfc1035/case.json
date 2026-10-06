@@ -1,0 +1,10 @@
+{
+  "rules": [
+    "S-G1",
+    "S-L2",
+    "S-L4",
+    "S-L5",
+    "S-P8"
+  ],
+  "description": "Port of grammars-v4 rfc1035 with 'whitespace none': a domain is a dotted list of labels or exactly one space; empty input, extra spaces, labels ending in a hyphen and labels starting with a digit are rejected."
+}

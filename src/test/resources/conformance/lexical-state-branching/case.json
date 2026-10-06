@@ -1,0 +1,9 @@
+{
+  "rules": [
+    "S-L1",
+    "S-L2a",
+    "S-L3",
+    "S-P3"
+  ],
+  "description": "Two lexemes match 'k' with different transitions, so the graph branches into states P and Q; 'z' then lexes differently on each path."
+}

@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "S-F5",
+    "S-G4"
+  ],
+  "description": "Features on children are matched through per-use variables and never copied into the parent; optional elements keep their bindings."
+}

@@ -1,0 +1,45 @@
+# Equations over arithmetic expressions with functions and constants.
+# Ported from grammars-v4 calculator/calculator.g4 (commit 7df52be9).
+# Copyright (c) 2013, Tom Everett. BSD licence (see NOTICE.md).
+#
+# ANTLR writes each precedence level as a flat list, e.g.
+#   expression : multiplyingExpression ((PLUS | MINUS) multiplyingExpression)* ;
+# which leaves associativity to the tree walker. The port nests the levels so
+# the tree shows it: + - and * / are left associative, ^ is right associative
+# (the usual mathematical reading of a^b^c). Prefix signs bind tighter than ^,
+# as in ANTLR, where signedAtom is the operand of POW.
+
+start equation;
+whitespace [ \r\n\t]+;
+
+equation --> expression relop expression ;
+
+expression --> expression ('+' | '-') multiplyingExpression | multiplyingExpression ;
+
+multiplyingExpression --> multiplyingExpression ('*' | '/') powExpression | powExpression ;
+
+powExpression --> signedAtom '^' powExpression | signedAtom ;
+
+signedAtom --> '+' signedAtom | '-' signedAtom | func_ | atom ;
+
+atom --> scientific | variable | constant | '(' expression ')' ;
+
+scientific --> SCIENTIFIC_NUMBER ;
+
+constant --> 'pi' | 'e' | 'i' ;
+
+variable --> VARIABLE ;
+
+# ANTLR: funcname LPAREN expression (COMMA expression)* RPAREN.
+func_ --> funcname '(' expression (',' expression)* ')' ;
+
+funcname --> 'cos' | 'tan' | 'sin' | 'acos' | 'atan' | 'asin' | 'log' | 'ln' | 'sqrt' ;
+
+relop --> '=' | '>' | '<' ;
+
+# ANTLR declares the keyword tokens before VARIABLE, so on an equal-length
+# match the keyword wins. Here equal-length matches are alternatives, so
+# VARIABLE excludes the exact keywords with a negative lookahead.
+VARIABLE --> (?!(?:cos|sin|tan|acos|asin|atan|ln|log|sqrt|pi|e|i)(?![a-zA-Z_0-9]))[a-zA-Z_][a-zA-Z_0-9]* ;
+
+SCIENTIFIC_NUMBER --> [0-9]+ (?:[.][0-9]+)? (?:[Ee][+\-]?[0-9]+(?:[.][0-9]+)?)? ;

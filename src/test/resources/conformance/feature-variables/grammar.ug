@@ -1,0 +1,10 @@
+start s;
+s --> w{v: no} w{v: yes};
+s --> 'o' x{open: no}?;
+s{n: N} --> 'r' z{n: N} z{n: N};
+w{v: no} --> 'n';
+w{v: yes} --> 'k';
+x{open: yes} --> 'a';
+x{open: no} --> 'b';
+z{n: one} --> 'z1';
+z{n: two} --> 'z2';

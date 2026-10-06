@@ -1,0 +1,7 @@
+program p; begin end.
+PROGRAM Hello; BEGIN WriteLn('it''s') END.
+program p; begin if a then if b then x else y end.
+program p; (* note *) { another } begin end.
+program p; begin if a then x else y else z end.
+program p; begin x := 'abc end.
+program p; begin x; ; end.

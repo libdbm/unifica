@@ -1,0 +1,349 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "int x;",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "compilationUnit",
+        "children": [
+          {
+            "symbol": "translationUnit",
+            "children": [
+              {
+                "symbol": "externalDeclaration",
+                "children": [
+                  {
+                    "symbol": "declaration",
+                    "children": [
+                      {
+                        "symbol": "declarationSpecifiers",
+                        "children": [
+                          {
+                            "symbol": "declarationSpecifier",
+                            "children": [
+                              {
+                                "symbol": "typeSpecifier",
+                                "children": [
+                                  {
+                                    "text": "int",
+                                    "start": 0,
+                                    "end": 3
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "initDeclaratorList",
+                        "children": [
+                          {
+                            "symbol": "initDeclarator",
+                            "children": [
+                              {
+                                "symbol": "declarator",
+                                "children": [
+                                  {
+                                    "symbol": "directDeclarator",
+                                    "children": [
+                                      {
+                                        "symbol": "Identifier",
+                                        "children": [
+                                          {
+                                            "text": "x",
+                                            "start": 4,
+                                            "end": 5
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "text": ";",
+                        "start": 5,
+                        "end": 6
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "void f(void) { T * p; g(p); }",
+      "outcome": "accepted",
+      "penalty": 1,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "compilationUnit",
+        "children": [
+          {
+            "symbol": "translationUnit",
+            "children": [
+              {
+                "symbol": "externalDeclaration",
+                "children": [
+                  {
+                    "symbol": "functionDefinition",
+                    "children": [
+                      {
+                        "symbol": "declarationSpecifiers"
+                      },
+                      {
+                        "symbol": "declarator"
+                      },
+                      {
+                        "symbol": "functionBody",
+                        "children": [
+                          {
+                            "symbol": "compoundStatement",
+                            "children": [
+                              {
+                                "text": "{",
+                                "start": 13,
+                                "end": 14
+                              },
+                              {
+                                "symbol": "blockItemList",
+                                "children": [
+                                  {
+                                    "symbol": "blockItem",
+                                    "children": [
+                                      {
+                                        "symbol": "declaration",
+                                        "children": [
+                                          {
+                                            "symbol": "declarationSpecifiers",
+                                            "children": [
+                                              {
+                                                "symbol": "declarationSpecifier",
+                                                "children": [
+                                                  {
+                                                    "symbol": "typeSpecifier",
+                                                    "children": [
+                                                      {
+                                                        "symbol": "typedefName",
+                                                        "children": [
+                                                          {
+                                                            "symbol": "Identifier",
+                                                            "children": [
+                                                              {
+                                                                "text": "T",
+                                                                "start": 15,
+                                                                "end": 16
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "symbol": "initDeclaratorList"
+                                          },
+                                          {
+                                            "text": ";",
+                                            "start": 20,
+                                            "end": 21
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "symbol": "blockItem",
+                                    "children": [
+                                      {
+                                        "symbol": "statement",
+                                        "children": [
+                                          {
+                                            "symbol": "expressionStatement",
+                                            "children": [
+                                              {
+                                                "symbol": "expression"
+                                              },
+                                              {
+                                                "text": ";",
+                                                "start": 26,
+                                                "end": 27
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "text": "}",
+                                "start": 28,
+                                "end": 29
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "void f(void) { if (a) if (b) x(); else y(); }",
+      "outcome": "accepted",
+      "penalty": 2,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "compilationUnit",
+        "children": [
+          {
+            "symbol": "translationUnit",
+            "children": [
+              {
+                "symbol": "externalDeclaration",
+                "children": [
+                  {
+                    "symbol": "functionDefinition",
+                    "children": [
+                      {
+                        "symbol": "declarationSpecifiers"
+                      },
+                      {
+                        "symbol": "declarator"
+                      },
+                      {
+                        "symbol": "functionBody",
+                        "children": [
+                          {
+                            "symbol": "compoundStatement",
+                            "children": [
+                              {
+                                "text": "{"
+                              },
+                              {
+                                "symbol": "blockItemList",
+                                "children": [
+                                  {
+                                    "symbol": "blockItem",
+                                    "children": [
+                                      {
+                                        "symbol": "statement",
+                                        "children": [
+                                          {
+                                            "symbol": "selectionStatement",
+                                            "children": [
+                                              {
+                                                "text": "if",
+                                                "start": 15,
+                                                "end": 17
+                                              },
+                                              {
+                                                "text": "("
+                                              },
+                                              {
+                                                "symbol": "expression"
+                                              },
+                                              {
+                                                "text": ")"
+                                              },
+                                              {
+                                                "symbol": "statement",
+                                                "children": [
+                                                  {
+                                                    "symbol": "selectionStatement",
+                                                    "children": [
+                                                      {
+                                                        "text": "if",
+                                                        "start": 22,
+                                                        "end": 24
+                                                      },
+                                                      {
+                                                        "text": "("
+                                                      },
+                                                      {
+                                                        "symbol": "expression"
+                                                      },
+                                                      {
+                                                        "text": ")"
+                                                      },
+                                                      {
+                                                        "symbol": "statement"
+                                                      },
+                                                      {
+                                                        "text": "else",
+                                                        "start": 34,
+                                                        "end": 38
+                                                      },
+                                                      {
+                                                        "symbol": "statement"
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "text": "}"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "int y = (a) - b;",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    },
+    {
+      "input": "int x = 1",
+      "outcome": "rejected"
+    },
+    {
+      "input": "#include <stdio.h>\nint main(void) { return 0; } // done",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    }
+  ]
+}

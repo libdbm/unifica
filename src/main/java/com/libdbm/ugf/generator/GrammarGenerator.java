@@ -1,488 +1,570 @@
 package com.libdbm.ugf.generator;
 
+import com.libdbm.ugf.ErrorDetails;
+import com.libdbm.ugf.Result;
+import com.libdbm.ugf.compiler.Compiled;
+import com.libdbm.ugf.compiler.Compiler;
+import com.libdbm.ugf.compiler.Element;
+import com.libdbm.ugf.compiler.Production;
+import com.libdbm.ugf.constraints.Environment;
+import com.libdbm.ugf.constraints.Evaluator;
+import com.libdbm.ugf.constraints.Expression;
+import com.libdbm.ugf.constraints.Predicates;
 import com.libdbm.ugf.features.Binding;
+import com.libdbm.ugf.features.Bindings;
 import com.libdbm.ugf.features.Structure;
+import com.libdbm.ugf.features.Unification;
 import com.libdbm.ugf.features.Unifier;
 import com.libdbm.ugf.features.Value;
+import com.libdbm.ugf.features.Values;
+import com.libdbm.ugf.features.Variable;
 import com.libdbm.ugf.grammar.Grammar;
 import com.libdbm.ugf.grammar.GrammarRule;
 import com.libdbm.ugf.grammar.RuleElement;
-import com.libdbm.ugf.parser.ConstraintChecker;
-import com.libdbm.ugf.parser.Utilities;
-
-import java.util.*;
+import com.libdbm.ugf.parser.Limits;
+import com.libdbm.ugf.parser.Options;
+import com.libdbm.ugf.parser.Outcome;
+import com.libdbm.ugf.parser.ParseObserver;
+import com.libdbm.ugf.parser.Parser;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Random;
+import java.util.Set;
 
 /**
- * Generates text conforming to a unification grammar.
+ * Generates sentences from a grammar (S-N1, S-N2).
  *
- * <p>This generator works with any unification grammar (CLEAN, XML, math, etc.) by recursively
- * expanding nonterminals according to grammar rules while maintaining feature unification.
- *
- * <p>Terminal generation is delegated to a pluggable {@link TerminalGenerator} strategy, allowing
- * domain-specific handling of terminals and regex patterns.
- *
- * <p>Example usage:
+ * <p>Generation is a randomized depth-first search over the compiled grammar. Each use of a
+ * production has its own variables (S-F5), bound in one set of bindings for the whole sentence, so
+ * agreement between siblings holds by construction. A production's required constraints are checked
+ * once its constituents exist, and every sentence is parsed before it is returned: it is returned
+ * only if it parses as the requested symbol with root features that unify with the requested
+ * features.
  *
  * <pre>{@code
- * Grammar mathGrammar = UnificationGrammarParserFactory.parse(Path.of("math.ug"));
- * TerminalGenerator numberGen = (symbol, features) ->
- *     symbol.matches("[0-9]+") ? Optional.of(String.valueOf(random.nextInt(100))) : Optional.empty();
- *
- * GrammarGenerator generator = new GrammarGenerator(mathGrammar, numberGen);
- * List<String> expressions = generator.generate("expr", FeatureStructure.empty(), 10);
- * // Produces: ["42 + 17", "3 * 9", "100 - 25", ...]
+ * final var generator = GrammarGenerator.builder(grammar).random(new Random(1)).build().orElseThrow();
+ * final var sentences = generator.generate("S", Structure.EMPTY, 10).orElseThrow();
  * }</pre>
+ *
+ * <p>A generator is not thread-safe: it draws from one {@link Random}.
  */
 public final class GrammarGenerator {
 
+  /** No sentence could be generated within the policy's attempts. */
+  public static final String FAILED = "generation.failed";
+
+  private static final int UNREACHABLE = Integer.MAX_VALUE / 2;
+
+  private final Compiled compiled;
+  private final Parser parser;
+  private final TerminalGenerator terminals;
+  private final Random random;
+  private final Policy policy;
+  private final Map<String, List<GrammarRule>> lexical = new HashMap<>();
+  private final Map<String, Integer> heights = new HashMap<>();
+
+  /** Lexical and positional predicates, which generation leaves to the final parse. */
+  private final Set<String> deferred;
+
+  private GrammarGenerator(
+      final Grammar grammar,
+      final Compiled compiled,
+      final TerminalGenerator terminals,
+      final Random random,
+      final Policy policy,
+      final Limits limits) {
+    this.compiled = compiled;
+    this.parser = Parser.of(compiled, new Options(limits, ParseObserver.NOOP, false));
+    final var names = new HashSet<>(compiled.predicates().names(Predicates.Phase.LEXICAL));
+    names.addAll(compiled.predicates().names(Predicates.Phase.POSITIONAL));
+    this.deferred = Set.copyOf(names);
+    this.terminals = terminals;
+    this.random = random;
+    this.policy = policy;
+    for (final var rules : grammar.rules().values()) {
+      for (final var rule : rules) {
+        if (rule.kind() == GrammarRule.Kind.LEXICAL) {
+          lexical.computeIfAbsent(rule.lhs().symbol(), symbol -> new ArrayList<>()).add(rule);
+        }
+      }
+    }
+    heights();
+  }
+
+  public static Builder builder(final Grammar grammar) {
+    return new Builder(grammar);
+  }
+
+  /**
+   * Generates up to {@code count} sentences of {@code start} whose features unify with {@code
+   * features}.
+   */
+  public Result<List<String>, ErrorDetails> generate(
+      final String start, final Structure features, final int count) {
+    final var batch = batch(start, features, count);
+    if (batch.sentences().isEmpty() && !batch.failures().isEmpty()) {
+      return Result.failure(ErrorDetails.of(FAILED, batch.failures().keySet().iterator().next()));
+    }
+    return Result.success(batch.sentences());
+  }
+
+  /**
+   * Tries to generate {@code count} sentences, reporting how many were produced and why the others
+   * were not.
+   */
+  public Generation batch(final String start, final Structure features, final int count) {
+    final var sentences = new ArrayList<String>();
+    final var failures = new LinkedHashMap<String, Integer>();
+    for (var i = 0; i < count; i++) {
+      switch (generateOne(start, features)) {
+        case Result.Success<String, ErrorDetails>(var sentence) -> sentences.add(sentence);
+        case Result.Failure<String, ErrorDetails>(var failure) ->
+            failures.merge(failure.message(), 1, Integer::sum);
+      }
+    }
+    return new Generation(sentences, count, failures);
+  }
+
+  /** Generates one sentence of {@code start} whose features unify with {@code features}. */
+  public Result<String, ErrorDetails> generateOne(final String start, final Structure features) {
+    var reason = "no derivation of " + start + " within depth " + policy.depth();
+    for (var attempt = 0; attempt < policy.attempts(); attempt++) {
+      final var search = new Search();
+      final var expansion =
+          search.symbol(new Element.Symbol(start, null, features), Bindings.EMPTY, policy.depth());
+      if (expansion.isEmpty()) {
+        if (search.exceeded) {
+          reason = "generated sentences exceed " + policy.length() + " characters";
+        }
+        continue;
+      }
+      final var text = policy.joiner().join(expansion.get().tokens());
+      if (text.length() > policy.length()) {
+        reason = "generated sentences exceed " + policy.length() + " characters";
+        continue;
+      }
+      // S-N1: return only what parses as the requested symbol with the requested features.
+      final var parsed = parser.parse(text, start, features);
+      if (parsed.outcome() == Outcome.ACCEPTED) {
+        return Result.success(text);
+      }
+      reason =
+          parsed.stop() != null
+              ? "validating \"" + text + "\" stopped: " + parsed.stop().message()
+              : "generated \"" + text + "\" does not parse as " + start;
+    }
+    return Result.failure(ErrorDetails.of(FAILED, reason));
+  }
+
+  /** A way to expand a symbol: one of its productions, or one of its lexical rules. */
+  private sealed interface Candidate {
+    record Derivation(Production production) implements Candidate {}
+
+    record Lexeme(GrammarRule rule) implements Candidate {}
+  }
+
+  /** A partial result: the tokens produced and the bindings after producing them. */
+  private record Expansion(List<String> tokens, Structure features, Bindings bindings) {}
+
+  /**
+   * One attempt: a fresh variable counter, a step budget and the repetition counts on the current
+   * path.
+   */
+  private final class Search {
+    private int fresh;
+    private int steps;
+
+    /**
+     * Characters in the tokens on the current path, a lower bound on the joined sentence; restored
+     * when the search backtracks.
+     */
+    private long characters;
+
+    /** Whether some expansion was abandoned for exceeding {@link Policy#length()}. */
+    private boolean exceeded;
+
+    private final Map<String, Integer> active = new HashMap<>();
+
+    /**
+     * Expands a symbol whose written features (already renamed for its scope) are {@code
+     * element.features()}.
+     */
+    private Optional<Expansion> symbol(
+        final Element.Symbol element, final Bindings bindings, final int depth) {
+      if (++steps > policy.steps() || depth <= 0) {
+        return Optional.empty();
+      }
+      final var candidates = new ArrayList<Candidate>();
+      for (final var production : compiled.productions(element.name())) {
+        if (height(production) <= depth && allowed(production)) {
+          candidates.add(new Candidate.Derivation(production));
+        }
+      }
+      for (final var rule : lexical.getOrDefault(element.name(), List.of())) {
+        candidates.add(new Candidate.Lexeme(rule));
+      }
+      Collections.shuffle(candidates, random);
+      for (final var candidate : candidates) {
+        final var expansion =
+            switch (candidate) {
+              case Candidate.Derivation(var production) ->
+                  production(production, element, bindings, depth);
+              case Candidate.Lexeme(var rule) -> lexeme(rule, element, bindings);
+            };
+        if (expansion.isPresent()) {
+          return expansion;
+        }
+      }
+      return Optional.empty();
+    }
+
+    /** Repetitions stop recursing once they have repeated {@link Policy#repetitions()} times. */
+    private boolean allowed(final Production production) {
+      if (!production.auxiliary()
+          || active.getOrDefault(production.symbol(), 0) < policy.repetitions()) {
+        return true;
+      }
+      return production.rhs().stream()
+          .noneMatch(
+              element ->
+                  element instanceof Element.Symbol symbol
+                      && symbol.name().equals(production.symbol()));
+    }
+
+    private Optional<Expansion> production(
+        final Production production,
+        final Element.Symbol element,
+        final Bindings bindings,
+        final int depth) {
+      final var suffix = "#" + fresh++;
+      final var lhs = rename(production.features(), suffix);
+      if (!(Unifier.unify(element.features(), lhs, bindings)
+          instanceof Result.Success<Unification<Structure>, ErrorDetails>(var linked))) {
+        return Optional.empty();
+      }
+      active.merge(production.symbol(), 1, Integer::sum);
+      final var mark = characters;
+      var success = false;
+      try {
+        var current = linked.bindings();
+        final var tokens = new ArrayList<String>();
+        final var labels = new HashMap<String, Value>();
+        for (final var child : production.rhs()) {
+          final List<String> produced;
+          final Structure features;
+          switch (child) {
+            case Element.Symbol symbol -> {
+              final var renamed =
+                  new Element.Symbol(
+                      symbol.name(), symbol.label(), rename(symbol.features(), suffix));
+              final var expansion = symbol(renamed, current, depth - 1);
+              if (expansion.isEmpty()) {
+                return Optional.empty();
+              }
+              current = expansion.get().bindings();
+              produced = expansion.get().tokens();
+              features = expansion.get().features();
+            }
+            case Element.Terminal terminal -> {
+              final var token = terminal(terminal.category(), production.symbol());
+              if (token.isEmpty()) {
+                return Optional.empty();
+              }
+              produced = List.of(token.get());
+              features = Structure.EMPTY;
+              if (!count(token.get())) {
+                return Optional.empty();
+              }
+            }
+            case Element.Token token -> {
+              // A caller-supplied token cannot be generated.
+              return Optional.empty();
+            }
+          }
+          tokens.addAll(produced);
+          if (child.label() != null) {
+            labels.put(child.label(), Binding.of(policy.joiner().join(produced), features));
+          }
+        }
+        final var result = substitute(lhs, current);
+        if (!holds(
+            production,
+            variables(current, suffix),
+            labels,
+            Binding.of(policy.joiner().join(tokens), result))) {
+          return Optional.empty();
+        }
+        success = true;
+        return Optional.of(new Expansion(tokens, result, current));
+      } finally {
+        active.merge(production.symbol(), -1, Integer::sum);
+        if (!success) {
+          characters = mark;
+        }
+      }
+    }
+
+    /** Adds a token to the current path, or reports that the sentence is already too long. */
+    private boolean count(final String token) {
+      characters += token.length();
+      if (characters > policy.length()) {
+        exceeded = true;
+        return false;
+      }
+      return true;
+    }
+
+    /** A lexical production: one token, generated from its parts without spacing (S-G2). */
+    private Optional<Expansion> lexeme(
+        final GrammarRule rule, final Element.Symbol element, final Bindings bindings) {
+      final var lhs = rename(rule.lhs().features(), "#" + fresh++);
+      if (!(Unifier.unify(element.features(), lhs, bindings)
+          instanceof Result.Success<Unification<Structure>, ErrorDetails>(var linked))) {
+        return Optional.empty();
+      }
+      final var features = substitute(lhs, linked.bindings());
+      final var text = new StringBuilder();
+      for (final var part : rule.rhs()) {
+        if (!part(part, features, rule.lhs().symbol(), text)) {
+          return Optional.empty();
+        }
+      }
+      if (!count(text.toString())) {
+        return Optional.empty();
+      }
+      return Optional.of(new Expansion(List.of(text.toString()), features, linked.bindings()));
+    }
+
+    private boolean part(
+        final RuleElement part,
+        final Structure features,
+        final String context,
+        final StringBuilder text) {
+      switch (part) {
+        case RuleElement.Terminal terminal -> text.append(terminal.text());
+        case RuleElement.Regex regex -> {
+          final var token = terminals.generate(regex.pattern(), features, context);
+          if (token.isEmpty()) {
+            return false;
+          }
+          text.append(token.get());
+        }
+        case RuleElement.Sequence sequence -> {
+          for (final var inner : sequence.elements()) {
+            if (!part(inner, features, context, text)) {
+              return false;
+            }
+          }
+        }
+        case RuleElement.Alternation alternation -> {
+          return part(
+              alternation.options().get(random.nextInt(alternation.options().size())),
+              features,
+              context,
+              text);
+        }
+        case RuleElement.Repetition repetition -> {
+          final var count =
+              switch (repetition.quantifier()) {
+                case OPTIONAL -> random.nextInt(2);
+                case ZERO_OR_MORE -> random.nextInt(policy.repetitions() + 1);
+                case ONE_OR_MORE -> 1 + random.nextInt(Math.max(1, policy.repetitions()));
+              };
+          for (var i = 0; i < count; i++) {
+            if (!part(repetition.element(), features, context, text)) {
+              return false;
+            }
+          }
+        }
+        case RuleElement.StateAnnotation annotation -> {}
+        case RuleElement.TokenMatch match -> {
+          return false;
+        }
+        case RuleElement.Nonterminal nonterminal -> {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    /** An anonymous token: a quoted literal's text, or a regex through the terminal generators. */
+    private Optional<String> terminal(final String category, final String context) {
+      if (category.length() >= 2 && category.startsWith("'") && category.endsWith("'")) {
+        return Optional.of(category.substring(1, category.length() - 1));
+      }
+      return terminals.generate(category, Structure.EMPTY, context);
+    }
+  }
+
+  /**
+   * True if the production's required constraints hold (S-N2). Lexical and positional predicates
+   * need a lexical state or a span, so expressions that call them are left to the final parse.
+   */
+  private boolean holds(
+      final Production production,
+      final Map<String, Value> variables,
+      final Map<String, Value> labels,
+      final Binding self) {
+    if (production.plan().required().isEmpty()) {
+      return true;
+    }
+    final var environment =
+        Environment.of(compiled.predicates())
+            .with(variables)
+            .with(labels)
+            .with(production.symbol(), self);
+    for (final var expression : production.plan().required()) {
+      if (!calls(expression, deferred) && !Evaluator.truth(expression, environment)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** True if {@code expression} calls any predicate in {@code names}. */
+  private static boolean calls(final Expression expression, final Set<String> names) {
+    return switch (expression) {
+      case Expression.Call call -> names.contains(call.name());
+      case Expression.And and -> and.terms().stream().anyMatch(term -> calls(term, names));
+      case Expression.Or or -> or.terms().stream().anyMatch(term -> calls(term, names));
+      case Expression.Not not -> calls(not.term(), names);
+      case Expression.Weighted weighted -> calls(weighted.term(), names);
+      case Expression.Literal literal -> false;
+    };
+  }
+
+  /**
+   * The minimum derivation height of every symbol, by fixed point; used to stay within the depth.
+   */
+  private void heights() {
+    lexical.keySet().forEach(symbol -> heights.put(symbol, 1));
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (final var production : compiled.productions()) {
+        final var height = height(production);
+        if (height < heights.getOrDefault(production.symbol(), UNREACHABLE)) {
+          heights.put(production.symbol(), height);
+          changed = true;
+        }
+      }
+    }
+  }
+
+  private int height(final Production production) {
+    var tallest = 0;
+    for (final var element : production.rhs()) {
+      if (element instanceof Element.Symbol symbol) {
+        tallest = Math.max(tallest, heights.getOrDefault(symbol.name(), UNREACHABLE));
+      }
+    }
+    return tallest >= UNREACHABLE ? UNREACHABLE : tallest + 1;
+  }
+
+  private static Structure substitute(final Structure structure, final Bindings bindings) {
+    return Unifier.unify(structure, Structure.EMPTY, bindings)
+        .map(Unification::value)
+        .orElse(structure);
+  }
+
+  /**
+   * The variables of the production use renamed with {@code suffix}, under their source names and
+   * with their bindings substituted, for constraint arguments.
+   */
+  private static Map<String, Value> variables(final Bindings bindings, final String suffix) {
+    final var values = new HashMap<String, Value>();
+    bindings
+        .values()
+        .forEach(
+            (name, value) -> {
+              if (name.endsWith(suffix)) {
+                values.put(
+                    name.substring(0, name.length() - suffix.length()),
+                    Unifier.substitute(value, bindings));
+              }
+            });
+    return values;
+  }
+
+  /** Appends {@code suffix} to every variable, so each production use has its own (S-F5). */
+  private static Structure rename(final Structure structure, final String suffix) {
+    return (Structure) Values.rename(structure, variable -> new Variable(variable.name() + suffix));
+  }
+
+  /**
+   * Builds a generator. The vocabulary generator is created in {@link #build()} from the final
+   * {@link Random}, so the order of builder calls does not matter (GEN-8).
+   */
+  public static final class Builder {
     private final Grammar grammar;
-    private final TerminalGenerator terminals;
-    private final Random random;
-    private final int maxDepth;
+    private final List<TerminalGenerator> generators = new ArrayList<>();
+    private final List<Vocabulary> vocabularies = new ArrayList<>();
+    private Predicates predicates = Predicates.standard();
+    private Random random = new Random();
+    private Policy policy = Policy.DEFAULT;
+    private Limits limits = Limits.DEFAULT;
 
-    /**
-     * Creates a generator with default settings.
-     *
-     * @param grammar   the grammar to generate from
-     * @param terminals strategy for generating terminals
-     */
-    public GrammarGenerator(final Grammar grammar, final TerminalGenerator terminals) {
-        this(grammar, terminals, new Random(), 20);
+    private Builder(final Grammar grammar) {
+      this.grammar = Objects.requireNonNull(grammar);
     }
 
-    /**
-     * Creates a generator with custom settings.
-     *
-     * @param grammar   the grammar to generate from
-     * @param terminals strategy for generating terminals
-     * @param random    random source for selecting among alternatives
-     * @param maxDepth  maximum recursion depth (prevents infinite loops)
-     */
-    public GrammarGenerator(
-            final Grammar grammar,
-            final TerminalGenerator terminals,
-            final Random random,
-            final int maxDepth) {
-        this.grammar = Objects.requireNonNull(grammar);
-        this.terminals = Objects.requireNonNull(terminals);
-        this.random = Objects.requireNonNull(random);
-        this.maxDepth = maxDepth;
+    public Builder vocabulary(final Vocabulary vocabulary) {
+      vocabularies.add(Objects.requireNonNull(vocabulary));
+      return this;
     }
 
-    /**
-     * Creates a builder for configuring grammar generators.
-     *
-     * @param grammar the grammar to generate from
-     * @return a new builder
-     */
-    public static Builder builder(final Grammar grammar) {
-        return new Builder(grammar);
+    public Builder terminal(final TerminalGenerator generator) {
+      generators.add(Objects.requireNonNull(generator));
+      return this;
     }
 
-    /**
-     * Generates multiple sentences starting from the given symbol.
-     *
-     * @param startSymbol the nonterminal to expand (e.g., "sentence", "expr")
-     * @param constraints feature constraints to satisfy
-     * @param count       maximum number of sentences to generate
-     * @return list of generated sentences (may be fewer than count if generation fails)
-     */
-    public List<String> generate(
-            final String startSymbol, final Structure constraints, final int count) {
-        final var results = new ArrayList<String>();
-
-        int attempts = 0;
-        final int maxAttempts = count * 10; // Allow some failed attempts
-
-        while (results.size() < count && attempts < maxAttempts) {
-            attempts++;
-            generateOne(startSymbol, constraints, 0).ifPresent(results::add);
-        }
-
-        return results;
+    public Builder random(final Random random) {
+      this.random = Objects.requireNonNull(random);
+      return this;
     }
 
-    /**
-     * Generates a single sentence starting from the given symbol.
-     *
-     * @param startSymbol the nonterminal to expand
-     * @param constraints feature constraints to satisfy
-     * @return generated sentence, or empty if generation fails
-     */
-    public Optional<String> generateOne(final String startSymbol, final Structure constraints) {
-        return generateOne(startSymbol, constraints, 0);
+    public Builder predicates(final Predicates predicates) {
+      this.predicates = Objects.requireNonNull(predicates);
+      return this;
     }
 
-    /**
-     * Internal recursive generation with depth tracking.
-     */
-    private Optional<String> generateOne(
-            final String symbol, final Structure features, final int depth) {
-        if (depth > maxDepth) {
-            return Optional.empty();
-        }
-
-        // Get all rules for this symbol
-        final var rules = grammar.rulesFor(symbol);
-
-        if (rules.isEmpty()) {
-            return Optional.empty();
-        }
-
-        // Try rules in random order until one succeeds
-        final var shuffled = new ArrayList<>(rules);
-        Collections.shuffle(shuffled, random);
-
-        for (final var rule : shuffled) {
-            final var result = tryRule(rule, features, depth);
-            if (result.isPresent()) {
-                return result;
-            }
-        }
-
-        return Optional.empty();
+    public Builder policy(final Policy policy) {
+      this.policy = Objects.requireNonNull(policy);
+      return this;
     }
 
-    /**
-     * Attempts to generate text using the given rule.
-     */
-    private Optional<String> tryRule(
-            final GrammarRule rule, final Structure targetFeatures, final int depth) {
-        // Try to unify rule LHS features with target features
-        final Map<String, Value> bindings = new HashMap<>();
-        final var unified = Unifier.unify(rule.lhs().features(), targetFeatures, bindings);
-
-        if (unified.isEmpty() || !(unified.get() instanceof Structure structure)) {
-            return Optional.empty();
-        }
-
-        // Check constraints (if any) - use raw check since we don't have lexer state
-        final var constraints = rule.constraints();
-        if (constraints != null && !constraints.isEmpty()) {
-            final var context = Utilities.context();
-            // Bind LHS symbol for constraint access
-            context.withBinding(rule.lhs().symbol(), Binding.of("", structure));
-            // Bind any variables from unification
-            for (final var entry : bindings.entrySet()) {
-                context.withBinding(entry.getKey(), entry.getValue());
-            }
-            final var result = ConstraintChecker.raw(context, constraints);
-            if (!result.passed()) {
-                return Optional.empty();
-            }
-        }
-
-        // Expand the RHS elements with unified features, passing LHS symbol as lhs
-        final var lhs = rule.lhs().symbol();
-        return expandRHS(rule.rhs(), bindings, depth, lhs);
+    /** The limits of the parse that verifies each generated sentence (S-N1). */
+    public Builder limits(final Limits limits) {
+      this.limits = Objects.requireNonNull(limits);
+      return this;
     }
 
-    /**
-     * Expands a sequence of RHS elements into text.
-     */
-    private Optional<String> expandRHS(
-            final List<RuleElement> elements,
-            final Map<String, Value> bindings,
-            final int depth,
-            final String context) {
-        final var sb = new StringBuilder();
-
-        for (final var element : elements) {
-            final var expansion = expandElement(element, bindings, depth, context);
-            if (expansion.isEmpty()) {
-                return Optional.empty();
-            }
-            final var text = expansion.get();
-            if (!text.isEmpty()) {
-                appendWithSpacing(sb, text);
-            }
-        }
-
-        return Optional.of(sb.toString());
+    /** Shorthand for a policy with a different depth. */
+    public Builder maxDepth(final int depth) {
+      this.policy = policy.depth(depth);
+      return this;
     }
 
-    /**
-     * Appends text with smart spacing - no space around punctuation/brackets.
-     */
-    private void appendWithSpacing(final StringBuilder sb, final String text) {
-        if (sb.isEmpty()) {
-            sb.append(text);
-            return;
-        }
-
-        final var last = sb.charAt(sb.length() - 1);
-        final var first = text.charAt(0);
-
-        // No space after opening brackets/punctuation or before closing brackets/punctuation
-        final var noSpaceAfter = "<([{".indexOf(last) >= 0;
-        final var noSpaceBefore = ">)]}/>!=".indexOf(first) >= 0 || text.startsWith("/>");
-
-        if (!noSpaceAfter && !noSpaceBefore && needsSpace(last, first)) {
-            sb.append(' ');
-        }
-        sb.append(text);
+    /** Compiles the grammar and creates the generator. */
+    public Result<GrammarGenerator, ErrorDetails> build() {
+      final var all = new ArrayList<TerminalGenerator>();
+      vocabularies.forEach(
+          vocabulary -> all.add(new VocabularyGenerator(vocabulary, random, false)));
+      all.addAll(generators);
+      all.add(new LiteralTerminalGenerator());
+      final TerminalGenerator combined =
+          all.size() == 1 ? all.getFirst() : new CompositeTerminalGenerator(all);
+      return Compiler.compile(grammar, predicates)
+          .map(
+              compiled ->
+                  new GrammarGenerator(grammar, compiled, combined, random, policy, limits));
     }
-
-    /**
-     * Determines if space is needed between two characters.
-     */
-    private boolean needsSpace(final char last, final char first) {
-        // No space if either is punctuation
-        return !isPunctuation(last) && !isPunctuation(first);
-        // Space between alphanumeric tokens
-    }
-
-    /**
-     * Checks if character is punctuation that shouldn't have surrounding spaces.
-     */
-    private boolean isPunctuation(final char c) {
-        return "<>()[]{}=/'\"!?".indexOf(c) >= 0;
-    }
-
-    /**
-     * Expands a single RHS element.
-     */
-    private Optional<String> expandElement(
-            final RuleElement element,
-            final Map<String, Value> bindings,
-            final int depth,
-            final String context) {
-        return switch (element) {
-            case RuleElement.Terminal terminal -> expandTerminal(terminal, bindings, context);
-            case RuleElement.Nonterminal nonterminal -> expandNonterminal(nonterminal, bindings, depth);
-            case RuleElement.Regex regex -> expandRegex(regex, bindings, context);
-            case RuleElement.Repetition repetition -> expandRepetition(repetition, bindings, depth, context);
-            case RuleElement.Alternation alternation -> expandAlternation(alternation, bindings, depth, context);
-            case RuleElement.StateAnnotation stateAnnotation ->
-                    Optional.of(""); // State annotations contribute no text but don't fail expansion
-            case RuleElement.TokenMatch tokenMatch -> Optional.empty(); // TokenMatch cannot be expanded in generation
-        };
-    }
-
-    /**
-     * Expands a terminal by delegating to the terminal generator.
-     */
-    private Optional<String> expandTerminal(
-            final RuleElement.Terminal terminal,
-            final Map<String, Value> bindings,
-            final String context) {
-        // Terminals don't have features in current implementation
-        return terminals.generate(terminal.text(), new Structure(), context);
-    }
-
-    /**
-     * Expands a nonterminal recursively, applying variable bindings to features.
-     */
-    private Optional<String> expandNonterminal(
-            final RuleElement.Nonterminal nonterminal,
-            final Map<String, Value> bindings,
-            final int depth) {
-        // Apply variable bindings to nonterminal features
-        final var features = apply(nonterminal.features(), bindings);
-        return generateOne(nonterminal.name(), features, depth + 1);
-    }
-
-    /**
-     * Apply variable bindings to a feature structure, resolving any variables.
-     */
-    private Structure apply(final Structure features, final Map<String, Value> bindings) {
-        if (bindings.isEmpty() || features.isEmpty()) {
-            return features;
-        }
-
-        final var result = features.copy();
-        for (final var key : features.keys()) {
-            final var value = features.get(key);
-            if (value instanceof com.libdbm.ugf.features.Variable(String name)) {
-                final var bound = bindings.get(name);
-                if (bound != null) {
-                    result.set(key, bound);
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Expands a regex pattern by delegating to the terminal generator with context.
-     */
-    private Optional<String> expandRegex(
-            final RuleElement.Regex regex, final Map<String, Value> bindings, final String context) {
-        // Pass context (parent nonterminal) to enable category-aware generation
-        return terminals.generate(regex.pattern(), new Structure(), context);
-    }
-
-    /**
-     * Expands a repetition element (?, *, +).
-     */
-    private Optional<String> expandRepetition(
-            final RuleElement.Repetition repetition,
-            final Map<String, Value> bindings,
-            final int depth,
-            final String context) {
-        return switch (repetition.quantifier()) {
-            case OPTIONAL -> {
-                // 50% chance to include
-                if (random.nextBoolean()) {
-                    yield expandElement(repetition.element(), bindings, depth, context);
-                } else {
-                    yield Optional.of("");
-                }
-            }
-            case ZERO_OR_MORE -> {
-                // Generate 0-3 repetitions
-                final int count = random.nextInt(4);
-                yield expandRepeated(repetition.element(), bindings, depth, count, context);
-            }
-            case ONE_OR_MORE -> {
-                // Generate 1-4 repetitions
-                final int count = 1 + random.nextInt(4);
-                yield expandRepeated(repetition.element(), bindings, depth, count, context);
-            }
-        };
-    }
-
-    /**
-     * Expands an element multiple times.
-     */
-    private Optional<String> expandRepeated(
-            final RuleElement element,
-            final Map<String, Value> bindings,
-            final int depth,
-            final int count,
-            final String context) {
-        if (count == 0) {
-            return Optional.of("");
-        }
-
-        final var sb = new StringBuilder();
-        for (int i = 0; i < count; i++) {
-            final var expansion = expandElement(element, bindings, depth, context);
-            if (expansion.isEmpty()) {
-                return Optional.empty();
-            }
-            final var text = expansion.get();
-            if (!text.isEmpty()) {
-                appendWithSpacing(sb, text);
-            }
-        }
-
-        return Optional.of(sb.toString());
-    }
-
-    /**
-     * Expands an alternation by randomly choosing one alternative.
-     */
-    private Optional<String> expandAlternation(
-            final RuleElement.Alternation alternation,
-            final Map<String, Value> bindings,
-            final int depth,
-            final String context) {
-        // Try alternatives in random order
-        final var alternatives = new ArrayList<>(alternation.options());
-        Collections.shuffle(alternatives, random);
-
-        for (final var alternative : alternatives) {
-            final var result = expandElement(alternative, bindings, depth, context);
-            if (result.isPresent()) {
-                return result;
-            }
-        }
-
-        return Optional.empty();
-    }
-
-    /**
-     * Builder for configuring grammar generators with vocabulary and terminal handling.
-     *
-     * <p>Example usage:
-     *
-     * <pre>{@code
-     * Vocabulary vocab = Vocabulary.builder()
-     *     .add("dog", Structure.builder().with("type", "noun").with("num", "sing").build())
-     *     .add("dogs", Structure.builder().with("type", "noun").with("num", "plur").build())
-     *     .build();
-     *
-     * GrammarGenerator generator = GrammarGenerator.builder(grammar)
-     *     .vocabulary(vocab)
-     *     .random(new Random(42))
-     *     .maxDepth(15)
-     *     .build();
-     * }</pre>
-     */
-    public static final class Builder {
-        private final Grammar grammar;
-        private final List<TerminalGenerator> generators = new ArrayList<>();
-        private Random random = new Random();
-        private int maxDepth = 20;
-
-        private Builder(final Grammar grammar) {
-            this.grammar = Objects.requireNonNull(grammar);
-        }
-
-        /**
-         * Adds a vocabulary for terminal generation.
-         *
-         * <p>Words from the vocabulary will be selected when regex patterns match and features unify.
-         *
-         * @param vocabulary the vocabulary to use
-         * @return this builder
-         */
-        public Builder vocabulary(final Vocabulary vocabulary) {
-            generators.add(new VocabularyGenerator(vocabulary, random, false));
-            return this;
-        }
-
-        /**
-         * Adds a custom terminal generator.
-         *
-         * @param generator the generator to add
-         * @return this builder
-         */
-        public Builder terminal(final TerminalGenerator generator) {
-            generators.add(generator);
-            return this;
-        }
-
-        /**
-         * Sets the random source.
-         *
-         * @param random the random source
-         * @return this builder
-         */
-        public Builder random(final Random random) {
-            this.random = Objects.requireNonNull(random);
-            return this;
-        }
-
-        /**
-         * Sets the maximum recursion depth.
-         *
-         * @param maxDepth maximum depth (prevents infinite loops)
-         * @return this builder
-         */
-        public Builder maxDepth(final int maxDepth) {
-            this.maxDepth = maxDepth;
-            return this;
-        }
-
-        /**
-         * Builds the grammar generator.
-         *
-         * <p>If no terminal generators were added, uses a literal generator as fallback.
-         *
-         * @return configured grammar generator
-         */
-        public GrammarGenerator build() {
-            // Always add literal fallback at the end
-            generators.add(new LiteralTerminalGenerator());
-
-            final TerminalGenerator combined =
-                    generators.size() == 1
-                            ? generators.getFirst()
-                            : new CompositeTerminalGenerator(generators);
-
-            return new GrammarGenerator(grammar, combined, random, maxDepth);
-        }
-    }
+  }
 }

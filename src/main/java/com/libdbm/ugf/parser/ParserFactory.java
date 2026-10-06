@@ -1,135 +1,47 @@
 package com.libdbm.ugf.parser;
 
-import com.libdbm.ugf.constraints.Context;
+import com.libdbm.ugf.ErrorDetails;
+import com.libdbm.ugf.Result;
+import com.libdbm.ugf.compiler.Compiler;
+import com.libdbm.ugf.constraints.Predicates;
 import com.libdbm.ugf.grammar.Grammar;
-import com.libdbm.ugf.grammar.GrammarNormalizer;
-
-import java.util.List;
+import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
+import java.nio.file.Path;
 
 /**
- * Factory for grammar-driven parsing with automatic tokenization.
- *
- * <p>This factory combines a grammar, lexical analyzer, and token enhancer to provide convenient
- * text-to-parse-tree conversion. It uses grammar-driven tokenization which handles lexical
- * ambiguity (e.g., "can" matching both noun and modal verb rules).
- *
- * <h3>Usage</h3>
+ * Convenience entry points that compile a grammar and create a {@link Parser} (PAR-10).
  *
  * <pre>{@code
- * // Create factory with grammar
- * ParserFactory factory = ParserFactory.create(grammar);
- *
- * // Parse text (tokenizes internally, handles lexical ambiguity)
- * Optional<ParseTree> tree = factory.parse("the dog barks.");
- *
- * // Get full result with diagnostics
- * ParseResult result = factory.parseWithResult("the dog barks.");
+ * switch (ParserFactory.create(Path.of("grammar.ug"))) {
+ *   case Result.Success<Parser, ErrorDetails>(var parser) -> use(parser.parse("input text"));
+ *   case Result.Failure<Parser, ErrorDetails>(var error) -> report(error);
+ * }
  * }</pre>
  *
- * @see ChartParser for direct parsing
- * @see LexicalAnalyzer for grammar-driven tokenization
+ * <p>For control over each step, use {@link UnificationGrammarParserFactory}, {@link Compiler} and
+ * {@link Parser#of} directly.
  */
 public final class ParserFactory {
 
-    private final Grammar grammar;
-    private final LexicalAnalyzer lexer;
-    private final TokenEnhancer enhancer;
-    private final ChartParser parser;
+  private ParserFactory() {}
 
-    private ParserFactory(
-            final Grammar grammar,
-            final LexicalAnalyzer lexer,
-            final TokenEnhancer enhancer,
-            final ParseObserver observer) {
-        // Normalize grammar once during factory construction
-        this.grammar = GrammarNormalizer.normalize(grammar);
-        this.lexer = lexer;
-        this.enhancer = enhancer;
-        // Create parser with lexer, enhancer, and observer (grammar is already normalized)
-        this.parser = new ChartParser(
-                Utilities.context(), this.grammar, lexer, enhancer, observer);
-    }
+  /** Compiles {@code grammar} with the standard predicates and default options. */
+  public static Result<Parser, ErrorDetails> create(final Grammar grammar) {
+    return create(grammar, Predicates.standard(), Options.DEFAULT);
+  }
 
-    /**
-     * Creates a factory with the given grammar and default lexer.
-     */
-    public static ParserFactory create(final Grammar grammar) {
-        return new ParserFactory(
-                grammar, LexicalAnalyzer.build(grammar), TokenEnhancer.identity(), ParseObserver.NOOP);
-    }
+  /**
+   * Compiles {@code grammar} against {@code predicates} and creates a parser with {@code options}.
+   */
+  public static Result<Parser, ErrorDetails> create(
+      final Grammar grammar, final Predicates predicates, final Options options) {
+    return Compiler.compile(grammar, predicates).map(compiled -> Parser.of(compiled, options));
+  }
 
-    /**
-     * Creates a factory with grammar and observer.
-     */
-    public static ParserFactory create(final Grammar grammar, final ParseObserver observer) {
-        return new ParserFactory(
-                grammar, LexicalAnalyzer.build(grammar), TokenEnhancer.identity(), observer);
-    }
-
-    /**
-     * Creates a factory with grammar, lexer, and enhancer.
-     */
-    public static ParserFactory create(
-            final Grammar grammar, final LexicalAnalyzer lexer, final TokenEnhancer enhancer) {
-        return new ParserFactory(grammar, lexer, enhancer, ParseObserver.NOOP);
-    }
-
-    /**
-     * Creates a factory with grammar, lexer, enhancer, and observer.
-     */
-    public static ParserFactory create(
-            final Grammar grammar,
-            final LexicalAnalyzer lexer,
-            final TokenEnhancer enhancer,
-            final ParseObserver observer) {
-        return new ParserFactory(grammar, lexer, enhancer, observer);
-    }
-
-    /**
-     * Parse input text and return full result with diagnostics.
-     *
-     * @param text the input text
-     * @return parse result with tree, penalty, and diagnostics
-     */
-    public ParseResult parse(final String text) {
-        return parser.parse(text);
-    }
-
-    /**
-     * Tokenize text using the grammar-driven lexer.
-     *
-     * @param text the input text
-     * @return token lattice (list of alternatives per position)
-     */
-    public List<List<Token>> tokenize(final String text) {
-        return lexer.tokenizeAmbiguous(new Context(), text);
-    }
-
-    /**
-     * Returns the ChartParser for direct parsing.
-     */
-    public ChartParser parser() {
-        return parser;
-    }
-
-    /**
-     * Returns the normalized grammar.
-     */
-    public Grammar grammar() {
-        return grammar;
-    }
-
-    /**
-     * Returns the lexical analyzer.
-     */
-    public LexicalAnalyzer lexer() {
-        return lexer;
-    }
-
-    /**
-     * Returns the token enhancer.
-     */
-    public TokenEnhancer enhancer() {
-        return enhancer;
-    }
+  /**
+   * Loads a grammar file, resolving its imports, and creates a parser with the standard predicates.
+   */
+  public static Result<Parser, ErrorDetails> create(final Path path) {
+    return UnificationGrammarParserFactory.parseWithImports(path).flatMap(ParserFactory::create);
+  }
 }

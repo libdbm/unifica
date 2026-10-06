@@ -1,0 +1,6 @@
+package p\nvar x = 1
+package p\nfunc f() {\nx := 10\n*p\n}
+package p\nfunc f() { x := 1 y := 2 }
+package p\nvar a = []int{\n1,\n2\n}
+package p /* c */; import ("a"; "b") // end
+package p\nfunc f() { return }

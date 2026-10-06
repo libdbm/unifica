@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "S-P2",
+    "S-C9"
+  ],
+  "description": "Review 2: two splits of 'aaa' must not be merged; only left = 'aa' satisfies the constraint."
+}

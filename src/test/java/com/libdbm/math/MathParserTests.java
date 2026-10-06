@@ -5,8 +5,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.libdbm.math.MathExpr.*;
 import com.libdbm.ugf.grammar.Grammar;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
-import com.libdbm.ugf.parser.ChartParser;
 import com.libdbm.ugf.parser.ParseTree;
+import com.libdbm.ugf.parser.Parser;
+import com.libdbm.ugf.parser.ParserFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
@@ -17,7 +18,7 @@ import org.junit.jupiter.api.Test;
 public final class MathParserTests {
 
   private static Grammar grammar;
-  private static ChartParser parser;
+  private static Parser parser;
 
   @BeforeAll
   static void setup() throws Exception {
@@ -27,8 +28,8 @@ public final class MathParserTests {
     }
     try (final var stream = resource.openStream()) {
       final var content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-      final var grammar = UnificationGrammarParserFactory.parse(content);
-      parser = new ChartParser(grammar);
+      final var grammar = UnificationGrammarParserFactory.parse(content).orElseThrow();
+      parser = ParserFactory.create(grammar).orElseThrow();
     } catch (final Exception e) {
       throw new RuntimeException("Failed to load Math grammar", e);
     }

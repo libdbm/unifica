@@ -1,0 +1,12 @@
+{
+  "rules": [
+    "S-N1",
+    "S-F1"
+  ],
+  "description": "Review 2: generated sentences respect sibling agreement and parse.",
+  "generate": {
+    "start": "S",
+    "count": 50,
+    "seed": 7
+  }
+}

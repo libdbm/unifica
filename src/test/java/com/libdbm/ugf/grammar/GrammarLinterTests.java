@@ -2,10 +2,11 @@ package com.libdbm.ugf.grammar;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.libdbm.ugf.constraints.Constraint;
-import com.libdbm.ugf.constraints.Predicate;
+import com.libdbm.ugf.constraints.Expression;
+import com.libdbm.ugf.constraints.Predicates;
 import com.libdbm.ugf.features.StringConstant;
 import com.libdbm.ugf.features.Variable;
+import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -221,14 +222,15 @@ final class GrammarLinterTests {
         Grammar.builder()
             .start("S")
             // S -> NP:np VP
-            // Constraint references "unbound" which doesn't appear anywhere
+            // Expression references "unbound" which doesn't appear anywhere
             .add(
                 new GrammarRule(
                     new GrammarRule.LHS("S"),
                     List.of(
                         new RuleElement.Nonterminal("NP", "np"), new RuleElement.Nonterminal("VP")),
                     List.of(
-                        Predicate.of("agree", List.of(Variable.of("np"), Variable.of("unbound"))))))
+                        new Expression.Call(
+                            "agree", List.of(Variable.of("np"), Variable.of("unbound"))))))
             // Define NP and VP
             .add(
                 new GrammarRule(
@@ -266,7 +268,9 @@ final class GrammarLinterTests {
                     List.of(
                         new RuleElement.Nonterminal("NP", "np"),
                         new RuleElement.Nonterminal("VP", "vp")),
-                    List.of(Predicate.of("agree", List.of(Variable.of("np"), Variable.of("vp"))))))
+                    List.of(
+                        new Expression.Call(
+                            "agree", List.of(Variable.of("np"), Variable.of("vp"))))))
             // NP -> "dog"
             .add(
                 new GrammarRule(
@@ -370,11 +374,12 @@ final class GrammarLinterTests {
     // S -> A:a B:b C:c
     // Constraint: (a = b) AND (b = c) AND (a = unbound)
     final var andConstraint =
-        new Constraint.And(
+        new Expression.And(
             List.of(
-                Predicate.of("agree", List.of(Variable.of("a"), Variable.of("b"))),
-                Predicate.of("agree", List.of(Variable.of("b"), Variable.of("c"))),
-                Predicate.of("agree", List.of(Variable.of("a"), Variable.of("unbound"))) // unbound!
+                new Expression.Call("agree", List.of(Variable.of("a"), Variable.of("b"))),
+                new Expression.Call("agree", List.of(Variable.of("b"), Variable.of("c"))),
+                new Expression.Call(
+                    "agree", List.of(Variable.of("a"), Variable.of("unbound"))) // unbound!
                 ));
 
     final Grammar grammar =
@@ -426,7 +431,7 @@ final class GrammarLinterTests {
                     List.of(
                         new RuleElement.Terminal("the", "determinant"),
                         new RuleElement.Nonterminal("N", "n")),
-                    List.of(Predicate.of("terminal", List.of(Variable.of("determinant"))))))
+                    List.of(new Expression.Call("terminal", List.of(Variable.of("determinant"))))))
             // N -> "dog"
             .add(
                 new GrammarRule(
@@ -447,12 +452,12 @@ final class GrammarLinterTests {
         Grammar.builder()
             .start("S")
             // S -> /[0-9]+/:num
-            // Constraint referencing num
+            // Expression referencing num
             .add(
                 new GrammarRule(
                     new GrammarRule.LHS("S"),
                     List.of(new RuleElement.Regex("[0-9]+", "num")),
-                    List.of(Predicate.of("regex", List.of(Variable.of("num"))))))
+                    List.of(new Expression.Call("regex", List.of(Variable.of("num"))))))
             .build();
 
     final var linter = new GrammarLinter();
@@ -522,7 +527,7 @@ final class GrammarLinterTests {
                 new GrammarRule(
                     new GrammarRule.LHS("S"),
                     List.of(new RuleElement.Terminal("hello", null)),
-                    List.of(Predicate.of("lhs", List.of(Variable.of("S"))))))
+                    List.of(new Expression.Call("lhs", List.of(Variable.of("S"))))))
             .build();
 
     final var linter = new GrammarLinter();
@@ -542,7 +547,9 @@ final class GrammarLinterTests {
                 new GrammarRule(
                     new GrammarRule.LHS("S"),
                     List.of(new RuleElement.Nonterminal("NP"), new RuleElement.Nonterminal("VP")),
-                    List.of(Predicate.of("agree", List.of(Variable.of("NP"), Variable.of("VP"))))))
+                    List.of(
+                        new Expression.Call(
+                            "agree", List.of(Variable.of("NP"), Variable.of("VP"))))))
             // NP -> "dog"
             .add(
                 new GrammarRule(
@@ -575,10 +582,11 @@ final class GrammarLinterTests {
             .add(
                 new GrammarRule(
                     new GrammarRule.LHS("S"),
-                    List.of(
-                        new RuleElement.Terminal("prefix").transition("COMPLETED"),
-                        new RuleElement.Nonterminal("NP")),
-                    List.of()))
+                    List.of(new RuleElement.Terminal("prefix"), new RuleElement.Nonterminal("NP")),
+                    List.of(),
+                    GrammarRule.Kind.SYNTACTIC,
+                    0,
+                    "COMPLETED"))
             // NP -> "the"
             .add(
                 new GrammarRule(
@@ -611,8 +619,11 @@ final class GrammarLinterTests {
             .add(
                 new GrammarRule(
                     new GrammarRule.LHS("TOKEN"),
-                    List.of(new RuleElement.Terminal("hello").transition("CONTENT")),
-                    List.of()))
+                    List.of(new RuleElement.Terminal("hello")),
+                    List.of(),
+                    GrammarRule.Kind.LEXICAL,
+                    0,
+                    "CONTENT"))
             .build();
 
     final var linter = new GrammarLinter();
@@ -631,7 +642,8 @@ final class GrammarLinterTests {
                 new GrammarRule(
                     new GrammarRule.LHS("S"),
                     List.of(new RuleElement.Nonterminal("NP"), new RuleElement.Nonterminal("VP")),
-                    List.of(Predicate.of("in_state", List.of(StringConstant.of("CONTENT"))))))
+                    List.of(
+                        new Expression.Call("in_state", List.of(StringConstant.of("CONTENT"))))))
             // NP -> "the"
             .add(
                 new GrammarRule(
@@ -671,7 +683,8 @@ final class GrammarLinterTests {
                 new GrammarRule(
                     new GrammarRule.LHS("TAG"),
                     List.of(new RuleElement.Terminal("<", null)),
-                    List.of(Predicate.of("in_state", List.of(StringConstant.of("CONTENT"))))))
+                    List.of(
+                        new Expression.Call("in_state", List.of(StringConstant.of("CONTENT"))))))
             .build();
 
     final var linter = new GrammarLinter();
@@ -755,7 +768,7 @@ final class GrammarLinterTests {
                     new GrammarRule.LHS("S"),
                     List.of(new RuleElement.Nonterminal("KEYWORD")),
                     List.of()))
-            // KEYWORD -> ("if" | "while" | "for") with transition on last option (valid:
+            // KEYWORD -> ("if" | "while" | "for") ==> KEYWORD_STATE (valid:
             // alternation of
             // terminals)
             .add(
@@ -764,10 +777,13 @@ final class GrammarLinterTests {
                     List.of(
                         new RuleElement.Alternation(
                             List.of(
-                                new RuleElement.Terminal("if").transition("KEYWORD_STATE"),
-                                new RuleElement.Terminal("while").transition("KEYWORD_STATE"),
-                                new RuleElement.Terminal("for").transition("KEYWORD_STATE")))),
-                    List.of()))
+                                new RuleElement.Terminal("if"),
+                                new RuleElement.Terminal("while"),
+                                new RuleElement.Terminal("for")))),
+                    List.of(),
+                    GrammarRule.Kind.LEXICAL,
+                    0,
+                    "KEYWORD_STATE"))
             .build();
 
     final var linter = new GrammarLinter();
@@ -786,10 +802,11 @@ final class GrammarLinterTests {
             .add(
                 new GrammarRule(
                     new GrammarRule.LHS("S"),
-                    List.of(
-                        new RuleElement.Terminal("if").transition("IF_STATE"),
-                        new RuleElement.Nonterminal("EXPR")),
-                    List.of()))
+                    List.of(new RuleElement.Terminal("if"), new RuleElement.Nonterminal("EXPR")),
+                    List.of(),
+                    GrammarRule.Kind.SYNTACTIC,
+                    0,
+                    "IF_STATE"))
             // EXPR -> "true"
             .add(
                 new GrammarRule(
@@ -805,5 +822,112 @@ final class GrammarLinterTests {
     assertTrue(
         report.errors().stream()
             .anyMatch(e -> e.title().contains("State transition on non-lexical")));
+  }
+
+  private static List<GrammarLinter.LintIssue> issues(
+      final GrammarLinter linter, final String source, final String title) {
+    final var grammar = UnificationGrammarParserFactory.unvalidated(source).orElseThrow();
+    return linter.lint(grammar).issues().stream()
+        .filter(issue -> issue.title().equals(title))
+        .toList();
+  }
+
+  /** CON-12: CLEAN*'s never-true soft group gets a production cost hint. */
+  @Test
+  void testCostHintForUnregisteredSoftPredicate() {
+    final var hints =
+        issues(
+            new GrammarLinter(),
+            "start S; S --> A:a 'x' where bound(a):1; A --> 'y';",
+            "Soft group that never holds");
+
+    assertEquals(1, hints.size());
+    assertEquals(GrammarLinter.LintIssue.Severity.INFO, hints.getFirst().severity());
+    assertTrue(hints.getFirst().message().contains("@1"));
+  }
+
+  @Test
+  void testNoCostHintForRegisteredPredicate() {
+    final var predicates =
+        Predicates.builder()
+            .builtins()
+            .add("bound", 1, 1, Predicates.Phase.SYNTACTIC, (environment, args) -> false)
+            .build();
+
+    assertTrue(
+        issues(
+                new GrammarLinter(predicates),
+                "start S; S --> A:a 'x' where bound(a):1; A --> 'y';",
+                "Soft group that never holds")
+            .isEmpty());
+  }
+
+  /** S-C5: an inner weight inside a weighted group is reported. */
+  @Test
+  void testNestedWeightWarning() {
+    assertEquals(
+        1,
+        issues(
+                new GrammarLinter(),
+                "start S; S --> 'a' where ((equals('a', 'a'), equals('b', 'b')):3 | equals('c', 'c')):7;",
+                "Weight inside a weighted group")
+            .size());
+  }
+
+  /** Lexical predicate names come from the registry, including caller-registered ones. */
+  @Test
+  void testLexicalPredicatesFromRegistry() {
+    final var predicates =
+        Predicates.builder()
+            .builtins()
+            .lexical()
+            .add("in_comment", 0, 0, Predicates.Phase.LEXICAL, (environment, args) -> false)
+            .build();
+
+    final var warnings =
+        issues(
+            new GrammarLinter(predicates),
+            "start S; S --> A B where in_comment(); A --> 'a'; B --> 'b';",
+            "Lexer-only predicate on non-lexical rule");
+
+    assertEquals(1, warnings.size());
+    assertTrue(warnings.getFirst().message().contains("in_comment"));
+  }
+
+  /** S-G1: a sequence of plain literals is syntactic, so an unused one is unreachable. */
+  @Test
+  void testUnreachableLiteralSequenceReported() {
+    final var issues =
+        issues(
+            new GrammarLinter(), "start S; S --> 'a'; EndIf --> 'end' 'if';", "Unreachable rule");
+
+    assertEquals(1, issues.size());
+    assertEquals("EndIf", issues.getFirst().context());
+  }
+
+  /** Duplicate detection compares whole lexical patterns, not their first element. */
+  @Test
+  void testSharedPrefixIsNotDuplicate() {
+    assertTrue(
+        issues(
+                new GrammarLinter(),
+                "start S; S --> A | B; A --> 'x' [0-9]+; B --> 'x' [a-z]+;",
+                "Duplicate lexical entry")
+            .isEmpty());
+  }
+
+  /** Programmatic rules are classified by S-G1 like loaded ones. */
+  @Test
+  void testProgrammaticRulesClassified() {
+    assertEquals(
+        GrammarRule.Kind.LEXICAL,
+        new GrammarRule("K", List.of(new RuleElement.Terminal("if", null))).kind());
+    assertEquals(
+        GrammarRule.Kind.SYNTACTIC,
+        new GrammarRule(
+                "E",
+                List.of(
+                    new RuleElement.Terminal("end", null), new RuleElement.Terminal("if", null)))
+            .kind());
   }
 }

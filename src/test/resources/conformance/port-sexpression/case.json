@@ -1,0 +1,4 @@
+{
+  "rules": ["S-G1", "S-G4", "S-L2", "S-P1", "S-P4", "S-P8"],
+  "description": "Port of grammars-v4 sexpression: nested lists, a string token, NUMBER winning over an equal-length SYMBOL match through SYMBOL's negative lookahead while a longer SYMBOL wins by maximal munch, '.' read as a SYMBOL (no dotted pairs), the empty file, and an unterminated string."
+}

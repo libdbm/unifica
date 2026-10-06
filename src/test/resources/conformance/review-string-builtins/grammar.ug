@@ -1,0 +1,5 @@
+start S;
+S --> W:w '!' where starts_with(w, 'ab');
+S --> P:p '?' where starts_with(p, 'ab');
+P --> W W;
+W --> [a-z]+;

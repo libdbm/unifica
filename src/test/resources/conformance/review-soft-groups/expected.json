@@ -1,0 +1,66 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "p",
+      "outcome": "accepted",
+      "penalty": 0
+    },
+    {
+      "input": "q",
+      "outcome": "accepted",
+      "penalty": 7
+    },
+    {
+      "input": "r",
+      "outcome": "accepted",
+      "penalty": 7
+    },
+    {
+      "input": "t",
+      "outcome": "accepted",
+      "penalty": 0
+    },
+    {
+      "input": "u",
+      "outcome": "accepted",
+      "penalty": 7
+    },
+    {
+      "input": "v",
+      "outcome": "accepted",
+      "penalty": 7
+    },
+    {
+      "input": "w",
+      "outcome": "accepted",
+      "penalty": 7
+    },
+    {
+      "input": "x",
+      "outcome": "rejected"
+    },
+    {
+      "input": "y",
+      "outcome": "accepted",
+      "penalty": 9
+    },
+    {
+      "input": "z",
+      "outcome": "accepted",
+      "penalty": 0
+    },
+    {
+      "input": "m",
+      "outcome": "accepted",
+      "penalty": 7
+    },
+    {
+      "input": "n",
+      "outcome": "accepted",
+      "penalty": 7
+    }
+  ]
+}

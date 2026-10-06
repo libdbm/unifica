@@ -1,0 +1,3 @@
+ab /* x */ cd
+ab # rest of line\ncd
+ab /* unclosed cd

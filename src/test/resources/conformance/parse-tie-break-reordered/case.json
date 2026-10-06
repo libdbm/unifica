@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "S-P3",
+    "S-P6"
+  ],
+  "description": "The same grammar with the productions reordered selects the other tree; acceptance and penalty do not change."
+}

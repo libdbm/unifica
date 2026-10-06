@@ -1,0 +1,2 @@
+# Conformance cases whose owning task has not landed: <case> <owner>
+# A listed case is skipped while it fails; the run fails once it passes.

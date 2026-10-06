@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "S-P3",
+    "S-P4"
+  ],
+  "description": "Equal-penalty derivations: the tree using the earlier-declared production wins, and the parse is ambiguous."
+}

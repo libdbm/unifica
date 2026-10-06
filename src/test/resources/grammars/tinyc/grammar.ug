@@ -1,0 +1,42 @@
+# Tiny-C (Marc Feeley's tinyc.c language).
+# Ported from grammars-v4 tinyc/tinyc.g4 (commit 7df52be9).
+# Copyright (c) 2013, Tom Everett. BSD licence (see NOTICE.md).
+
+start program;
+whitespace [ \r\n\t]+;
+
+program --> statement+ ;
+
+# ANTLR resolves the dangling 'else' greedily (an 'else' binds to the
+# nearest 'if'). An Earley parser sees both readings, so statements are split
+# into matched (every 'if' has its 'else') and open forms.
+statement --> matched | open ;
+
+matched --> 'if' paren_expr matched 'else' matched
+         | 'while' paren_expr matched
+         | 'do' statement 'while' paren_expr ';'
+         | '{' statement* '}'
+         | expr ';'
+         | ';' ;
+
+open --> 'if' paren_expr statement | 'if' paren_expr matched 'else' open | 'while' paren_expr open ;
+
+paren_expr --> '(' expr ')' ;
+
+expr --> test | id_ '=' expr ;
+
+test --> sum_ | sum_ '<' sum_ ;
+
+sum_ --> term | sum_ '+' term | sum_ '-' term ;
+
+term --> id_ | integer | paren_expr ;
+
+id_ --> STRING ;
+
+integer --> INT ;
+
+# In ANTLR the implicit keyword tokens win over STRING on equal length;
+# here the keywords are excluded from STRING with a lookahead.
+STRING --> (?!(?:if|else|while|do)(?![a-z]))[a-z]+ ;
+
+INT --> [0-9]+ ;

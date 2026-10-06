@@ -1,0 +1,10 @@
+{
+  "rules": [
+    "S-G1",
+    "S-G3",
+    "S-L2",
+    "S-L4",
+    "S-P8"
+  ],
+  "description": "Port of grammars-v4 inf with line ends as EOL tokens: sections and key/value lines, empty list items, blank lines, CHARS winning quoted-string ties, a skipped comment that includes its line break (so the next line continues the list, as in ANTLR), and rejection of a missing section, a doubled '=', a header and line on one line, and a missing final line break."
+}

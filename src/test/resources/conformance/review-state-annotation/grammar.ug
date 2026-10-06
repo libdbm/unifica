@@ -1,0 +1,4 @@
+start s;
+s --> open b;
+open --> '<' ==> IN;
+b --> {IN} 'y';

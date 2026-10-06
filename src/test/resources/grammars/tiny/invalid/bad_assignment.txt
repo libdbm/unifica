@@ -1,0 +1,3 @@
+BEGIN
+  b = a + 1
+END

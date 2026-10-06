@@ -1,0 +1,63 @@
+# Graphviz DOT language.
+# Ported from grammars-v4 dot/DOT.g4 (commit 7df52be9).
+# Copyright (c) 2013 Terence Parr, modified by Andrzej Borucki (2025).
+# BSD licence (see NOTICE.md).
+#
+# The ANTLR grammar sets caseInsensitive = true: keywords use explicit
+# upper/lower character classes and ID accepts both cases.
+
+start graph;
+whitespace [ \t\n\r]+;
+skip COMMENT, LINE_COMMENT, PREPROC;
+
+graph --> STRICT? (GRAPH | DIGRAPH) id_? '{' stmt_list '}' ;
+
+stmt_list --> (stmt ';'?)* ;
+
+stmt --> node_stmt | edge_stmt | attr_stmt | id_ '=' id_ | subgraph ;
+
+attr_stmt --> (GRAPH | NODE | EDGE) attr_list ;
+
+attr_list --> ('[' a_list? ']')+ ;
+
+a_list --> (id_ ('=' id_)? (';' | ',')?)+ ;
+
+edge_stmt --> (node_id | subgraph) edgeRHS attr_list? ;
+
+edgeRHS --> (edgeop (node_id | subgraph))+ ;
+
+edgeop --> '->' | '--' ;
+
+node_stmt --> node_id attr_list? ;
+
+node_id --> id_ port? ;
+
+port --> ':' id_ (':' id_)? ;
+
+subgraph --> (SUBGRAPH id_?)? '{' stmt_list '}' ;
+
+id_ --> ID | STRING | HTML_STRING | NUMBER ;
+
+# Keywords are case-independent.
+STRICT --> [sS][tT][rR][iI][cC][tT] ;
+GRAPH --> [gG][rR][aA][pP][hH] ;
+DIGRAPH --> [dD][iI][gG][rR][aA][pP][hH] ;
+NODE --> [nN][oO][dD][eE] ;
+EDGE --> [eE][dD][gG][eE] ;
+SUBGRAPH --> [sS][uU][bB][gG][rR][aA][pP][hH] ;
+
+# "a numeral [-]?(.[0-9]+ | [0-9]+(.[0-9]*)? )"
+NUMBER --> [-]? (?:[.][0-9]+|[0-9]+(?:[.][0-9]*)?) ;
+
+# Double-quoted string with backslash escapes.
+STRING --> '"' (?:[^"\\]|[\\].)* '"' ;
+
+# Letters, underscores and digits, not beginning with a digit; never a keyword.
+ID --> (?!(?i:strict|graph|digraph|node|edge|subgraph)(?![A-Za-z0-9_])) [A-Za-z_][A-Za-z0-9_]* ;
+
+# HTML strings: one level of nested tags inside angle brackets.
+HTML_STRING --> '<' (?:<[^>]*>|[^<>])* '>' ;
+
+COMMENT --> '/*' (?:[^*]|[*]+[^*/])* [*]+ '/' ;
+LINE_COMMENT --> '//' [^\n]* [\n] ;
+PREPROC --> '#' [^\r\n]* ;

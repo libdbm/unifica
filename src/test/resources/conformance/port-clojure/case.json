@@ -1,0 +1,4 @@
+{
+  "rules": ["S-G1", "S-G3", "S-L2", "S-L4", "S-P4", "S-P8"],
+  "description": "Port of grammars-v4 Clojure: SYMBOL's negative lookahead reproduces ANTLR's declaration-order priority of LONG, NIL and CHAR_ANY on equal-length matches, a ';' run that is a whole symbol up to end of line is a SYMBOL while a longer ';' line is a skipped comment, map entries, keywords, syntax quote with a gensym and unquote-splicing, an unclosed list, and ':nil' rejected as in ANTLR (NIL is not a symbol)."
+}

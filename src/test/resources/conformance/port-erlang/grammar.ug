@@ -1,0 +1,284 @@
+# Erlang (Erlang/OTP 23.3), ported from grammars-v4 erlang/Erlang.g4
+# (commit 7df52be9). Original: Copyright (c) 2013 Terence Parr, grammar by
+# Pierre Fenoll, derived from erl_parse.yrl. BSD licence.
+# See NOTICE.md for the list of deviations from the ANTLR grammar.
+
+start forms;
+whitespace [\u0000-\u0020\u0080-\u00a0]+;
+skip Comment;
+
+# Tokens
+
+# Keywords are excluded from unquoted atoms (ANTLR gives implicit literal
+# tokens priority; here every equal-length match would be an alternative).
+TokAtom --> (?!(?:after|andalso|and|band|begin|bnot|bor|bsl|bsr|bxor|case|catch|div|end|fun|if|not|of|orelse|or|receive|rem|try|when|xor)(?![0-9a-zA-Z_@À-ÖØ-Þß-öø-ÿ])) [a-zß-öø-ÿ] [0-9a-zA-Z_@À-ÖØ-Þß-öø-ÿ]*
+         | '\'' (?:[\\][\s\S]|[^\\'])* '\'' ;
+
+TokVar --> [A-Z_À-ÖØ-Þ] [0-9a-zA-Z_@À-ÖØ-Þß-öø-ÿ]* ;
+
+TokFloat --> [-]? [0-9]+ [.] [0-9]+ (?:[Ee][+-]?[0-9]+)? ;
+
+TokInteger --> [-]? [0-9]+ (?:[#][0-9a-zA-Z]+)? ;
+
+# The three-digit octal escape is tried first: Java regex alternation is
+# leftmost-first, ANTLR's is longest-match.
+TokChar --> [$] (?:[\\][0-9][0-9][0-9]|[\\]?[^\r\n]) ;
+
+TokString --> '"' (?:[\\][\s\S]|[^\\"])* '"' ;
+
+AttrName --> [-] (?:spec|callback) ;
+
+Comment --> [%] [^\r\n]* [\r]? [\n] ;
+
+forms --> form+ ;
+
+form --> (attribute | function_) '.' ;
+
+tokAtom --> TokAtom ;
+
+tokVar --> TokVar ;
+
+tokFloat --> TokFloat ;
+
+tokInteger --> TokInteger ;
+
+tokChar --> TokChar ;
+
+tokString --> TokString ;
+
+attribute --> '-' tokAtom attrVal | '-' tokAtom typedAttrVal | '-' tokAtom '(' typedAttrVal ')' | AttrName typeSpec ;
+
+typeSpec --> specFun typeSigs | '(' specFun typeSigs ')' ;
+
+specFun --> tokAtom | tokAtom ':' tokAtom ;
+
+typedAttrVal --> expr ',' typedRecordFields | expr '::' topType ;
+
+typedRecordFields --> '{' typedExprs '}' ;
+
+typedExprs --> typedExpr | typedExpr ',' typedExprs | expr ',' typedExprs | typedExpr ',' exprs ;
+
+typedExpr --> expr '::' topType ;
+
+typeSigs --> typeSig (';' typeSig)* ;
+
+typeSig --> funType ('when' typeGuards)? ;
+
+typeGuards --> typeGuard (',' typeGuard)* ;
+
+typeGuard --> tokAtom '(' topTypes ')' | tokVar '::' topType ;
+
+topTypes --> topType (',' topType)* ;
+
+topType --> (tokVar '::')? topType100 ;
+
+topType100 --> type200 ('|' topType100)? ;
+
+type200 --> type300 ('..' type300)? ;
+
+type300 --> type300 addOp type400 | type400 ;
+
+type400 --> type400 multOp type500 | type500 ;
+
+type500 --> prefixOp? type_ ;
+
+type_ --> '(' topType ')' | tokVar | tokAtom | tokAtom '(' ')' | tokAtom '(' topTypes ')' | tokAtom ':' tokAtom '(' ')' | tokAtom ':' tokAtom '(' topTypes ')' | '[' ']' | '[' topType ']' | '[' topType ',' '...' ']' | '#' '{' '}' | '#' '{' mapPairTypes '}' | '{' '}' | '{' topTypes '}' | '#' tokAtom '{' '}' | '#' tokAtom '{' fieldTypes '}' | binaryType | tokInteger | tokChar | 'fun' '(' ')' | 'fun' '(' funType100 ')' ;
+
+funType100 --> '(' '...' ')' '->' topType | funType ;
+
+funType --> '(' topTypes? ')' '->' topType ;
+
+mapPairTypes --> mapPairType (',' mapPairType)* ;
+
+mapPairType --> topType ('=>' | ':=') topType ;
+
+fieldTypes --> fieldType (',' fieldType)* ;
+
+fieldType --> tokAtom '::' topType ;
+
+binaryType --> '<<' '>>' | '<<' binBaseType '>>' | '<<' binUnitType '>>' | '<<' binBaseType ',' binUnitType '>>' ;
+
+binBaseType --> tokVar ':' type_ ;
+
+binUnitType --> tokVar ':' tokVar '*' type_ ;
+
+# The ANTLR alternative '(' expr ')' is dropped: expr already derives a
+# parenthesised expression, so '-module(m).' had two derivations.
+attrVal --> expr | expr ',' exprs | '(' expr ',' exprs ')' ;
+
+function_ --> functionClause (';' functionClause)* ;
+
+functionClause --> tokAtom clauseArgs clauseGuard clauseBody ;
+
+clauseArgs --> patArgumentList ;
+
+clauseGuard --> ('when' guard_)? ;
+
+clauseBody --> '->' exprs ;
+
+expr --> 'catch' expr | expr100 ;
+
+expr100 --> expr150 (('=' | '!') expr150)* ;
+
+expr150 --> expr160 ('orelse' expr160)* ;
+
+expr160 --> expr200 ('andalso' expr200)* ;
+
+expr200 --> expr300 (compOp expr300)? ;
+
+expr300 --> expr400 (listOp expr400)* ;
+
+expr400 --> expr500 (addOp expr500)* ;
+
+expr500 --> expr600 (multOp expr600)* ;
+
+expr600 --> prefixOp expr600 | expr650 ;
+
+expr650 --> mapExpr | expr700 ;
+
+expr700 --> functionCall | recordExpr | expr800 ;
+
+expr800 --> exprMax (':' exprMax)? ;
+
+exprMax --> tokVar | atomic | list_ | binary | listComprehension | binaryComprehension | tuple_ | '(' expr ')' | 'begin' exprs 'end' | ifExpr | caseExpr | receiveExpr | funExpr | tryExpr ;
+
+patExpr --> patExpr200 ('=' patExpr)? ;
+
+patExpr200 --> patExpr300 (compOp patExpr300)? ;
+
+patExpr300 --> patExpr400 (listOp patExpr300)? ;
+
+patExpr400 --> patExpr400 addOp patExpr500 | patExpr500 ;
+
+patExpr500 --> patExpr500 multOp patExpr600 | patExpr600 ;
+
+patExpr600 --> prefixOp patExpr600 | patExpr650 ;
+
+patExpr650 --> mapPatExpr | patExpr700 ;
+
+patExpr700 --> recordPatExpr | patExpr800 ;
+
+patExpr800 --> patExprMax ;
+
+patExprMax --> tokVar | atomic | list_ | binary | tuple_ | '(' patExpr ')' ;
+
+mapPatExpr --> patExprMax? '#' mapTuple | mapPatExpr '#' mapTuple ;
+
+recordPatExpr --> '#' tokAtom ('.' tokAtom | recordTuple) ;
+
+list_ --> '[' ']' | '[' expr tail ;
+
+tail --> ']' | '|' expr ']' | ',' expr tail ;
+
+binary --> '<<' '>>' | '<<' binElements '>>' ;
+
+binElements --> binElement (',' binElement)* ;
+
+binElement --> bitExpr optBitSizeExpr optBitTypeList ;
+
+bitExpr --> prefixOp? exprMax ;
+
+optBitSizeExpr --> (':' bitSizeExpr)? ;
+
+optBitTypeList --> ('/' bitTypeList)? ;
+
+bitTypeList --> bitType ('-' bitType)* ;
+
+bitType --> tokAtom (':' tokInteger)? ;
+
+bitSizeExpr --> exprMax ;
+
+listComprehension --> '[' expr '||' lcExprs ']' ;
+
+binaryComprehension --> '<<' exprMax '||' lcExprs '>>' ;
+
+lcExprs --> lcExpr (',' lcExpr)* ;
+
+lcExpr --> expr | expr '<-' expr | binary '<=' expr ;
+
+tuple_ --> '{' exprs? '}' ;
+
+mapExpr --> exprMax? '#' mapTuple | mapExpr '#' mapTuple ;
+
+mapTuple --> '{' (mapField (',' mapField)*)? '}' ;
+
+mapField --> mapFieldAssoc | mapFieldExact ;
+
+mapFieldAssoc --> mapKey '=>' expr ;
+
+mapFieldExact --> mapKey ':=' expr ;
+
+mapKey --> expr ;
+
+recordExpr --> exprMax? '#' tokAtom ('.' tokAtom | recordTuple) | recordExpr '#' tokAtom ('.' tokAtom | recordTuple) ;
+
+recordTuple --> '{' recordFields? '}' ;
+
+recordFields --> recordField (',' recordField)* ;
+
+recordField --> (tokVar | tokAtom) '=' expr ;
+
+functionCall --> expr800 argumentList ;
+
+ifExpr --> 'if' ifClauses 'end' ;
+
+ifClauses --> ifClause (';' ifClause)* ;
+
+ifClause --> guard_ clauseBody ;
+
+caseExpr --> 'case' expr 'of' crClauses 'end' ;
+
+crClauses --> crClause (';' crClause)* ;
+
+crClause --> expr clauseGuard clauseBody ;
+
+receiveExpr --> 'receive' crClauses 'end' | 'receive' 'after' expr clauseBody 'end' | 'receive' crClauses 'after' expr clauseBody 'end' ;
+
+funExpr --> 'fun' tokAtom '/' tokInteger | 'fun' atomOrVar ':' atomOrVar '/' integerOrVar | 'fun' funClauses 'end' ;
+
+atomOrVar --> tokAtom | tokVar ;
+
+integerOrVar --> tokInteger | tokVar ;
+
+funClauses --> funClause (';' funClause)* ;
+
+funClause --> patArgumentList clauseGuard clauseBody | tokVar patArgumentList clauseGuard clauseBody ;
+
+tryExpr --> 'try' exprs ('of' crClauses)? tryCatch ;
+
+tryCatch --> 'catch' tryClauses 'end' | 'catch' tryClauses 'after' exprs 'end' | 'after' exprs 'end' ;
+
+tryClauses --> tryClause (';' tryClause)* ;
+
+# Follows erl_parse.yrl rather than the ANTLR rule. The ANTLR alternative
+# 'expr clauseGuard clauseBody' is dropped (every pattern is also an
+# expression, so each plain clause had two derivations), and a stack trace
+# variable requires a class: 'X:S' without a class reads both as class X
+# with pattern S and as pattern X with stack trace S.
+tryClause --> patExpr clauseGuard clauseBody
+           | atomOrVar ':' patExpr tryOptStackTrace clauseGuard clauseBody ;
+
+tryOptStackTrace --> (':' tokVar)? ;
+
+argumentList --> '(' exprs? ')' ;
+
+patArgumentList --> '(' patExprs? ')' ;
+
+exprs --> expr (',' expr)* ;
+
+patExprs --> patExpr (',' patExpr)* ;
+
+guard_ --> exprs (';' exprs)* ;
+
+atomic --> tokChar | tokInteger | tokFloat | tokAtom | tokString+ ;
+
+prefixOp --> '+' | '-' | 'bnot' | 'not' ;
+
+multOp --> '/' | '*' | 'div' | 'rem' | 'band' | 'and' ;
+
+addOp --> '+' | '-' | 'bor' | 'bxor' | 'bsl' | 'bsr' | 'or' | 'xor' ;
+
+listOp --> '++' | '--' ;
+
+compOp --> '==' | '/=' | '=<' | '<' | '>=' | '>' | '=:=' | '=/=' ;
+

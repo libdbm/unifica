@@ -1,0 +1,151 @@
+# Clojure reader syntax: literals, collections and reader macros.
+# Ported from grammars-v4 clojure/Clojure.g4 (commit 7df52be9).
+# Converted to ANTLR 4 by Terence Parr, reworked by Reid Mckenzie. No licence
+# is stated in the .g4 file; the grammars-v4 repository default applies (see
+# NOTICE.md).
+#
+# Character classes used below, from the ANTLR fragments:
+#   SYMBOL_HEAD  [^0-9^`'"#~@:/%\(\)\[\]{} \n\r\t,]
+#   SYMBOL_REST  [^^`'"#~@:/%\(\)\[\]{} \n\r\t,]   (SYMBOL_HEAD, digits, '.')
+#   NAME         SYMBOL_HEAD SYMBOL_REST* (':' SYMBOL_REST+)*
+
+start file_;
+whitespace [ \n\r\t,]+;
+skip Comment;
+
+file_ --> form* ;
+
+form --> literal | list_ | vector | map_ | reader_macro ;
+
+forms --> form* ;
+
+list_ --> '(' forms ')' ;
+
+vector --> '[' forms ']' ;
+
+# ANTLR: '{' (form form)* '}'.
+map_ --> '{' (form form)* '}' ;
+
+set_ --> '#{' forms '}' ;
+
+reader_macro --> lambda_
+              | meta_data
+              | regex
+              | var_quote
+              | host_expr
+              | set_
+              | tag
+              | discard
+              | dispatch
+              | deref
+              | quote
+              | backtick
+              | unquote
+              | unquote_splicing
+              | gensym ;
+
+quote --> '\'' form ;
+
+backtick --> '`' form ;
+
+unquote --> '~' form ;
+
+unquote_splicing --> '~@' form ;
+
+tag --> '^' form form ;
+
+deref --> '@' form ;
+
+gensym --> SYMBOL '#' ;
+
+lambda_ --> '#(' form* ')' ;
+
+# ANTLR: '#^' (map_ form | form). Declared in the same order, so on an
+# ambiguous input the tie-break (S-P3) prefers 'map_ form' as ANTLR does.
+meta_data --> '#^' (map_ form | form) ;
+
+var_quote --> '#\'' symbol ;
+
+host_expr --> '#+' form form ;
+
+discard --> '#_' form ;
+
+dispatch --> '#' symbol form ;
+
+regex --> '#' string_ ;
+
+literal --> string_ | number | character | nil_ | BOOLEAN | keyword | symbol | param_name ;
+
+string_ --> STRING ;
+
+hex_ --> HEX ;
+
+bin_ --> BIN ;
+
+bign --> BIGN ;
+
+number --> FLOAT | hex_ | bin_ | bign | LONG ;
+
+character --> named_char | u_hex_quad | any_char ;
+
+named_char --> CHAR_NAMED ;
+
+any_char --> CHAR_ANY ;
+
+u_hex_quad --> CHAR_U ;
+
+nil_ --> NIL ;
+
+keyword --> macro_keyword | simple_keyword ;
+
+simple_keyword --> ':' symbol ;
+
+macro_keyword --> ':' ':' symbol ;
+
+symbol --> ns_symbol | simple_sym ;
+
+simple_sym --> SYMBOL ;
+
+ns_symbol --> NS_SYMBOL ;
+
+param_name --> PARAM_NAME ;
+
+# Lexical categories
+
+STRING --> '"' (?:[\\]"|[^"])* '"' ;
+
+FLOAT --> (?:-?[0-9]+(?:[.][0-9]+(?:[eE]-?[0-9]+)?|[eE]-?[0-9]+)|-?Infinity|-?NaN) ;
+
+HEX --> '0' [xX] [0-9a-fA-F]+ ;
+
+BIN --> '0' [bB] [10]+ ;
+
+LONG --> '-'? [0-9]+ [lL]? ;
+
+BIGN --> '-'? [0-9]+ [nN] ;
+
+CHAR_U --> [\\] 'u' [0-9D-Fd-f] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] ;
+
+CHAR_NAMED --> [\\] (?:newline|return|space|tab|formfeed|backspace) ;
+
+CHAR_ANY --> [\\] [\s\S] ;
+
+NIL --> 'nil' ;
+
+BOOLEAN --> (?:true|false) ;
+
+# ANTLR declares FLOAT, LONG, BIGN, the CHAR_ tokens, NIL and BOOLEAN before
+# SYMBOL, so where SYMBOL matches the same text with the same length (for
+# example '-1', '-1.5', 'NaN', 'nil', '\a', '\newline') the earlier token wins.
+# Equal-length matches are alternatives here, so SYMBOL excludes exactly those
+# texts: the lookahead blocks it when one of them ends where SYMBOL would end.
+SYMBOL --> (?!(?:-[0-9]+(?:[.][0-9]+)?(?:[eE]-?[0-9]+)?|-[0-9]+[lLnN]|-?Infinity|-?NaN|nil|true|false|[\\](?:u[0-9D-Fd-f][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]|newline|return|space|tab|formfeed|backspace|[\s\S]))(?![^^`'"#~@:/%\(\)\[\]{} \n\r\t,]|:[^^`'"#~@:/%\(\)\[\]{} \n\r\t,])) (?:[^0-9^`'"#~@:/%\(\)\[\]{} \n\r\t,][^^`'"#~@:/%\(\)\[\]{} \n\r\t,]*(?::[^^`'"#~@:/%\(\)\[\]{} \n\r\t,]+)*|/) ;
+
+NS_SYMBOL --> [^0-9^`'"#~@:/%\(\)\[\]{} \n\r\t,] [^^`'"#~@:/%\(\)\[\]{} \n\r\t,]* (?::[^^`'"#~@:/%\(\)\[\]{} \n\r\t,]+)* '/' (?:[^0-9^`'"#~@:/%\(\)\[\]{} \n\r\t,][^^`'"#~@:/%\(\)\[\]{} \n\r\t,]*(?::[^^`'"#~@:/%\(\)\[\]{} \n\r\t,]+)*|/) ;
+
+PARAM_NAME --> '%' (?:[1-9][0-9]*|&)? ;
+
+# SYMBOL_HEAD includes ';', and ANTLR declares SYMBOL and NS_SYMBOL before
+# TRASH, so a ';' run that is a whole symbol up to the end of the line (such as
+# ';;;;') is lexed as a SYMBOL, not a comment. The lookahead reproduces that.
+Comment --> ';' (?![^^`'"#~@:/%\(\)\[\]{} \n\r\t,]*(?::[^^`'"#~@:/%\(\)\[\]{} \n\r\t,]+)*(?:/(?:[^0-9^`'"#~@:/%\(\)\[\]{} \n\r\t,][^^`'"#~@:/%\(\)\[\]{} \n\r\t,]*(?::[^^`'"#~@:/%\(\)\[\]{} \n\r\t,]+)*|/))?(?:[\r\n]|$)) [^\r\n]* ;

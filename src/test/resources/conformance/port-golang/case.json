@@ -1,0 +1,12 @@
+{
+  "rules": [
+    "S-G1",
+    "S-G3",
+    "S-G4",
+    "S-L2",
+    "S-L4",
+    "S-C3",
+    "S-P8"
+  ],
+  "description": "Port of grammars-v4 Go: ANTLR's NLSEMI lexer mode as a lexical state, so a line break, ';' or multi-line comment after a statement-ending token is an EOS token; eos is empty before ')' or '}' (before()) or at the end of input (at_end()); a statement cannot continue across an EOS, and two statements on one line need a ';'."
+}

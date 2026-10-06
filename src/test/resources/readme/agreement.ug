@@ -1,0 +1,13 @@
+# Subject and verb agree in number through the shared variable N.
+start S;
+
+S{num: N} --> NP{num: N} VP{num: N};
+NP{num: N} --> Det{num: N} Noun{num: N};
+VP{num: N} --> Verb{num: N};
+
+Det{num: sg} --> 'a';
+Det --> 'the';
+Noun{num: sg} --> 'dog';
+Noun{num: pl} --> 'dogs';
+Verb{num: sg} --> 'barks';
+Verb{num: pl} --> 'bark';

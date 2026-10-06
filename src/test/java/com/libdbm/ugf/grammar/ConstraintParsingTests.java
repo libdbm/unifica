@@ -2,9 +2,10 @@ package com.libdbm.ugf.grammar;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.libdbm.ugf.constraints.Constraint;
-import com.libdbm.ugf.constraints.Predicate;
+import com.libdbm.ugf.constraints.Expression;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
+import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -16,9 +17,9 @@ import org.junit.jupiter.api.Test;
  */
 class ConstraintParsingTests {
 
-  private static Constraint parse(final String rule) {
+  private static Expression parse(final String rule) {
     // Parse with unvalidated to avoid needing defined nonterminals
-    final var grammar = UnificationGrammarParserFactory.unvalidated(rule);
+    final var grammar = UnificationGrammarParserFactory.unvalidated(rule).orElseThrow();
     final var constraints = grammar.rules().values().iterator().next().getFirst().constraints();
     assertFalse(constraints.isEmpty(), "Expected at least one constraint");
     return constraints.getFirst();
@@ -32,16 +33,16 @@ class ConstraintParsingTests {
     @DisplayName("parses single predicate")
     void single() {
       final var c = parse("s --> 'a' where foo(X);");
-      assertInstanceOf(Predicate.class, c);
-      assertEquals("foo", ((Predicate) c).name());
+      assertInstanceOf(Expression.Call.class, c);
+      assertEquals("foo", ((Expression.Call) c).name());
     }
 
     @Test
     @DisplayName("parses predicate with multiple arguments")
     void multiple_args() {
       final var c = parse("s --> 'a' where agree(X, Y);");
-      assertInstanceOf(Predicate.class, c);
-      final var p = (Predicate) c;
+      assertInstanceOf(Expression.Call.class, c);
+      final var p = (Expression.Call) c;
       assertEquals("agree", p.name());
       assertEquals(2, p.args().size());
     }
@@ -55,22 +56,22 @@ class ConstraintParsingTests {
     @DisplayName("parses negated predicate")
     void negated() {
       final var c = parse("s --> 'a' where !reserved(X);");
-      assertInstanceOf(Constraint.Not.class, c);
-      final var inner = ((Constraint.Not) c).constraint();
-      assertInstanceOf(Predicate.class, inner);
-      assertEquals("reserved", ((Predicate) inner).name());
+      assertInstanceOf(Expression.Not.class, c);
+      final var inner = ((Expression.Not) c).term();
+      assertInstanceOf(Expression.Call.class, inner);
+      assertEquals("reserved", ((Expression.Call) inner).name());
     }
 
     @Test
     @DisplayName("parses double negation")
     void double_negation() {
       final var c = parse("s --> 'a' where !!confirmed(X);");
-      assertInstanceOf(Constraint.Not.class, c);
-      final var inner1 = ((Constraint.Not) c).constraint();
-      assertInstanceOf(Constraint.Not.class, inner1);
-      final var inner2 = ((Constraint.Not) inner1).constraint();
-      assertInstanceOf(Predicate.class, inner2);
-      assertEquals("confirmed", ((Predicate) inner2).name());
+      assertInstanceOf(Expression.Not.class, c);
+      final var inner1 = ((Expression.Not) c).term();
+      assertInstanceOf(Expression.Not.class, inner1);
+      final var inner2 = ((Expression.Not) inner1).term();
+      assertInstanceOf(Expression.Call.class, inner2);
+      assertEquals("confirmed", ((Expression.Call) inner2).name());
     }
   }
 
@@ -82,19 +83,19 @@ class ConstraintParsingTests {
     @DisplayName("parses simple disjunction")
     void simple() {
       final var c = parse("s --> 'a' where british(X) | american(X);");
-      assertInstanceOf(Constraint.Or.class, c);
-      final var or = (Constraint.Or) c;
-      assertEquals(2, or.disjuncts().size());
-      assertInstanceOf(Predicate.class, or.disjuncts().get(0));
-      assertInstanceOf(Predicate.class, or.disjuncts().get(1));
+      assertInstanceOf(Expression.Or.class, c);
+      final var or = (Expression.Or) c;
+      assertEquals(2, or.terms().size());
+      assertInstanceOf(Expression.Call.class, or.terms().get(0));
+      assertInstanceOf(Expression.Call.class, or.terms().get(1));
     }
 
     @Test
     @DisplayName("parses three-way disjunction")
     void three_way() {
       final var c = parse("s --> 'a' where a(X) | b(X) | c(X);");
-      assertInstanceOf(Constraint.Or.class, c);
-      assertEquals(3, ((Constraint.Or) c).disjuncts().size());
+      assertInstanceOf(Expression.Or.class, c);
+      assertEquals(3, ((Expression.Or) c).terms().size());
     }
   }
 
@@ -106,17 +107,17 @@ class ConstraintParsingTests {
     @DisplayName("parses conjunction as And")
     void simple() {
       final var c = parse("s --> 'a' where foo(X), bar(Y);");
-      assertInstanceOf(Constraint.And.class, c);
-      final var and = (Constraint.And) c;
-      assertEquals(2, and.conjuncts().size());
+      assertInstanceOf(Expression.And.class, c);
+      final var and = (Expression.And) c;
+      assertEquals(2, and.terms().size());
     }
 
     @Test
     @DisplayName("parses three-way conjunction")
     void three_way() {
       final var c = parse("s --> 'a' where a(X), b(X), c(X);");
-      assertInstanceOf(Constraint.And.class, c);
-      assertEquals(3, ((Constraint.And) c).conjuncts().size());
+      assertInstanceOf(Expression.And.class, c);
+      assertEquals(3, ((Expression.And) c).terms().size());
     }
   }
 
@@ -129,15 +130,15 @@ class ConstraintParsingTests {
     void and_before_or() {
       final var c = parse("s --> 'a' where a(X), b(X) | c(X);");
       // Should be: Or(And(a, b), c)
-      assertInstanceOf(Constraint.Or.class, c);
-      final var or = (Constraint.Or) c;
-      assertEquals(2, or.disjuncts().size());
+      assertInstanceOf(Expression.Or.class, c);
+      final var or = (Expression.Or) c;
+      assertEquals(2, or.terms().size());
       // First disjunct is And(a, b)
-      assertInstanceOf(Constraint.And.class, or.disjuncts().get(0));
-      final var and = (Constraint.And) or.disjuncts().get(0);
-      assertEquals(2, and.conjuncts().size());
+      assertInstanceOf(Expression.And.class, or.terms().get(0));
+      final var and = (Expression.And) or.terms().get(0);
+      assertEquals(2, and.terms().size());
       // Second disjunct is c
-      assertInstanceOf(Predicate.class, or.disjuncts().get(1));
+      assertInstanceOf(Expression.Call.class, or.terms().get(1));
     }
 
     @Test
@@ -145,11 +146,11 @@ class ConstraintParsingTests {
     void not_before_and() {
       final var c = parse("s --> 'a' where !a(X), b(X);");
       // Should be: And(Not(a), b)
-      assertInstanceOf(Constraint.And.class, c);
-      final var and = (Constraint.And) c;
-      assertEquals(2, and.conjuncts().size());
-      assertInstanceOf(Constraint.Not.class, and.conjuncts().get(0));
-      assertInstanceOf(Predicate.class, and.conjuncts().get(1));
+      assertInstanceOf(Expression.And.class, c);
+      final var and = (Expression.And) c;
+      assertEquals(2, and.terms().size());
+      assertInstanceOf(Expression.Not.class, and.terms().get(0));
+      assertInstanceOf(Expression.Call.class, and.terms().get(1));
     }
 
     @Test
@@ -157,11 +158,11 @@ class ConstraintParsingTests {
     void not_before_or() {
       final var c = parse("s --> 'a' where !a(X) | b(X);");
       // Should be: Or(Not(a), b)
-      assertInstanceOf(Constraint.Or.class, c);
-      final var or = (Constraint.Or) c;
-      assertEquals(2, or.disjuncts().size());
-      assertInstanceOf(Constraint.Not.class, or.disjuncts().get(0));
-      assertInstanceOf(Predicate.class, or.disjuncts().get(1));
+      assertInstanceOf(Expression.Or.class, c);
+      final var or = (Expression.Or) c;
+      assertEquals(2, or.terms().size());
+      assertInstanceOf(Expression.Not.class, or.terms().get(0));
+      assertInstanceOf(Expression.Call.class, or.terms().get(1));
     }
   }
 
@@ -174,11 +175,11 @@ class ConstraintParsingTests {
     void paren_overrides_precedence() {
       final var c = parse("s --> 'a' where a(X), (b(X) | c(X));");
       // Should be: And(a, Or(b, c))
-      assertInstanceOf(Constraint.And.class, c);
-      final var and = (Constraint.And) c;
-      assertEquals(2, and.conjuncts().size());
-      assertInstanceOf(Predicate.class, and.conjuncts().get(0));
-      assertInstanceOf(Constraint.Or.class, and.conjuncts().get(1));
+      assertInstanceOf(Expression.And.class, c);
+      final var and = (Expression.And) c;
+      assertEquals(2, and.terms().size());
+      assertInstanceOf(Expression.Call.class, and.terms().get(0));
+      assertInstanceOf(Expression.Or.class, and.terms().get(1));
     }
 
     @Test
@@ -186,10 +187,10 @@ class ConstraintParsingTests {
     void negation_of_group() {
       final var c = parse("s --> 'a' where !(a(X) | b(X));");
       // Should be: Not(Or(a, b))
-      assertInstanceOf(Constraint.Not.class, c);
-      final var inner = ((Constraint.Not) c).constraint();
-      assertInstanceOf(Constraint.Or.class, inner);
-      assertEquals(2, ((Constraint.Or) inner).disjuncts().size());
+      assertInstanceOf(Expression.Not.class, c);
+      final var inner = ((Expression.Not) c).term();
+      assertInstanceOf(Expression.Or.class, inner);
+      assertEquals(2, ((Expression.Or) inner).terms().size());
     }
 
     @Test
@@ -197,11 +198,11 @@ class ConstraintParsingTests {
     void nested_grouping() {
       final var c = parse("s --> 'a' where ((a(X) | b(X)), c(X)) | d(X);");
       // Should be: Or(And(Or(a, b), c), d)
-      assertInstanceOf(Constraint.Or.class, c);
-      final var or = (Constraint.Or) c;
-      assertEquals(2, or.disjuncts().size());
-      assertInstanceOf(Constraint.And.class, or.disjuncts().get(0));
-      assertInstanceOf(Predicate.class, or.disjuncts().get(1));
+      assertInstanceOf(Expression.Or.class, c);
+      final var or = (Expression.Or) c;
+      assertEquals(2, or.terms().size());
+      assertInstanceOf(Expression.And.class, or.terms().get(0));
+      assertInstanceOf(Expression.Call.class, or.terms().get(1));
     }
   }
 
@@ -214,37 +215,119 @@ class ConstraintParsingTests {
     void agreement_fallback() {
       final var c = parse("s --> np:n vp:v where agree(n, v) | (!strict(), lenient(n, v));");
       // Should be: Or(agree, And(Not(strict), lenient))
-      assertInstanceOf(Constraint.Or.class, c);
-      final var or = (Constraint.Or) c;
-      assertEquals(2, or.disjuncts().size());
+      assertInstanceOf(Expression.Or.class, c);
+      final var or = (Expression.Or) c;
+      assertEquals(2, or.terms().size());
       // First: agree(n, v)
-      assertInstanceOf(Predicate.class, or.disjuncts().get(0));
+      assertInstanceOf(Expression.Call.class, or.terms().get(0));
       // Second: And(Not(strict), lenient)
-      assertInstanceOf(Constraint.And.class, or.disjuncts().get(1));
-      final var and = (Constraint.And) or.disjuncts().get(1);
-      assertInstanceOf(Constraint.Not.class, and.conjuncts().get(0));
-      assertInstanceOf(Predicate.class, and.conjuncts().get(1));
+      assertInstanceOf(Expression.And.class, or.terms().get(1));
+      final var and = (Expression.And) or.terms().get(1);
+      assertInstanceOf(Expression.Not.class, and.terms().get(0));
+      assertInstanceOf(Expression.Call.class, and.terms().get(1));
     }
 
     @Test
     @DisplayName("de Morgan style: !(error | warning)")
     void de_morgan() {
       final var c = parse("s --> 'a' where !(error(X) | warning(X));");
-      assertInstanceOf(Constraint.Not.class, c);
-      final var inner = ((Constraint.Not) c).constraint();
-      assertInstanceOf(Constraint.Or.class, inner);
+      assertInstanceOf(Expression.Not.class, c);
+      final var inner = ((Expression.Not) c).term();
+      assertInstanceOf(Expression.Or.class, inner);
     }
 
     @Test
     @DisplayName("multiple negations in conjunction: !a, !b, !c")
     void multiple_negations() {
       final var c = parse("s --> 'a' where !a(X), !b(X), !c(X);");
-      assertInstanceOf(Constraint.And.class, c);
-      final var and = (Constraint.And) c;
-      assertEquals(3, and.conjuncts().size());
-      for (final var conj : and.conjuncts()) {
-        assertInstanceOf(Constraint.Not.class, conj);
+      assertInstanceOf(Expression.And.class, c);
+      final var and = (Expression.And) c;
+      assertEquals(3, and.terms().size());
+      for (final var conj : and.terms()) {
+        assertInstanceOf(Expression.Not.class, conj);
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("Production kind (S-G1)")
+  class Kinds {
+
+    private GrammarRule.Kind kind(final String source, final String symbol) {
+      return UnificationGrammarParserFactory.unvalidated(source)
+          .orElseThrow()
+          .rulesFor(symbol)
+          .getFirst()
+          .kind();
+    }
+
+    @Test
+    void testLexicalKindRecorded() {
+      assertEquals(GrammarRule.Kind.LEXICAL, kind("start K; K --> 'if';", "K"));
+      assertEquals(GrammarRule.Kind.LEXICAL, kind("start S; S --> '\"' [^\"]* '\"';", "S"));
+      assertEquals(GrammarRule.Kind.LEXICAL, kind("start b; b --> {IN} 'y';", "b"));
+      assertEquals(GrammarRule.Kind.LEXICAL, kind("start o; o --> '<' ==> IN;", "o"));
+      assertEquals(GrammarRule.Kind.LEXICAL, kind("start I; I --> ([a-z] | '_')+;", "I"));
+    }
+
+    @Test
+    void testSyntacticKindRecorded() {
+      assertEquals(GrammarRule.Kind.SYNTACTIC, kind("start A; A --> 'a' 'b';", "A"));
+      assertEquals(GrammarRule.Kind.SYNTACTIC, kind("start S; S --> A 'x'; A --> 'a';", "S"));
+      assertEquals(GrammarRule.Kind.SYNTACTIC, kind("start T; T --> {TOKEN};", "T"));
+      assertEquals(GrammarRule.Kind.SYNTACTIC, kind("start A; A --> 'a'+;", "A"));
+    }
+
+    private long cost(final String source, final String symbol) {
+      return UnificationGrammarParserFactory.unvalidated(source)
+          .orElseThrow()
+          .rulesFor(symbol)
+          .getFirst()
+          .cost();
+    }
+
+    @Test
+    void testProductionCost() {
+      assertEquals(
+          2L, cost("start np; np --> det n where agree(det, n) @2; det --> 'a'; n --> 'b';", "np"));
+      assertEquals(1L, cost("start S; S --> A @1; A --> 'a';", "S"));
+      assertEquals(5L, cost("start o; o --> '<' ==> IN @5;", "o"));
+      assertEquals(0L, cost("start S; S --> A; A --> 'a';", "S"));
+      // "cost" is not a keyword, so it remains available as a symbol name.
+      assertEquals(3L, cost("start cost; cost --> A @3; A --> 'a';", "cost"));
+    }
+
+    @Test
+    void testLiteralEscapes() {
+      final var grammar =
+          UnificationGrammarParserFactory.unvalidated(
+                  "start S; S --> '\\'' '\\n' '\\\\' \"\\\"\" '\\u0041';")
+              .orElseThrow();
+
+      final var texts =
+          grammar.rulesFor("S").getFirst().rhs().stream()
+              .map(element -> ((RuleElement.Terminal) element).text())
+              .toList();
+      assertEquals(List.of("'", "\n", "\\", "\"", "A"), texts);
+    }
+
+    @Test
+    void testSkipStatement() {
+      final var grammar =
+          UnificationGrammarParserFactory.unvalidated(
+                  "start S; skip Comment, Line; skip Other; S --> 'a'; Comment --> '#' [a-z]*;")
+              .orElseThrow();
+
+      assertEquals(Set.of("Comment", "Line", "Other"), grammar.skips());
+    }
+
+    @Test
+    void testDefaultsForProgrammaticRules() {
+      final var rule = new GrammarRule("S", List.of(new RuleElement.Terminal("x")));
+
+      // Classified by S-G1 like a loaded rule: a single literal is lexical.
+      assertEquals(GrammarRule.Kind.LEXICAL, rule.kind());
+      assertEquals(0L, rule.cost());
     }
   }
 }

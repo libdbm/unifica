@@ -1,0 +1,4 @@
+{
+  "rules": ["S-F5", "S-P3", "S-P9"],
+  "description": "A cycle through S{v: X} with concrete bindings terminates. The derivation that reaches S{v: a} through S{v: b} directly is selected by declaration order, and the longer cycle-free derivations make the result ambiguous."
+}

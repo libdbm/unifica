@@ -1,278 +1,176 @@
 package com.libdbm.ugf.grammar;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.libdbm.ugf.constraints.Constraint;
-import com.libdbm.ugf.constraints.Predicate;
-import com.libdbm.ugf.constraints.Strength;
+import com.libdbm.ugf.ErrorDetails;
+import com.libdbm.ugf.Result;
+import com.libdbm.ugf.constraints.Expression;
+import com.libdbm.ugf.constraints.Plan;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for defeasible constraint penalty notation in grammar files.
- *
- * <p>Syntax: {@code predicate(X):N} where N is the penalty value. Without penalty, constraints are
- * required (hard).
+ * Weight notation in grammar files ({@code pred(X):N}, {@code (...):N}) and the plan it compiles
+ * to: unweighted top-level conjuncts are required, weighted ones are soft groups (S-C2, S-C6).
+ * Ported from the 1.x strength/priority tests.
  */
-@DisplayName("Defeasible Constraint Parsing")
+@DisplayName("Weighted constraint parsing")
 class DefeasibleConstraintTests {
 
+  private static Result<Plan, ErrorDetails> compile(final String source, final String symbol) {
+    final var grammar = UnificationGrammarParserFactory.unvalidated(source).orElseThrow();
+    return Plan.of(grammar.rulesFor(symbol).getFirst().constraints());
+  }
+
+  private static Plan plan(final String source, final String symbol) {
+    return compile(source, symbol).orElseThrow();
+  }
+
+  private static String name(final Expression expression) {
+    return ((Expression.Call) expression).name();
+  }
+
+  private static List<String> required(final Plan plan) {
+    return plan.required().stream().map(DefeasibleConstraintTests::name).toList();
+  }
+
+  private static List<String> soft(final Plan plan) {
+    return plan.soft().stream()
+        .map(group -> name(group.expression()) + ":" + group.weight())
+        .toList();
+  }
+
   @Nested
-  @DisplayName("Predicate Penalties")
-  class PredicatePenalties {
+  @DisplayName("Predicate weights")
+  class PredicateWeights {
 
     @Test
-    @DisplayName("predicate without penalty is REQUIRED")
-    void required() {
-      final var grammar = UnificationGrammarParserFactory.unvalidated("rule --> 'a' where foo(X);");
+    void testPredicateWithoutWeightIsRequired() {
+      final var plan = plan("rule --> 'a' where foo(X);", "rule");
 
-      final var rule = grammar.rulesFor("rule").getFirst();
-      final var constraint = rule.constraints().getFirst();
-
-      assertInstanceOf(Predicate.class, constraint);
-      final var pred = (Predicate) constraint;
-      assertEquals("foo", pred.name());
-      assertEquals(Strength.REQUIRED, pred.strength());
-      assertEquals(0, pred.priority());
+      assertEquals(List.of("foo"), required(plan));
+      assertTrue(plan.soft().isEmpty());
     }
 
     @Test
-    @DisplayName("predicate with penalty is DEFEASIBLE")
-    void defeasible() {
-      final var grammar =
-          UnificationGrammarParserFactory.unvalidated("rule --> 'a' where foo(X):10;");
+    void testPredicateWithWeightIsSoft() {
+      final var plan = plan("rule --> 'a' where foo(X):10;", "rule");
 
-      final var rule = grammar.rulesFor("rule").getFirst();
-      final var constraint = rule.constraints().getFirst();
-
-      assertInstanceOf(Predicate.class, constraint);
-      final var pred = (Predicate) constraint;
-      assertEquals("foo", pred.name());
-      assertEquals(Strength.DEFEASIBLE, pred.strength());
-      assertEquals(10, pred.priority());
+      assertTrue(plan.required().isEmpty());
+      assertEquals(List.of("foo:10"), soft(plan));
     }
 
     @Test
-    @DisplayName("different penalty values")
-    void penalties() {
-      final var grammar =
-          UnificationGrammarParserFactory.unvalidated("rule --> 'a' where foo(X):5, bar(Y):100;");
-
-      final var rule = grammar.rulesFor("rule").getFirst();
-      final var constraint = rule.constraints().getFirst();
-
-      assertInstanceOf(Constraint.And.class, constraint);
-      final var and = (Constraint.And) constraint;
-      assertEquals(2, and.conjuncts().size());
-
-      final var first = (Predicate) and.conjuncts().get(0);
-      assertEquals("foo", first.name());
-      assertEquals(Strength.DEFEASIBLE, first.strength());
-      assertEquals(5, first.priority());
-
-      final var second = (Predicate) and.conjuncts().get(1);
-      assertEquals("bar", second.name());
-      assertEquals(Strength.DEFEASIBLE, second.strength());
-      assertEquals(100, second.priority());
+    void testDifferentWeights() {
+      assertEquals(
+          List.of("foo:5", "bar:100"),
+          soft(plan("rule --> 'a' where foo(X):5, bar(Y):100;", "rule")));
     }
 
     @Test
-    @DisplayName("mixed required and defeasible")
-    void mixed() {
-      final var grammar =
-          UnificationGrammarParserFactory.unvalidated("rule --> 'a' where foo(X), bar(Y):10;");
+    void testMixedRequiredAndSoft() {
+      final var plan = plan("rule --> 'a' where foo(X), bar(Y):10;", "rule");
 
-      final var rule = grammar.rulesFor("rule").getFirst();
-      final var constraint = rule.constraints().getFirst();
-
-      assertInstanceOf(Constraint.And.class, constraint);
-      final var and = (Constraint.And) constraint;
-      assertEquals(2, and.conjuncts().size());
-
-      final var first = (Predicate) and.conjuncts().get(0);
-      assertEquals(Strength.REQUIRED, first.strength());
-
-      final var second = (Predicate) and.conjuncts().get(1);
-      assertEquals(Strength.DEFEASIBLE, second.strength());
-      assertEquals(10, second.priority());
+      assertEquals(List.of("foo"), required(plan));
+      assertEquals(List.of("bar:10"), soft(plan));
     }
   }
 
   @Nested
-  @DisplayName("Grouped Expressions")
-  class GroupedExpressions {
+  @DisplayName("Grouped expressions")
+  class Groups {
 
     @Test
-    @DisplayName("grouped AND with penalty")
-    void groupedAnd() {
-      final var grammar =
-          UnificationGrammarParserFactory.unvalidated("rule --> 'a' where (foo(X), bar(Y)):5;");
+    void testGroupedConjunctionWithWeightIsOneSoftGroup() {
+      final var plan = plan("rule --> 'a' where (foo(X), bar(Y)):5;", "rule");
 
-      final var rule = grammar.rulesFor("rule").getFirst();
-      final var constraint = rule.constraints().getFirst();
-
-      assertInstanceOf(Constraint.And.class, constraint);
-      final var and = (Constraint.And) constraint;
-      assertEquals(Strength.DEFEASIBLE, and.strength());
-      assertEquals(5, and.priority());
+      assertEquals(1, plan.soft().size());
+      assertEquals(5, plan.soft().getFirst().weight());
+      assertEquals(
+          2,
+          assertInstanceOf(Expression.And.class, plan.soft().getFirst().expression())
+              .terms()
+              .size());
     }
 
     @Test
-    @DisplayName("grouped OR with penalty")
-    void groupedOr() {
-      final var grammar =
-          UnificationGrammarParserFactory.unvalidated("rule --> 'a' where (foo(X) | bar(Y)):8;");
+    void testGroupedDisjunctionWithWeight() {
+      final var plan = plan("rule --> 'a' where (foo(X) | bar(Y)):8;", "rule");
 
-      final var rule = grammar.rulesFor("rule").getFirst();
-      final var constraint = rule.constraints().getFirst();
-
-      assertInstanceOf(Constraint.Or.class, constraint);
-      final var or = (Constraint.Or) constraint;
-      assertEquals(Strength.DEFEASIBLE, or.strength());
-      assertEquals(8, or.priority());
+      assertEquals(8, plan.soft().getFirst().weight());
+      assertInstanceOf(Expression.Or.class, plan.soft().getFirst().expression());
     }
 
     @Test
-    @DisplayName("grouped without penalty is required")
-    void groupedRequired() {
-      final var grammar =
-          UnificationGrammarParserFactory.unvalidated("rule --> 'a' where (foo(X), bar(Y));");
-
-      final var rule = grammar.rulesFor("rule").getFirst();
-      final var constraint = rule.constraints().getFirst();
-
-      assertInstanceOf(Constraint.And.class, constraint);
-      final var and = (Constraint.And) constraint;
-      assertEquals(Strength.REQUIRED, and.strength());
-      assertEquals(0, and.priority());
+    void testUnweightedGroupIsFlattenedIntoRequired() {
+      assertEquals(
+          List.of("foo", "bar"), required(plan("rule --> 'a' where (foo(X), bar(Y));", "rule")));
     }
   }
 
   @Nested
-  @DisplayName("Complex Expressions")
-  class ComplexExpressions {
+  @DisplayName("Weights in invalid or ignored positions")
+  class Placement {
 
+    /** S-C6: a weight under 'not' is a compile error (1.x applied it to the inner predicate). */
     @Test
-    @DisplayName("NOT with defeasible inner")
-    void notWithDefeasible() {
-      final var grammar =
-          UnificationGrammarParserFactory.unvalidated("rule --> 'a' where !foo(X):10;");
-
-      final var rule = grammar.rulesFor("rule").getFirst();
-      final var constraint = rule.constraints().getFirst();
-
-      // NOT wraps a defeasible predicate
-      assertInstanceOf(Constraint.Not.class, constraint);
-      final var not = (Constraint.Not) constraint;
-
-      // The NOT itself is required, but inner predicate is defeasible
-      assertInstanceOf(Predicate.class, not.constraint());
-      final var inner = (Predicate) not.constraint();
-      assertEquals(Strength.DEFEASIBLE, inner.strength());
-      assertEquals(10, inner.priority());
+    void testWeightUnderNotRejected() {
+      assertInstanceOf(Result.Failure.class, compile("rule --> 'a' where !foo(X):10;", "rule"));
     }
 
+    /** S-C6: a weight under 'or' is a compile error. */
     @Test
-    @DisplayName("disjunction with mixed penalties")
-    void orMixed() {
-      final var grammar =
-          UnificationGrammarParserFactory.unvalidated("rule --> 'a' where foo(X):5 | bar(Y);");
-
-      final var rule = grammar.rulesFor("rule").getFirst();
-      final var constraint = rule.constraints().getFirst();
-
-      assertInstanceOf(Constraint.Or.class, constraint);
-      final var or = (Constraint.Or) constraint;
-      assertEquals(2, or.disjuncts().size());
-
-      final var first = (Predicate) or.disjuncts().get(0);
-      assertEquals(Strength.DEFEASIBLE, first.strength());
-      assertEquals(5, first.priority());
-
-      final var second = (Predicate) or.disjuncts().get(1);
-      assertEquals(Strength.REQUIRED, second.strength());
+    void testWeightUnderOrRejected() {
+      assertInstanceOf(
+          Result.Failure.class, compile("rule --> 'a' where foo(X):5 | bar(Y);", "rule"));
     }
 
+    /** S-C5: a weight inside a weighted group is ignored; the outer weight is charged once. */
     @Test
-    @DisplayName("nested groups with penalties")
-    void nestedGroups() {
-      final var grammar =
-          UnificationGrammarParserFactory.unvalidated(
-              "rule --> 'a' where ((foo(X), bar(Y)):3 | baz(Z)):7;");
+    void testNestedWeightIgnored() {
+      final var plan = plan("rule --> 'a' where ((foo(X), bar(Y)):3 | baz(Z)):7;", "rule");
 
-      final var rule = grammar.rulesFor("rule").getFirst();
-      final var constraint = rule.constraints().getFirst();
-
-      // Outer OR has penalty 7
-      assertInstanceOf(Constraint.Or.class, constraint);
-      final var or = (Constraint.Or) constraint;
-      assertEquals(Strength.DEFEASIBLE, or.strength());
-      assertEquals(7, or.priority());
-
-      // First disjunct is AND with penalty 3
-      final var inner = or.disjuncts().get(0);
-      assertInstanceOf(Constraint.And.class, inner);
-      final var and = (Constraint.And) inner;
-      assertEquals(Strength.DEFEASIBLE, and.strength());
-      assertEquals(3, and.priority());
+      assertEquals(1, plan.soft().size());
+      assertEquals(7, plan.soft().getFirst().weight());
+      final var or = assertInstanceOf(Expression.Or.class, plan.soft().getFirst().expression());
+      assertInstanceOf(Expression.And.class, or.terms().getFirst());
     }
   }
 
   @Nested
-  @DisplayName("Real-World Examples")
-  class RealWorld {
+  @DisplayName("Real-world examples")
+  class Examples {
 
     @Test
-    @DisplayName("agreement (hard) with selectional (soft)")
-    void agreementPlusSelectional() {
-      final var grammar =
-          UnificationGrammarParserFactory.unvalidated(
+    void testAgreementRequiredSelectionalSoft() {
+      final var plan =
+          plan(
               """
-              clause --> np:S vp:V
-                  where equals(S.num, V.num), verb_allows(V.lemma, S.type):10;
-              """);
+          clause --> np:S vp:V
+              where equals(S.num, V.num), verb_allows(V.lemma, S.type):10;
+          """,
+              "clause");
 
-      final var rule = grammar.rulesFor("clause").getFirst();
-      final var constraint = rule.constraints().getFirst();
-
-      assertInstanceOf(Constraint.And.class, constraint);
-      final var and = (Constraint.And) constraint;
-
-      // First: hard agreement
-      final var agreement = (Predicate) and.conjuncts().get(0);
-      assertEquals("equals", agreement.name());
-      assertEquals(Strength.REQUIRED, agreement.strength());
-
-      // Second: soft selectional
-      final var selectional = (Predicate) and.conjuncts().get(1);
-      assertEquals("verb_allows", selectional.name());
-      assertEquals(Strength.DEFEASIBLE, selectional.strength());
-      assertEquals(10, selectional.priority());
+      assertEquals(List.of("equals"), required(plan));
+      assertEquals(List.of("verb_allows:10"), soft(plan));
     }
 
     @Test
-    @DisplayName("multiple soft preferences")
-    void multiplePreferences() {
-      final var grammar =
-          UnificationGrammarParserFactory.unvalidated(
+    void testMultipleSoftPreferences() {
+      final var plan =
+          plan(
               """
-              np --> det noun:N
-                  where animate(N.text):5, concrete(N.text):3;
-              """);
+          np --> det noun:N
+              where animate(N.text):5, concrete(N.text):3;
+          """,
+              "np");
 
-      final var rule = grammar.rulesFor("np").getFirst();
-      final var constraint = rule.constraints().getFirst();
-
-      assertInstanceOf(Constraint.And.class, constraint);
-      final var and = (Constraint.And) constraint;
-
-      final var animate = (Predicate) and.conjuncts().get(0);
-      assertEquals(5, animate.priority());
-
-      final var concrete = (Predicate) and.conjuncts().get(1);
-      assertEquals(3, concrete.priority());
+      assertEquals(List.of("animate:5", "concrete:3"), soft(plan));
     }
   }
 }

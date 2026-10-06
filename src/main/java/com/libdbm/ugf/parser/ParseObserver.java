@@ -11,10 +11,10 @@ package com.libdbm.ugf.parser;
  * <pre>{@code
  * // Create parser with observer
  * var observer = new LoggingObserver();
- * var parser = ParserFactory.create(grammar, observer);
+ * var parser = Parser.of(compiled, new Options(Limits.NONE, observer, false));
  *
  * // Or use NOOP for no observation overhead (JIT inlines empty methods)
- * var parser = ParserFactory.create(grammar);  // uses ParseObserver.NOOP
+ * var parser = Parser.of(compiled);  // uses ParseObserver.NOOP
  * }</pre>
  *
  * <p>Event records are immutable snapshots - observers can safely store them without worrying about
@@ -22,63 +22,33 @@ package com.libdbm.ugf.parser;
  */
 public interface ParseObserver {
 
-    /**
-     * No-op observer for when visualization is not needed.
-     */
-    ParseObserver NOOP = new ParseObserver() {
-    };
+  /** No-op observer for when visualization is not needed. */
+  ParseObserver NOOP = new ParseObserver() {};
 
-    /**
-     * Called when parsing begins.
-     */
-    default void onStart(final ParseEvents.Start event) {
-    }
+  /** Called when parsing begins. */
+  default void onStart(final ParseEvents.Start event) {}
 
-    /**
-     * Called when parsing completes (success or failure).
-     */
-    default void onEnd(final ParseEvents.End event) {
-    }
+  /** Called when parsing completes (success or failure). */
+  default void onEnd(final ParseEvents.End event) {}
 
-    /**
-     * Called when predict operation considers a rule.
-     */
-    default void onPredict(final ParseEvents.Predict event) {
-    }
+  /** Called when predict operation considers a rule. */
+  default void onPredict(final ParseEvents.Predict event) {}
 
-    /**
-     * Called when scan operation attempts to match a token.
-     */
-    default void onScan(final ParseEvents.Scan event) {
-    }
+  /** Called when scan operation attempts to match a token. */
+  default void onScan(final ParseEvents.Scan event) {}
 
-    /**
-     * Called when complete operation processes a completed item.
-     */
-    default void onComplete(final ParseEvents.Complete event) {
-    }
+  /** Called when complete operation processes a completed item. */
+  default void onComplete(final ParseEvents.Complete event) {}
 
-    /**
-     * Called when feature unification is attempted.
-     */
-    default void onUnification(final ParseEvents.Unification event) {
-    }
+  /** Called when feature unification is attempted. */
+  default void onUnification(final ParseEvents.Unification event) {}
 
-    /**
-     * Called when constraints are evaluated.
-     */
-    default void onConstraint(final ParseEvents.ConstraintEval event) {
-    }
+  /** Called when constraints are evaluated. */
+  default void onConstraint(final ParseEvents.ConstraintEval event) {}
 
-    /**
-     * Called when processing at a chart position completes.
-     */
-    default void onPosition(final ParseEvents.Position event) {
-    }
+  /** Called when processing at a chart position completes. */
+  default void onPosition(final ParseEvents.Position event) {}
 
-    /**
-     * Called when a token is unexpected at a position.
-     */
-    default void onUnexpected(final ParseEvents.Unexpected event) {
-    }
+  /** Called when a token is unexpected at a position. */
+  default void onUnexpected(final ParseEvents.Unexpected event) {}
 }

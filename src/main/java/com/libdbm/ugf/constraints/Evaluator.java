@@ -1,164 +1,137 @@
 package com.libdbm.ugf.constraints;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.function.Function;
 
 /**
- * Evaluates constraints during parsing.
- *
- * <p>Supports:
- *
- * <ul>
- *   <li>Feature unification and agreement checking
- *   <li>Custom predicates and name checkers
- *   <li>Logical combinators (and, or, not)
- *   <li>Defeasible constraints with strength and priority
- * </ul>
- *
- * <p>Defeasible constraints (strength != REQUIRED) accumulate penalties when they fail. Nested
- * defeasible constraints properly aggregate their penalties.
+ * Evaluates constraint expressions and plans. Truth is Boolean (S-C1); a plan is rejected when a
+ * required expression is false (S-C3) and otherwise costs the weights of its false soft groups,
+ * each once (S-C4).
  */
 public final class Evaluator {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Evaluator.class);
 
-    /**
-     * Evaluate a constraint and return result with penalty based on its strength/priority. This is
-     * the main entry point that properly handles defeasible semantics.
-     */
-    public static Result eval(final Context context, final Constraint constraint) {
-        LOGGER.debug("Evaluating constraint: {}", constraint);
-        final var result = evaluate(context, constraint);
-        LOGGER.debug(
-                "Constraint result: {} (penalty={})", result.passed() ? "PASS" : "FAIL", result.penalty());
-        return result;
+  private Evaluator() {}
+
+  /**
+   * Evaluates an expression for Boolean truth (S-C1). {@code calls} decides each predicate call;
+   * weights play no part.
+   */
+  public static boolean truth(
+      final Expression expression, final Function<Expression.Call, Boolean> calls) {
+    return switch (expression) {
+      case Expression.And and -> and.terms().stream().allMatch(term -> truth(term, calls));
+      case Expression.Or or -> or.terms().stream().anyMatch(term -> truth(term, calls));
+      case Expression.Not not -> !truth(not.term(), calls);
+      case Expression.Call call -> calls.apply(call);
+      case Expression.Literal literal -> literal.value();
+      case Expression.Weighted weighted -> truth(weighted.term(), calls);
+    };
+  }
+
+  /**
+   * Evaluates a production's constraints: rejected if any required expression is false (S-C3);
+   * otherwise accepted with the sum of the weights of false soft groups, each charged once (S-C4).
+   * A sum that overflows 64 bits yields {@link Verdict.Overflow} (S-C10).
+   */
+  public static Verdict evaluate(final Plan plan, final Function<Expression.Call, Boolean> calls) {
+    for (final var expression : plan.required()) {
+      if (!truth(expression, calls)) {
+        return new Verdict.Rejected(expression);
+      }
     }
-
-    /**
-     * Evaluate a constraint and return detailed result with reason and penalty. Recursively handles
-     * all constraint types with proper defeasible semantics.
-     */
-    private static Result evaluate(final Context context, final Constraint constraint) {
-        if (constraint instanceof Predicate p) {
-            return predicate(context, p);
-        } else if (constraint instanceof Constraint.And a) {
-            return evalAnd(context, a);
-        } else if (constraint instanceof Constraint.Or o) {
-            return evalOr(context, o);
-        } else if (constraint instanceof Constraint.Not n) {
-            return evalNot(context, n);
+    var penalty = 0L;
+    for (final var group : plan.soft()) {
+      if (!truth(group.expression(), calls)) {
+        try {
+          penalty = Math.addExact(penalty, group.weight());
+        } catch (final ArithmeticException exception) {
+          return new Verdict.Overflow();
         }
-        LOGGER.debug("Unknown constraint type: {}", constraint.getClass().getSimpleName());
-        return new Result(false, "Unknown constraint type");
+      }
     }
+    return new Verdict.Accepted(penalty);
+  }
 
-    /**
-     * Evaluate conjunction - all must pass, penalties accumulate.
-     */
-    private static Result evalAnd(final Context context, final Constraint.And and) {
-        LOGGER.debug("Evaluating AND with {} conjuncts", and.conjuncts().size());
-        var total = 0;
-        for (final var c : and.conjuncts()) {
-            final var result = evaluate(context, c);
-            if (!result.passed()) {
-                // For REQUIRED constraints, fail immediately
-                if (c.strength() == Strength.REQUIRED) {
-                    LOGGER.debug("AND failed: required conjunct failed");
-                    return result;
-                }
-                // For defeasible, accumulate penalty but continue
-                final var penalty = result.penalty() > 0 ? result.penalty() : c.priority();
-                total += penalty;
-                LOGGER.debug("AND: defeasible conjunct failed, penalty={}, total={}", penalty, total);
-            }
-        }
-        // If we accumulated penalties, mark as defeasible failure with total penalty
-        if (total > 0 && and.strength() == Strength.DEFEASIBLE) {
-            LOGGER.debug("AND defeasible failure, total penalty={}", total);
-            return new Result(false, "Defeasible conjuncts failed", total);
-        }
-        LOGGER.debug("AND passed, total penalty={}", total);
-        return new Result(true, "All conjuncts passed", total);
-    }
+  /** Evaluates an expression for truth in {@code environment}. */
+  public static boolean truth(final Expression expression, final Environment environment) {
+    return truth(expression, environment::test);
+  }
 
-    /**
-     * Evaluate disjunction - at least one must pass.
-     *
-     * <p>Tracks passing and failing disjuncts separately: - If any disjunct passes, returns the one
-     * with minimum penalty - If all fail, returns the minimum failure penalty + OR's own priority
-     */
-    private static Result evalOr(final Context context, final Constraint.Or or) {
-        LOGGER.debug("Evaluating OR with {} disjuncts", or.disjuncts().size());
-        var bestPass = Integer.MAX_VALUE;
-        var bestFail = Integer.MAX_VALUE;
-        String failReason = null;
+  /** Evaluates a production's constraints in {@code environment}. */
+  public static Verdict evaluate(final Plan plan, final Environment environment) {
+    return evaluate(plan, environment::test);
+  }
 
-        for (final var d : or.disjuncts()) {
-            final var result = evaluate(context, d);
-            if (result.passed()) {
-                // Track best passing disjunct (lowest penalty)
-                if (result.penalty() < bestPass) {
-                    bestPass = result.penalty();
-                    LOGGER.debug("OR: disjunct passed with penalty={}", result.penalty());
-                }
-            } else {
-                // Track best failing disjunct for "least-bad" selection
-                if (result.penalty() < bestFail) {
-                    bestFail = result.penalty();
-                    failReason = result.reason();
-                    LOGGER.debug(
-                            "OR: disjunct failed with penalty={}, reason={}", result.penalty(), failReason);
-                }
-            }
-        }
+  /**
+   * Partially evaluates an expression in {@code environment}, evaluating only calls in {@code
+   * names}.
+   */
+  public static Expression residual(
+      final Expression expression, final Environment environment, final Set<String> names) {
+    return residual(expression, environment::test, names);
+  }
 
-        // If any disjunct passed, return success with minimum passing penalty
-        if (bestPass < Integer.MAX_VALUE) {
-            LOGGER.debug("OR passed with best penalty={}", bestPass);
-            return new Result(true, null, bestPass);
+  /**
+   * Partially evaluates an expression (S-C7): each call whose name is in {@code names} is replaced
+   * by its truth value, and the result is simplified with ordinary Boolean identities. Calls not in
+   * {@code names} are kept, so the residual has the same truth as the original under any evaluation
+   * of the remaining calls.
+   */
+  public static Expression residual(
+      final Expression expression,
+      final Function<Expression.Call, Boolean> calls,
+      final Set<String> names) {
+    return switch (expression) {
+      case Expression.And and -> {
+        final var terms = new ArrayList<Expression>();
+        for (final var term : and.terms()) {
+          final var reduced = residual(term, calls, names);
+          if (reduced.equals(Expression.Literal.FALSE)) {
+            yield Expression.Literal.FALSE;
+          }
+          if (!reduced.equals(Expression.Literal.TRUE)) {
+            terms.add(reduced);
+          }
         }
+        yield combine(terms, Expression.Literal.TRUE, Expression.And::new);
+      }
+      case Expression.Or or -> {
+        final var terms = new ArrayList<Expression>();
+        for (final var term : or.terms()) {
+          final var reduced = residual(term, calls, names);
+          if (reduced.equals(Expression.Literal.TRUE)) {
+            yield Expression.Literal.TRUE;
+          }
+          if (!reduced.equals(Expression.Literal.FALSE)) {
+            terms.add(reduced);
+          }
+        }
+        yield combine(terms, Expression.Literal.FALSE, Expression.Or::new);
+      }
+      case Expression.Not not -> {
+        final var reduced = residual(not.term(), calls, names);
+        yield reduced instanceof Expression.Literal literal
+            ? Expression.Literal.of(!literal.value())
+            : new Expression.Not(reduced);
+      }
+      case Expression.Call call ->
+          names.contains(call.name()) ? Expression.Literal.of(calls.apply(call)) : call;
+      case Expression.Literal literal -> literal;
+      case Expression.Weighted weighted -> residual(weighted.term(), calls, names);
+    };
+  }
 
-        // All failed - combine best failure penalty with OR's own priority
-        final var penalty = or.strength() == Strength.DEFEASIBLE ? or.priority() : 0;
-        final var total = (bestFail == Integer.MAX_VALUE ? 0 : bestFail) + penalty;
-        LOGGER.debug("OR failed: all disjuncts failed, total penalty={}", total);
-        return new Result(false, failReason != null ? failReason : "All disjuncts failed", total);
-    }
-
-    /**
-     * Evaluate negation.
-     */
-    private static Result evalNot(final Context context, final Constraint.Not not) {
-        LOGGER.debug("Evaluating NOT");
-        final var result = evaluate(context, not.constraint());
-        final var negated = !result.passed();
-        if (negated) {
-            LOGGER.debug("NOT passed (inner constraint failed)");
-            return new Result(true, null, 0);
-        }
-        // Negation failed - apply this constraint's penalty if defeasible
-        final var penalty = not.strength() == Strength.DEFEASIBLE ? not.priority() : 0;
-        LOGGER.debug("NOT failed (inner constraint passed), penalty={}", penalty);
-        return new Result(false, "Negation failed: " + result.reason(), penalty);
-    }
-
-    /**
-     * Evaluate a predicate constraint.
-     */
-    private static Result predicate(final Context context, final Predicate constraint) {
-        LOGGER.debug("Evaluating predicate: {}({})", constraint.name(), constraint.args());
-        final var p = context.predicate(constraint.name());
-        if (p == null) {
-            LOGGER.debug("Unknown predicate: {}", constraint.name());
-            return new Result(false, "Unknown predicate: " + constraint.name());
-        }
-        final var base = p.apply(context, constraint.args());
-        // Apply defeasible penalty if this predicate fails and is defeasible
-        if (!base.passed() && constraint.strength() == Strength.DEFEASIBLE) {
-            LOGGER.debug(
-                    "Predicate {} failed (defeasible), penalty={}", constraint.name(), constraint.priority());
-            return new Result(false, base.reason(), constraint.priority());
-        }
-        LOGGER.debug("Predicate {} {}", constraint.name(), base.passed() ? "passed" : "failed");
-        return base;
-    }
+  /** An empty term list is the identity, a single term stands alone, otherwise a new node. */
+  private static Expression combine(
+      final List<Expression> terms,
+      final Expression identity,
+      final Function<List<Expression>, Expression> node) {
+    return switch (terms.size()) {
+      case 0 -> identity;
+      case 1 -> terms.getFirst();
+      default -> node.apply(terms);
+    };
+  }
 }

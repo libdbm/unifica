@@ -1,0 +1,20 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "apple",
+      "outcome": "accepted",
+      "penalty": 0
+    },
+    {
+      "input": "banana",
+      "outcome": "rejected"
+    }
+  ],
+  "generation": {
+    "empty": false,
+    "rejected": []
+  }
+}

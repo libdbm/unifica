@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-L5"
+  ],
+  "description": "An unmatched character produces an error edge that no production accepts."
+}

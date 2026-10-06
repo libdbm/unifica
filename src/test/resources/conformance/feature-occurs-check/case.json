@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-F2"
+  ],
+  "description": "Binding X to a structure that contains X fails the occurs check."
+}

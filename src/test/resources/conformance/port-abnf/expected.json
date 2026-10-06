@@ -1,0 +1,333 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "a = b / c",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "rulelist",
+        "children": [
+          {
+            "symbol": "rule_",
+            "children": [
+              {
+                "symbol": "ID",
+                "children": [
+                  {
+                    "text": "a",
+                    "start": 0,
+                    "end": 1
+                  }
+                ]
+              },
+              {
+                "text": "=",
+                "start": 2,
+                "end": 3
+              },
+              {
+                "symbol": "elements",
+                "children": [
+                  {
+                    "symbol": "alternation",
+                    "children": [
+                      {
+                        "symbol": "concatenation",
+                        "children": [
+                          {
+                            "symbol": "repetition",
+                            "children": [
+                              {
+                                "symbol": "element",
+                                "children": [
+                                  {
+                                    "symbol": "ID",
+                                    "children": [
+                                      {
+                                        "text": "b",
+                                        "start": 4,
+                                        "end": 5
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "text": "/",
+                        "start": 6,
+                        "end": 7
+                      },
+                      {
+                        "symbol": "concatenation",
+                        "children": [
+                          {
+                            "symbol": "repetition",
+                            "children": [
+                              {
+                                "symbol": "element",
+                                "children": [
+                                  {
+                                    "symbol": "ID",
+                                    "children": [
+                                      {
+                                        "text": "c",
+                                        "start": 8,
+                                        "end": 9
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "r =/ 2*3%d48",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "rulelist",
+        "children": [
+          {
+            "symbol": "rule_",
+            "children": [
+              {
+                "symbol": "ID",
+                "children": [
+                  {
+                    "text": "r",
+                    "start": 0,
+                    "end": 1
+                  }
+                ]
+              },
+              {
+                "text": "=",
+                "start": 2,
+                "end": 3
+              },
+              {
+                "text": "/",
+                "start": 3,
+                "end": 4
+              },
+              {
+                "symbol": "elements",
+                "children": [
+                  {
+                    "symbol": "alternation",
+                    "children": [
+                      {
+                        "symbol": "concatenation",
+                        "children": [
+                          {
+                            "symbol": "repetition",
+                            "children": [
+                              {
+                                "symbol": "repeat_",
+                                "children": [
+                                  {
+                                    "symbol": "INT",
+                                    "children": [
+                                      {
+                                        "text": "2",
+                                        "start": 5,
+                                        "end": 6
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "text": "*",
+                                    "start": 6,
+                                    "end": 7
+                                  },
+                                  {
+                                    "symbol": "INT",
+                                    "children": [
+                                      {
+                                        "text": "3",
+                                        "start": 7,
+                                        "end": 8
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "symbol": "element",
+                                "children": [
+                                  {
+                                    "symbol": "NumberValue",
+                                    "children": [
+                                      {
+                                        "text": "%d48",
+                                        "start": 8,
+                                        "end": 12
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "a = b ; note\nc = d",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "rulelist",
+        "children": [
+          {
+            "symbol": "rule_",
+            "children": [
+              {
+                "symbol": "ID",
+                "children": [
+                  {
+                    "text": "a",
+                    "start": 0,
+                    "end": 1
+                  }
+                ]
+              },
+              {
+                "text": "=",
+                "start": 2,
+                "end": 3
+              },
+              {
+                "symbol": "elements",
+                "children": [
+                  {
+                    "symbol": "alternation",
+                    "children": [
+                      {
+                        "symbol": "concatenation",
+                        "children": [
+                          {
+                            "symbol": "repetition",
+                            "children": [
+                              {
+                                "symbol": "element",
+                                "children": [
+                                  {
+                                    "symbol": "ID",
+                                    "children": [
+                                      {
+                                        "text": "b",
+                                        "start": 4,
+                                        "end": 5
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "rule_",
+            "children": [
+              {
+                "symbol": "ID",
+                "children": [
+                  {
+                    "text": "c",
+                    "start": 13,
+                    "end": 14
+                  }
+                ]
+              },
+              {
+                "text": "=",
+                "start": 15,
+                "end": 16
+              },
+              {
+                "symbol": "elements",
+                "children": [
+                  {
+                    "symbol": "alternation",
+                    "children": [
+                      {
+                        "symbol": "concatenation",
+                        "children": [
+                          {
+                            "symbol": "repetition",
+                            "children": [
+                              {
+                                "symbol": "element",
+                                "children": [
+                                  {
+                                    "symbol": "ID",
+                                    "children": [
+                                      {
+                                        "text": "d",
+                                        "start": 17,
+                                        "end": 18
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "a = (b",
+      "outcome": "rejected"
+    },
+    {
+      "input": "= b",
+      "outcome": "rejected"
+    }
+  ]
+}

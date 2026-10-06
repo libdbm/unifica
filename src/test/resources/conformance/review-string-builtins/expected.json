@@ -1,0 +1,25 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "abc !",
+      "outcome": "accepted",
+      "penalty": 0
+    },
+    {
+      "input": "xbc !",
+      "outcome": "rejected"
+    },
+    {
+      "input": "ab cd ?",
+      "outcome": "accepted",
+      "penalty": 0
+    },
+    {
+      "input": "xb cd ?",
+      "outcome": "rejected"
+    }
+  ]
+}

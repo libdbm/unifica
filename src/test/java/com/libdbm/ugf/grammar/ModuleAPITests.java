@@ -2,6 +2,9 @@ package com.libdbm.ugf.grammar;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.libdbm.ugf.ErrorDetails;
+import com.libdbm.ugf.Result;
+import com.libdbm.ugf.grammar.loader.ModuleResolver;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -43,7 +46,7 @@ class ModuleAPITests {
           doc --> s 'world';
           """);
 
-      final var grammar = UnificationGrammarParserFactory.parseWithImports(main);
+      final var grammar = UnificationGrammarParserFactory.parseWithImports(main).orElseThrow();
 
       assertNotNull(grammar);
       assertFalse(grammar.rulesFor("s").isEmpty(), "Should have imported 's' rule");
@@ -77,10 +80,14 @@ class ModuleAPITests {
           """);
 
       // Without custom search path, should fail to find module
-      assertThrows(Exception.class, () -> UnificationGrammarParserFactory.parseWithImports(main));
+      final var missing = UnificationGrammarParserFactory.parseWithImports(main);
+      assertEquals(
+          ModuleResolver.MISSING,
+          ((ErrorDetails) assertInstanceOf(Result.Failure.class, missing).error()).code());
 
       // With custom search path, should succeed
-      final var grammar = UnificationGrammarParserFactory.parseWithImports(main, modules);
+      final var grammar =
+          UnificationGrammarParserFactory.parseWithImports(main, modules).orElseThrow();
       assertFalse(grammar.rulesFor("helper").isEmpty());
     }
   }
@@ -102,7 +109,7 @@ class ModuleAPITests {
           t --> 'b';
           """);
 
-      final var grammar = UnificationGrammarParserFactory.parse(file);
+      final var grammar = UnificationGrammarParserFactory.parse(file).orElseThrow();
 
       assertTrue(grammar.module().isExported("s"));
       assertTrue(grammar.module().isExported("t"));
@@ -122,7 +129,7 @@ class ModuleAPITests {
           t --> 'b';
           """);
 
-      final var grammar = UnificationGrammarParserFactory.parse(file);
+      final var grammar = UnificationGrammarParserFactory.parse(file).orElseThrow();
 
       assertTrue(grammar.module().isExported("s"));
       assertFalse(grammar.module().isExported("t"));
@@ -140,7 +147,7 @@ class ModuleAPITests {
           t --> 'b';
           """);
 
-      final var grammar = UnificationGrammarParserFactory.parse(file);
+      final var grammar = UnificationGrammarParserFactory.parse(file).orElseThrow();
 
       assertTrue(grammar.module().isExported("s"));
       assertTrue(grammar.module().isExported("t"));

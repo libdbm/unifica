@@ -1,0 +1,11 @@
+{
+  "rules": [
+    "S-C1",
+    "S-C2",
+    "S-C3",
+    "S-C4",
+    "S-C5",
+    "S-C6"
+  ],
+  "description": "Review 2 cost table: a false soft group costs its weight once; groups add; required failure rejects; nested weights are ignored. Weighted conjuncts inside unweighted groups are flattened (review nested-conjunction defect)."
+}

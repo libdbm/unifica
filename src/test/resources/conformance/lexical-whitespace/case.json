@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-L4"
+  ],
+  "description": "Whitespace is skipped between tokens but never inside one."
+}

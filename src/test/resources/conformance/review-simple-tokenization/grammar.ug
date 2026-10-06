@@ -1,0 +1,161 @@
+# SIMPLE language (converted from SIMPLE.g4) in unification grammar form
+# This is a pragmatic subset sufficient for parser tests.
+
+start program;
+
+# Program: sequence of declarations or statements
+program --> item*;
+item --> record_declaration;
+item --> function_declaration;
+item --> variable_declaration;
+item --> statement;
+
+# ===== Declarations =====
+
+record_declaration --> KW_record Identifier LPAR record_fields? RPAR record_body?;
+record_fields --> record_field;
+record_fields --> record_fields COMMA record_field;
+record_field --> type Identifier;
+record_body --> LBRACE factory_method* RBRACE;
+factory_method --> function_declaration;
+
+function_declaration --> type Identifier LPAR parameter_list? RPAR block;
+
+parameter_list --> normal_parameters;
+parameter_list --> normal_parameters COMMA optional_parameters;
+parameter_list --> optional_parameters;
+
+normal_parameters --> parameter;
+normal_parameters --> normal_parameters COMMA parameter;
+parameter --> type Identifier;
+
+optional_parameters --> optional_positional_parameters;
+optional_parameters --> named_parameters;
+
+optional_positional_parameters --> LBRACKET default_parameter_list RBRACKET;
+default_parameter_list --> default_parameter;
+default_parameter_list --> default_parameter_list COMMA default_parameter;
+default_parameter --> type Identifier;
+default_parameter --> type Identifier ASSIGN expression;
+
+named_parameters --> LBRACE named_parameter_list RBRACE;
+named_parameter_list --> named_parameter;
+named_parameter_list --> named_parameter_list COMMA named_parameter;
+named_parameter --> KW_required? type Identifier;
+named_parameter --> KW_required? type Identifier ASSIGN expression;
+
+variable_declaration --> variable_modifier* type Identifier SEMI;
+variable_declaration --> variable_modifier* type Identifier ASSIGN expression SEMI;
+variable_modifier --> KW_late;
+variable_modifier --> KW_final;
+
+# ===== Types =====
+type --> KW_var;
+type --> base_type (QMARK)?;
+base_type --> KW_int;
+base_type --> KW_double;
+base_type --> KW_String;
+base_type --> KW_bool;
+base_type --> KW_void;
+base_type --> Identifier;
+
+# ===== Statements =====
+statement --> block;
+statement --> if_statement;
+statement --> while_statement;
+statement --> for_statement;
+statement --> return_statement;
+statement --> expression_statement;
+
+block --> LBRACE statement* RBRACE;
+
+if_statement --> KW_if LPAR expression RPAR statement;
+if_statement --> KW_if LPAR expression RPAR statement KW_else statement;
+
+while_statement --> KW_while LPAR expression RPAR statement;
+
+for_statement --> KW_for LPAR for_init SEMI expression? SEMI expression? RPAR statement;
+for_init --> variable_declaration;
+for_init --> expression_statement;
+for_init --> SEMI;
+
+return_statement --> KW_return expression? SEMI;
+
+expression_statement --> expression? SEMI;
+
+# ===== Expressions =====
+expression --> assignment_expression;
+
+assignment_expression --> Identifier assignment_operator expression;
+assignment_expression --> null_coalescing_expression;
+
+assignment_operator --> NULL_ASSIGN;
+assignment_operator --> ASSIGN;
+
+null_coalescing_expression --> null_aware_expression;
+null_coalescing_expression --> null_coalescing_expression NULL_COALESCE null_aware_expression;
+null_aware_expression --> member_access;
+
+member_access --> primary;
+member_access --> member_access DOT Identifier;
+member_access --> member_access SAFE_DOT Identifier;
+
+primary --> LPAR expression RPAR;
+primary --> literal;
+primary --> Identifier;
+primary --> method_call;
+primary --> primary EXCL;
+
+method_call --> Identifier LPAR argument_list? RPAR;
+argument_list --> expression;
+argument_list --> argument_list COMMA expression;
+
+# ===== Literals and Identifiers =====
+literal --> IntegerLiteral;
+literal --> FloatingPointLiteral;
+literal --> StringLiteral;
+literal --> KW_true;
+literal --> KW_false;
+literal --> KW_null;
+
+# Lexical categories
+Identifier --> [a-zA-Z_][a-zA-Z_0-9]*;
+IntegerLiteral --> [0-9]+;
+FloatingPointLiteral --> [0-9]+ '.' [0-9]+;
+StringLiteral --> '"' [^"\\]* '"';
+
+# Keyword and punctuation tokens (must be listed before Identifier to win)
+KW_record --> 'record';
+KW_if --> 'if';
+KW_else --> 'else';
+KW_for --> 'for';
+KW_while --> 'while';
+KW_return --> 'return';
+KW_required --> 'required';
+KW_late --> 'late';
+KW_final --> 'final';
+KW_var --> 'variable';
+KW_int --> 'int';
+KW_double --> 'double';
+KW_String --> 'String';
+KW_bool --> 'bool';
+KW_void --> 'void';
+KW_true --> 'true';
+KW_false --> 'false';
+KW_null --> 'null';
+
+LPAR --> '(';
+RPAR --> ')';
+LBRACE --> '{';
+RBRACE --> '}';
+LBRACKET --> '[';
+RBRACKET --> ']';
+COMMA --> ',';
+SEMI --> ';';
+DOT --> '.';
+SAFE_DOT --> '?.';
+QMARK --> '?';
+ASSIGN --> '=';
+NULL_COALESCE --> '??';
+NULL_ASSIGN --> '??=';
+EXCL --> '!';

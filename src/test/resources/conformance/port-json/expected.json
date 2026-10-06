@@ -1,0 +1,199 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "[1, \"a\"]",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "json",
+        "children": [
+          {
+            "symbol": "value",
+            "children": [
+              {
+                "symbol": "arr",
+                "children": [
+                  {
+                    "text": "[",
+                    "start": 0,
+                    "end": 1
+                  },
+                  {
+                    "symbol": "value",
+                    "children": [
+                      {
+                        "symbol": "NUMBER",
+                        "children": [
+                          {
+                            "text": "1",
+                            "start": 1,
+                            "end": 2
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": ",",
+                    "start": 2,
+                    "end": 3
+                  },
+                  {
+                    "symbol": "value",
+                    "children": [
+                      {
+                        "symbol": "STRING",
+                        "children": [
+                          {
+                            "text": "\"a\"",
+                            "start": 4,
+                            "end": 7
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": "]",
+                    "start": 7,
+                    "end": 8
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "{\"k\": true}",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "json",
+        "children": [
+          {
+            "symbol": "value",
+            "children": [
+              {
+                "symbol": "obj",
+                "children": [
+                  {
+                    "text": "{",
+                    "start": 0,
+                    "end": 1
+                  },
+                  {
+                    "symbol": "pair",
+                    "children": [
+                      {
+                        "symbol": "STRING",
+                        "children": [
+                          {
+                            "text": "\"k\"",
+                            "start": 1,
+                            "end": 4
+                          }
+                        ]
+                      },
+                      {
+                        "text": ":",
+                        "start": 4,
+                        "end": 5
+                      },
+                      {
+                        "symbol": "value",
+                        "children": [
+                          {
+                            "text": "true",
+                            "start": 6,
+                            "end": 10
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": "}",
+                    "start": 10,
+                    "end": 11
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "-1.5e3",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "json",
+        "children": [
+          {
+            "symbol": "value",
+            "children": [
+              {
+                "symbol": "NUMBER",
+                "children": [
+                  {
+                    "text": "-1.5e3",
+                    "start": 0,
+                    "end": 6
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "[]",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "json",
+        "children": [
+          {
+            "symbol": "value",
+            "children": [
+              {
+                "symbol": "arr",
+                "children": [
+                  {
+                    "text": "[",
+                    "start": 0,
+                    "end": 1
+                  },
+                  {
+                    "text": "]",
+                    "start": 1,
+                    "end": 2
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "{\"k\" 1}",
+      "outcome": "rejected"
+    },
+    {
+      "input": "[1,]",
+      "outcome": "rejected"
+    }
+  ]
+}

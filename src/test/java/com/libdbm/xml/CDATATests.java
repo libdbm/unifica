@@ -2,10 +2,9 @@ package com.libdbm.xml;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.libdbm.ugf.grammar.GrammarNormalizer;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
-import com.libdbm.ugf.parser.ChartParser;
-import com.libdbm.ugf.parser.LexicalAnalyzer;
+import com.libdbm.ugf.parser.Parser;
+import com.libdbm.ugf.parser.ParserFactory;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -13,7 +12,7 @@ import org.junit.jupiter.api.Test;
 /** Tests for CDATA section support in XML parser */
 class CDATATests {
 
-  private static ChartParser parser;
+  private static Parser parser;
 
   @BeforeAll
   static void setup() throws Exception {
@@ -23,11 +22,11 @@ class CDATATests {
     }
     try (final var stream = resource.openStream()) {
       final var content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-      final var grammar =
-          GrammarNormalizer.normalize(UnificationGrammarParserFactory.parse(content));
+      final var grammar = UnificationGrammarParserFactory.parse(content).orElseThrow();
       // Do not skip whitespace in XML - preserves CDATA content exactly
-      final var lexer = LexicalAnalyzer.build(grammar, false);
-      parser = new ChartParser(grammar, lexer);
+      // The 1.x test lexed without skipping whitespace; in 2.0 that is the grammar\'s whitespace
+      // setting.
+      parser = ParserFactory.create(grammar.toBuilder().whitespace("").build()).orElseThrow();
     } catch (final Exception e) {
       throw new RuntimeException("Failed to load XML grammar", e);
     }

@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-L4"
+  ],
+  "description": "Declared skip categories (comments) are discarded between tokens."
+}

@@ -1,0 +1,4 @@
+{
+  "rules": ["S-G1", "S-G3", "S-G4", "S-L2", "S-P2", "S-P4", "S-P8"],
+  "description": "Port of grammars-v4 arithmetic: precedence levels give left-associative + - and ^ (as ANTLR's left-recursive rule does), * / binding tighter than + -, ^ tighter than * /, and prefix signs binding to the atom. Maximal munch keeps '1.5e-3' one number."
+}

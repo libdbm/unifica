@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "S-P8",
+    "S-G4"
+  ],
+  "description": "Named lexical tokens are nodes with one leaf, anonymous literals are leaves, and auxiliary repetition nodes are spliced out."
+}

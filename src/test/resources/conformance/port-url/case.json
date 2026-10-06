@@ -1,0 +1,9 @@
+{
+  "rules": [
+    "S-G1",
+    "S-G3",
+    "S-L2",
+    "S-P8"
+  ],
+  "description": "Port of grammars-v4 url: '::' versus ':' by maximal munch, DIGITS and HEX winning equal-length ties because STRING excludes them, and an IPv6 host."
+}

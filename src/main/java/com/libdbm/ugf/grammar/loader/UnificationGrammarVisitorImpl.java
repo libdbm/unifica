@@ -2,552 +2,548 @@ package com.libdbm.ugf.grammar.loader;
 
 import com.libdbm.ugf.UnificationGrammarBaseVisitor;
 import com.libdbm.ugf.UnificationGrammarParser;
-import com.libdbm.ugf.constraints.Constraint;
-import com.libdbm.ugf.constraints.Predicate;
-import com.libdbm.ugf.constraints.Strength;
+import com.libdbm.ugf.constraints.Expression;
 import com.libdbm.ugf.features.*;
 import com.libdbm.ugf.grammar.*;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Visitor that transforms ANTLR parse tree into Grammar objects.
- */
+/** Visitor that transforms ANTLR parse tree into Grammar objects. */
 public final class UnificationGrammarVisitorImpl extends UnificationGrammarBaseVisitor<Object> {
 
-    private final Grammar.Builder builder = Grammar.builder();
-    private final List<String> errors = new ArrayList<>();
-    private String moduleName = "anonymous";
-    private Set<String> exports = null; // null means no export statement seen yet
+  private final Grammar.Builder builder = Grammar.builder();
+  private final List<String> errors = new ArrayList<>();
+  private String moduleName = "anonymous";
+  private Set<String> exports = null; // null means no export statement seen yet
 
-    public static Grammar build(final UnificationGrammarParser.GrammarFileContext ctx) {
-        final var visitor = new UnificationGrammarVisitorImpl();
-        visitor.visit(ctx);
+  public static Grammar build(final UnificationGrammarParser.GrammarFileContext context) {
+    final var visitor = new UnificationGrammarVisitorImpl();
+    visitor.visit(context);
 
-        if (!visitor.errors.isEmpty()) {
-            throw new RuntimeException("Grammar errors: " + String.join(", ", visitor.errors));
-        }
-
-        return visitor.builder.build();
+    if (!visitor.errors.isEmpty()) {
+      throw new RuntimeException("Grammar errors: " + String.join(", ", visitor.errors));
     }
 
-    @Override
-    public Object visitModuleStmt(final UnificationGrammarParser.ModuleStmtContext ctx) {
-        moduleName = buildModuleName(ctx.moduleName());
-        builder.module(new ModuleInfo(moduleName, exports));
-        return null;
+    return visitor.builder.build();
+  }
+
+  @Override
+  public Object visitModuleStmt(final UnificationGrammarParser.ModuleStmtContext context) {
+    moduleName = buildModuleName(context.moduleName());
+    builder.module(new ModuleInfo(moduleName, exports));
+    return null;
+  }
+
+  @Override
+  public Object visitImportStmt(final UnificationGrammarParser.ImportStmtContext context) {
+    final var decl = buildImportDecl(context);
+    builder.addImport(decl);
+    return null;
+  }
+
+  @Override
+  public Object visitExportAll(final UnificationGrammarParser.ExportAllContext context) {
+    // export * explicitly means export everything (same as omitting export)
+    exports = Set.of();
+    builder.module(new ModuleInfo(moduleName, exports));
+    return null;
+  }
+
+  @Override
+  public Object visitExportList(final UnificationGrammarParser.ExportListContext context) {
+    // Accumulate exports from multiple export statements instead of replacing
+    if (exports == null) {
+      exports = new java.util.HashSet<String>();
+    }
+    for (final var id : context.IDENTIFIER()) {
+      exports.add(id.getText());
+    }
+    builder.module(new ModuleInfo(moduleName, exports));
+    return null;
+  }
+
+  @Override
+  public Object visitWhitespaceStmt(final UnificationGrammarParser.WhitespaceStmtContext context) {
+    if (context.regex() == null && !"none".equals(context.IDENTIFIER().getText())) {
+      throw new IllegalArgumentException(
+          "whitespace takes a pattern or 'none', not " + context.IDENTIFIER().getText());
+    }
+    builder.whitespace(
+        context.regex() == null ? "" : ((RuleElement.Regex) buildRegex(context.regex())).pattern());
+    return null;
+  }
+
+  @Override
+  public Object visitSkipStmt(final UnificationGrammarParser.SkipStmtContext context) {
+    for (final var id : context.IDENTIFIER()) {
+      builder.skip(id.getText());
+    }
+    return null;
+  }
+
+  @Override
+  public Object visitStartStmt(final UnificationGrammarParser.StartStmtContext context) {
+    builder.start(context.IDENTIFIER().getText());
+    return null;
+  }
+
+  private String buildModuleName(final UnificationGrammarParser.ModuleNameContext context) {
+    final var parts = new ArrayList<String>();
+    for (final var id : context.IDENTIFIER()) {
+      parts.add(id.getText());
+    }
+    return String.join(".", parts);
+  }
+
+  private ImportDeclaration buildImportDecl(
+      final UnificationGrammarParser.ImportStmtContext context) {
+    final String path;
+
+    if (context.modulePath().moduleName() != null) {
+      path = buildModuleName(context.modulePath().moduleName());
+    } else {
+      path = stripQuotes(context.modulePath().STRING().getText());
     }
 
-    @Override
-    public Object visitImportStmt(final UnificationGrammarParser.ImportStmtContext ctx) {
-        final var decl = buildImportDecl(ctx);
-        builder.addImport(decl);
-        return null;
-    }
-
-    @Override
-    public Object visitExportAll(final UnificationGrammarParser.ExportAllContext ctx) {
-        // export * explicitly means export everything (same as omitting export)
-        exports = Set.of();
-        builder.module(new ModuleInfo(moduleName, exports));
-        return null;
-    }
-
-    @Override
-    public Object visitExportList(final UnificationGrammarParser.ExportListContext ctx) {
-        // Accumulate exports from multiple export statements instead of replacing
-        if (exports == null) {
-            exports = new java.util.HashSet<String>();
-        }
-        for (final var id : ctx.IDENTIFIER()) {
-            exports.add(id.getText());
-        }
-        builder.module(new ModuleInfo(moduleName, exports));
-        return null;
-    }
-
-    @Override
-    public Object visitStartStmt(final UnificationGrammarParser.StartStmtContext ctx) {
-        builder.start(ctx.IDENTIFIER().getText());
-        return null;
-    }
-
-    private String buildModuleName(final UnificationGrammarParser.ModuleNameContext ctx) {
-        final var parts = new ArrayList<String>();
-        for (final var id : ctx.IDENTIFIER()) {
-            parts.add(id.getText());
-        }
-        return String.join(".", parts);
-    }
-
-    private ImportDeclaration buildImportDecl(final UnificationGrammarParser.ImportStmtContext ctx) {
-        final String path;
-
-        if (ctx.modulePath().moduleName() != null) {
-            path = buildModuleName(ctx.modulePath().moduleName());
-        } else {
-            path = stripQuotes(ctx.modulePath().STRING().getText());
-        }
-
-        // Check for import specification
-        if (ctx.importSpec() != null) {
-            if (ctx.importSpec().getText().equals(".*")) {
-                return new ImportDeclaration.All(path, null);
-            } else {
-                // Selective import
-                final var symbols = new java.util.HashSet<String>();
-                for (final var id : ctx.importSpec().IDENTIFIER()) {
-                    symbols.add(id.getText());
-                }
-                return new ImportDeclaration.Selective(path, symbols, null);
-            }
-        }
-
-        // Legacy file import or default all import
-        if (ctx.modulePath().STRING() != null) {
-            return new ImportDeclaration.File(path);
-        }
-
+    // Check for import specification
+    if (context.importSpec() != null) {
+      if (context.importSpec().getText().equals(".*")) {
         return new ImportDeclaration.All(path, null);
-    }
-
-    @Override
-    public Object visitLexicalRule(final UnificationGrammarParser.LexicalRuleContext ctx) {
-        final var lhsSymbol = ctx.lhs().IDENTIFIER().getText();
-        final var lhsFeatures =
-                ctx.lhs().featureStruct() != null
-                        ? buildFeatureStruct(ctx.lhs().featureStruct())
-                        : new Structure();
-
-        var rhs = buildLexicalRHS(ctx.lexicalRhs());
-        final var constraints =
-                ctx.whereClause() != null ? buildConstraints(ctx.whereClause()) : List.<Constraint>of();
-
-        // Apply state transition to the last lexical element if present
-        if (ctx.stateTransition() != null && !rhs.isEmpty()) {
-            final var transition = parseStateTransition(ctx.stateTransition());
-            rhs = applyTransition(rhs, transition);
+      } else {
+        // Selective import
+        final var symbols = new java.util.HashSet<String>();
+        for (final var id : context.importSpec().IDENTIFIER()) {
+          symbols.add(id.getText());
         }
-
-        final var lhs = new GrammarRule.LHS(lhsSymbol, lhsFeatures);
-        builder.add(new GrammarRule(lhs, rhs, constraints));
-        return null;
+        return new ImportDeclaration.Selective(path, symbols, null);
+      }
     }
 
-    /**
-     * Apply transition to the last lexical element in the RHS.
-     */
-    private List<RuleElement> applyTransition(final List<RuleElement> rhs, final String transition) {
-        if (rhs.isEmpty()) return rhs;
-
-        final var result = new ArrayList<>(rhs);
-        final var last = result.removeLast();
-        result.add(applyTransitionToElement(last, transition));
-        return result;
+    // A file import, or an import of every export
+    if (context.modulePath().STRING() != null) {
+      return new ImportDeclaration.File(path);
     }
 
-    /**
-     * Recursively apply transition to a lexical element.
-     */
-    private RuleElement applyTransitionToElement(final RuleElement element, final String transition) {
-        return switch (element) {
-            case RuleElement.Terminal t -> t.transition(transition);
-            case RuleElement.Regex r -> r.transition(transition);
-            case RuleElement.Alternation alt -> {
-                // Apply transition to all options
-                final var options = new ArrayList<RuleElement>();
-                for (final var opt : alt.options()) {
-                    options.add(applyTransitionToElement(opt, transition));
-                }
-                yield new RuleElement.Alternation(options);
-            }
-            case RuleElement.Repetition rep -> {
-                // Apply transition to inner element
-                final var inner = applyTransitionToElement(rep.element(), transition);
-                yield new RuleElement.Repetition(inner, rep.quantifier());
-            }
-            default -> element; // StateAnnotation, Nonterminal - shouldn't be in lexical rules
-        };
+    return new ImportDeclaration.All(path, null);
+  }
+
+  @Override
+  public Object visitLexicalRule(final UnificationGrammarParser.LexicalRuleContext context) {
+    final var lhsSymbol = context.lhs().IDENTIFIER().getText();
+    final var lhsFeatures =
+        context.lhs().featureStruct() != null
+            ? buildFeatureStruct(context.lhs().featureStruct())
+            : Structure.EMPTY;
+
+    final var constraints =
+        context.whereClause() != null
+            ? buildConstraints(context.whereClause())
+            : List.<Expression>of();
+    final var lhs = new GrammarRule.LHS(lhsSymbol, lhsFeatures);
+
+    final var transition =
+        context.stateTransition() != null ? parseStateTransition(context.stateTransition()) : null;
+
+    // Each top-level alternative is its own production, sharing constraints, transition and cost.
+    for (final var alternative : context.lexicalRhs()) {
+      final var rhs = buildLexicalRHS(alternative);
+      final var kind = GrammarRule.classify(rhs, transition != null);
+      builder.add(
+          new GrammarRule(lhs, rhs, constraints, kind, cost(context.costClause()), transition));
+    }
+    return null;
+  }
+
+  /** The production cost from an optional {@code @N} clause, 0 if absent (S-P7). */
+  private static long cost(final UnificationGrammarParser.CostClauseContext context) {
+    return context == null ? 0 : Long.parseLong(context.NUMBER().getText());
+  }
+
+  @Override
+  public Object visitGrammarRule(final UnificationGrammarParser.GrammarRuleContext context) {
+    final var lhsSymbol = context.lhs().IDENTIFIER().getText();
+    final var lhsFeatures =
+        context.lhs().featureStruct() != null
+            ? buildFeatureStruct(context.lhs().featureStruct())
+            : Structure.EMPTY;
+
+    final var constraints =
+        context.whereClause() != null
+            ? buildConstraints(context.whereClause())
+            : List.<Expression>of();
+    final var lhs = new GrammarRule.LHS(lhsSymbol, lhsFeatures);
+
+    // Each top-level alternative is its own production, sharing constraints and cost. An
+    // alternative without nonterminals is classified by S-G1 like any other production.
+    for (final var alternative : context.rhs()) {
+      final var rhs = buildRHS(alternative);
+      final var kind = GrammarRule.classify(rhs, false);
+      builder.add(new GrammarRule(lhs, rhs, constraints, kind, cost(context.costClause())));
+    }
+    return null;
+  }
+
+  private List<RuleElement> buildRHS(final UnificationGrammarParser.RhsContext context) {
+    final var elements = new ArrayList<RuleElement>();
+
+    for (final var elem : context.element()) {
+      elements.add(buildElement(elem));
     }
 
-    @Override
-    public Object visitGrammarRule(final UnificationGrammarParser.GrammarRuleContext ctx) {
-        final var lhsSymbol = ctx.lhs().IDENTIFIER().getText();
-        final var lhsFeatures =
-                ctx.lhs().featureStruct() != null
-                        ? buildFeatureStruct(ctx.lhs().featureStruct())
-                        : new Structure();
+    return elements;
+  }
 
-        final var rhs = buildRHS(ctx.rhs());
-        final var constraints =
-                ctx.whereClause() != null ? buildConstraints(ctx.whereClause()) : List.<Constraint>of();
+  private List<RuleElement> buildLexicalRHS(
+      final UnificationGrammarParser.LexicalRhsContext context) {
+    final var elements = new ArrayList<RuleElement>();
 
-        final var lhs = new GrammarRule.LHS(lhsSymbol, lhsFeatures);
-        builder.add(new GrammarRule(lhs, rhs, constraints));
-        return null;
+    for (final var elem : context.lexicalElement()) {
+      elements.add(buildLexicalElement(elem));
     }
 
-    private List<RuleElement> buildRHS(final UnificationGrammarParser.RhsContext ctx) {
-        final var elements = new ArrayList<RuleElement>();
+    return elements;
+  }
 
-        for (final var elem : ctx.element()) {
-            elements.add(buildElement(elem));
+  private RuleElement buildLexicalElement(
+      final UnificationGrammarParser.LexicalElementContext context) {
+    RuleElement element;
+
+    if (context.labeledLexicalElement() != null) {
+      element = buildLabeledLexicalElement(context.labeledLexicalElement());
+    } else if (context.lexicalGroup() != null) {
+      element = buildLexicalGroup(context.lexicalGroup());
+    } else {
+      throw new RuntimeException("Unknown lexical element type");
+    }
+
+    // Apply quantifier if present
+    if (context.quantifier() != null) {
+      element = applyQuantifier(element, context.quantifier());
+    }
+
+    return element;
+  }
+
+  private RuleElement buildLabeledLexicalElement(
+      final UnificationGrammarParser.LabeledLexicalElementContext context) {
+    final var base = buildBaseLexicalElement(context.baseLexicalElement());
+
+    // Apply label if present
+    if (context.IDENTIFIER() != null) {
+      final var label = context.IDENTIFIER().getText();
+      return switch (base) {
+        case RuleElement.Terminal term -> new RuleElement.Terminal(term.text(), label);
+        case RuleElement.Regex regex -> new RuleElement.Regex(regex.pattern(), label);
+        case RuleElement.TokenMatch tm -> tm.with(label);
+        default -> base;
+      };
+    }
+
+    return base;
+  }
+
+  private RuleElement buildBaseLexicalElement(
+      final UnificationGrammarParser.BaseLexicalElementContext context) {
+    if (context.terminal() != null) {
+      return buildTerminal(context.terminal());
+    } else if (context.regex() != null) {
+      return buildRegex(context.regex());
+    } else if (context.stateAnnotation() != null) {
+      return buildStateAnnotation(context.stateAnnotation());
+    } else if (context.tokenMatch() != null) {
+      return new RuleElement.TokenMatch();
+    }
+
+    throw new RuntimeException("Unknown base lexical element");
+  }
+
+  private RuleElement buildLexicalGroup(
+      final UnificationGrammarParser.LexicalGroupContext context) {
+    final var options = new ArrayList<RuleElement>();
+    for (final var sequence : context.lexicalSequence()) {
+      final var elements = new ArrayList<RuleElement>();
+      for (final var element : sequence.lexicalElement()) {
+        elements.add(buildLexicalElement(element));
+      }
+      options.add(group(elements));
+    }
+    return options.size() == 1 ? options.getFirst() : new RuleElement.Alternation(options);
+  }
+
+  /** One element stands alone; anything else is a sequence (S-G4). */
+  private static RuleElement group(final List<RuleElement> elements) {
+    return elements.size() == 1 ? elements.getFirst() : new RuleElement.Sequence(elements);
+  }
+
+  private RuleElement buildElement(final UnificationGrammarParser.ElementContext context) {
+    RuleElement element;
+
+    if (context.labeledElement() != null) {
+      element = buildLabeledElement(context.labeledElement());
+    } else if (context.group() != null) {
+      element = buildGroup(context.group());
+    } else {
+      throw new RuntimeException("Unknown element type");
+    }
+
+    // Apply quantifier if present
+    if (context.quantifier() != null) {
+      element = applyQuantifier(element, context.quantifier());
+    }
+
+    return element;
+  }
+
+  private RuleElement buildLabeledElement(
+      final UnificationGrammarParser.LabeledElementContext context) {
+    final var base = buildBaseElement(context.baseElement());
+
+    // Apply label if present to any element type
+    if (context.IDENTIFIER() != null) {
+      final var label = context.IDENTIFIER().getText();
+      return switch (base) {
+        case RuleElement.Nonterminal nt ->
+            new RuleElement.Nonterminal(nt.name(), label, nt.features());
+        case RuleElement.Terminal term -> new RuleElement.Terminal(term.text(), label);
+        case RuleElement.Regex regex -> new RuleElement.Regex(regex.pattern(), label);
+        case RuleElement.TokenMatch tm -> tm.with(label);
+        default -> base;
+      };
+    }
+
+    return base;
+  }
+
+  private RuleElement buildBaseElement(final UnificationGrammarParser.BaseElementContext context) {
+    if (context.nonterminal() != null) {
+      return buildNonterminal(context.nonterminal());
+    } else if (context.terminal() != null) {
+      return buildTerminal(context.terminal());
+    } else if (context.regex() != null) {
+      return buildRegex(context.regex());
+    } else if (context.tokenMatch() != null) {
+      return new RuleElement.TokenMatch();
+    }
+
+    throw new RuntimeException("Unknown base element");
+  }
+
+  private RuleElement buildStateAnnotation(
+      final UnificationGrammarParser.StateAnnotationContext context) {
+    final var state = context.IDENTIFIER().getText();
+    return new RuleElement.StateAnnotation(state);
+  }
+
+  private RuleElement buildStateTransitionElement(
+      final UnificationGrammarParser.StateTransitionContext context) {
+    final var transition = parseStateTransition(context);
+    return new RuleElement.StateAnnotation(transition);
+  }
+
+  private String parseStateTransition(
+      final UnificationGrammarParser.StateTransitionContext context) {
+    if (context instanceof UnificationGrammarParser.PushStateContext push) {
+      return push.IDENTIFIER().getText();
+    } else if (context instanceof UnificationGrammarParser.PopStateContext) {
+      return "_";
+    } else if (context instanceof UnificationGrammarParser.ResetStateContext reset) {
+      return "!" + reset.IDENTIFIER().getText();
+    } else if (context instanceof UnificationGrammarParser.ReplaceStateContext replace) {
+      return "^" + replace.IDENTIFIER().getText();
+    }
+    throw new IllegalArgumentException("Unknown state transition syntax");
+  }
+
+  private RuleElement buildNonterminal(final UnificationGrammarParser.NonterminalContext context) {
+    final var name = context.IDENTIFIER().getText();
+    final var features =
+        context.featureStruct() != null
+            ? buildFeatureStruct(context.featureStruct())
+            : Structure.EMPTY;
+
+    return new RuleElement.Nonterminal(name, null, features);
+  }
+
+  private RuleElement buildTerminal(final UnificationGrammarParser.TerminalContext context) {
+    final var text = stripQuotes(context.STRING().getText());
+    return new RuleElement.Terminal(text);
+  }
+
+  private RuleElement buildRegex(final UnificationGrammarParser.RegexContext context) {
+    // Concatenate multiple REGEX tokens (e.g., [a-z][0-9]*)
+    final var pattern = new StringBuilder();
+    for (final var node : context.REGEX()) {
+      pattern.append(node.getText());
+    }
+    return new RuleElement.Regex(pattern.toString());
+  }
+
+  private Structure buildFeatureStruct(
+      final UnificationGrammarParser.FeatureStructContext context) {
+    final var builder = Structure.builder();
+
+    for (final var pair : context.featurePair()) {
+      final var key = pair.IDENTIFIER().getText();
+      final var value = buildFeatureValue(pair.featureValue());
+      builder.with(key, value);
+    }
+
+    return builder.build();
+  }
+
+  private Value buildFeatureValue(final UnificationGrammarParser.FeatureValueContext context) {
+    if (context.IDENTIFIER() != null) {
+      final var text = context.IDENTIFIER().getText();
+      // Variables start with uppercase
+      if (!text.isEmpty() && Character.isUpperCase(text.charAt(0))) {
+        return new Variable(text);
+      }
+      return new StringConstant(text);
+    } else if (context.STRING() != null) {
+      return new StringConstant(stripQuotes(context.STRING().getText()));
+    } else if (context.featureStruct() != null) {
+      return buildFeatureStruct(context.featureStruct());
+    }
+
+    return new StringConstant("");
+  }
+
+  private RuleElement buildGroup(final UnificationGrammarParser.GroupContext context) {
+    final var options = new ArrayList<RuleElement>();
+    for (final var sequence : context.sequence()) {
+      final var elements = new ArrayList<RuleElement>();
+      for (final var element : sequence.element()) {
+        elements.add(buildElement(element));
+      }
+      options.add(group(elements));
+    }
+    return options.size() == 1 ? options.getFirst() : new RuleElement.Alternation(options);
+  }
+
+  private RuleElement applyQuantifier(
+      final RuleElement element, final UnificationGrammarParser.QuantifierContext context) {
+    final var q = context.getText();
+
+    return switch (q) {
+      case "*" -> new RuleElement.Repetition(element, RuleElement.Quantifier.ZERO_OR_MORE);
+      case "+" -> new RuleElement.Repetition(element, RuleElement.Quantifier.ONE_OR_MORE);
+      case "?" -> new RuleElement.Repetition(element, RuleElement.Quantifier.OPTIONAL);
+      default -> throw new RuntimeException("Unknown quantifier: " + q);
+    };
+  }
+
+  private List<Expression> buildConstraints(
+      final UnificationGrammarParser.WhereClauseContext context) {
+    return List.of(buildExpr(context.constraintExpr()));
+  }
+
+  /** constraintExpr : constraintTerm ('|' constraintTerm)* */
+  private Expression buildExpr(final UnificationGrammarParser.ConstraintExprContext context) {
+    final var terms = context.constraintTerm().stream().map(this::buildTerm).toList();
+    return terms.size() == 1 ? terms.getFirst() : new Expression.Or(terms);
+  }
+
+  /** constraintTerm : constraintFactor (',' constraintFactor)* */
+  private Expression buildTerm(final UnificationGrammarParser.ConstraintTermContext context) {
+    final var factors = context.constraintFactor().stream().map(this::buildFactor).toList();
+    return factors.size() == 1 ? factors.getFirst() : new Expression.And(factors);
+  }
+
+  /**
+   * constraintFactor : '!' constraintFactor | '(' constraintExpr ')' penalty? | predicate penalty?.
+   * A penalty {@code :N} makes the factor a weighted expression; compilation turns weighted
+   * top-level conjuncts into soft groups (S-C2, S-C6).
+   */
+  private Expression buildFactor(final UnificationGrammarParser.ConstraintFactorContext context) {
+    if (context.getChildCount() > 0 && "!".equals(context.getChild(0).getText())) {
+      return new Expression.Not(buildFactor(context.constraintFactor()));
+    }
+    final var expression =
+        context.constraintExpr() != null
+            ? buildExpr(context.constraintExpr())
+            : buildPredicate(context.predicate());
+    return context.penalty() == null
+        ? expression
+        : new Expression.Weighted(expression, Long.parseLong(context.penalty().NUMBER().getText()));
+  }
+
+  /** predicate : IDENTIFIER '(' args? ')' */
+  private Expression buildPredicate(final UnificationGrammarParser.PredicateContext context) {
+    final var name = context.IDENTIFIER().getText();
+    final var arguments = context.args() != null ? buildArgs(context.args()) : List.<Value>of();
+    return new Expression.Call(name, arguments);
+  }
+
+  private List<Value> buildArgs(final UnificationGrammarParser.ArgsContext context) {
+    final var args = new ArrayList<Value>();
+
+    for (final var arg : context.arg()) {
+      if (arg.featurePath() != null) {
+        args.add(buildFeaturePath(arg.featurePath()));
+      } else if (arg.STRING() != null) {
+        args.add(StringConstant.of(stripQuotes(arg.STRING().getText())));
+      } else if (arg.featureStruct() != null) {
+        // Encode feature structure as string
+        args.add(buildFeatureStruct(arg.featureStruct()));
+      }
+    }
+
+    return args;
+  }
+
+  private Value buildFeaturePath(final UnificationGrammarParser.FeaturePathContext context) {
+    final var ids = context.IDENTIFIER();
+    if (ids.size() == 1) {
+      // Simple variable: W
+      return Variable.of(ids.getFirst().getText());
+    } else {
+      // Feature path: W.cat -> FeaturePath(W, cat)
+      final var parts = new ArrayList<String>();
+      for (final var id : ids) {
+        parts.add(id.getText());
+      }
+      return new FeaturePath(parts);
+    }
+  }
+
+  /** Removes the quotes from a string literal and resolves its escapes. */
+  private String stripQuotes(final String s) {
+    if (s.length() >= 2) {
+      if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith("\"") && s.endsWith("\""))) {
+        return unescape(s.substring(1, s.length() - 1));
+      }
+    }
+    return s;
+  }
+
+  /**
+   * Resolves backslash escapes: n, t, r, u plus four hex digits; any other escaped character stands
+   * for itself.
+   */
+  private static String unescape(final String text) {
+    if (text.indexOf('\\') < 0) {
+      return text;
+    }
+    final var builder = new StringBuilder();
+    for (var i = 0; i < text.length(); i++) {
+      final var c = text.charAt(i);
+      if (c != '\\' || i + 1 == text.length()) {
+        builder.append(c);
+        continue;
+      }
+      final var next = text.charAt(++i);
+      switch (next) {
+        case 'n' -> builder.append('\n');
+        case 't' -> builder.append('\t');
+        case 'r' -> builder.append('\r');
+        case 'u' -> {
+          builder.append((char) Integer.parseInt(text.substring(i + 1, i + 5), 16));
+          i += 4;
         }
-
-        return elements;
+        default -> builder.append(next);
+      }
     }
-
-    private List<RuleElement> buildLexicalRHS(final UnificationGrammarParser.LexicalRhsContext ctx) {
-        final var elements = new ArrayList<RuleElement>();
-
-        for (final var elem : ctx.lexicalElement()) {
-            elements.add(buildLexicalElement(elem));
-        }
-
-        return elements;
-    }
-
-    private RuleElement buildLexicalElement(
-            final UnificationGrammarParser.LexicalElementContext ctx) {
-        RuleElement element;
-
-        if (ctx.labeledLexicalElement() != null) {
-            element = buildLabeledLexicalElement(ctx.labeledLexicalElement());
-        } else if (ctx.lexicalAlternation() != null) {
-            element = buildLexicalAlternation(ctx.lexicalAlternation());
-        } else {
-            throw new RuntimeException("Unknown lexical element type");
-        }
-
-        // Apply quantifier if present
-        if (ctx.quantifier() != null) {
-            element = applyQuantifier(element, ctx.quantifier());
-        }
-
-        return element;
-    }
-
-    private RuleElement buildLabeledLexicalElement(
-            final UnificationGrammarParser.LabeledLexicalElementContext ctx) {
-        final var base = buildBaseLexicalElement(ctx.baseLexicalElement());
-
-        // Apply label if present
-        if (ctx.IDENTIFIER() != null) {
-            final var label = ctx.IDENTIFIER().getText();
-            return switch (base) {
-                case RuleElement.Terminal term -> new RuleElement.Terminal(term.text(), label);
-                case RuleElement.Regex regex -> new RuleElement.Regex(regex.pattern(), label);
-                case RuleElement.TokenMatch tm -> tm.with(label);
-                default -> base;
-            };
-        }
-
-        return base;
-    }
-
-    private RuleElement buildBaseLexicalElement(
-            final UnificationGrammarParser.BaseLexicalElementContext ctx) {
-        if (ctx.terminal() != null) {
-            return buildTerminal(ctx.terminal());
-        } else if (ctx.regex() != null) {
-            return buildRegex(ctx.regex());
-        } else if (ctx.stateAnnotation() != null) {
-            return buildStateAnnotation(ctx.stateAnnotation());
-        } else if (ctx.tokenMatch() != null) {
-            return new RuleElement.TokenMatch();
-        } else if (ctx.lexicalElement() != null) {
-            // Parenthesized lexical element
-            return buildLexicalElement(ctx.lexicalElement());
-        }
-
-        throw new RuntimeException("Unknown base lexical element");
-    }
-
-    private RuleElement buildLexicalAlternation(
-            final UnificationGrammarParser.LexicalAlternationContext ctx) {
-        final var options = new ArrayList<RuleElement>();
-
-        for (final var opt : ctx.lexicalAltOption()) {
-            options.add(buildLexicalElement(opt.lexicalElement()));
-        }
-
-        return new RuleElement.Alternation(options);
-    }
-
-    private RuleElement buildElement(final UnificationGrammarParser.ElementContext ctx) {
-        RuleElement element;
-
-        if (ctx.labeledElement() != null) {
-            element = buildLabeledElement(ctx.labeledElement());
-        } else if (ctx.alternation() != null) {
-            element = buildAlternation(ctx.alternation());
-        } else {
-            throw new RuntimeException("Unknown element type");
-        }
-
-        // Apply quantifier if present
-        if (ctx.quantifier() != null) {
-            element = applyQuantifier(element, ctx.quantifier());
-        }
-
-        return element;
-    }
-
-    private RuleElement buildLabeledElement(
-            final UnificationGrammarParser.LabeledElementContext ctx) {
-        final var base = buildBaseElement(ctx.baseElement());
-
-        // Apply label if present to any element type
-        if (ctx.IDENTIFIER() != null) {
-            final var label = ctx.IDENTIFIER().getText();
-            return switch (base) {
-                case RuleElement.Nonterminal nt -> new RuleElement.Nonterminal(nt.name(), label, nt.features());
-                case RuleElement.Terminal term -> new RuleElement.Terminal(term.text(), label);
-                case RuleElement.Regex regex -> new RuleElement.Regex(regex.pattern(), label);
-                case RuleElement.TokenMatch tm -> tm.with(label);
-                default -> base;
-            };
-        }
-
-        return base;
-    }
-
-    private RuleElement buildBaseElement(final UnificationGrammarParser.BaseElementContext ctx) {
-        if (ctx.nonterminal() != null) {
-            return buildNonterminal(ctx.nonterminal());
-        } else if (ctx.terminal() != null) {
-            return buildTerminal(ctx.terminal());
-        } else if (ctx.regex() != null) {
-            return buildRegex(ctx.regex());
-        } else if (ctx.tokenMatch() != null) {
-            return new RuleElement.TokenMatch();
-        } else if (ctx.element() != null) {
-            // Parenthesized element
-            return buildElement(ctx.element());
-        }
-
-        throw new RuntimeException("Unknown base element");
-    }
-
-    private RuleElement buildStateAnnotation(
-            final UnificationGrammarParser.StateAnnotationContext ctx) {
-        final var state = ctx.IDENTIFIER().getText();
-        return new RuleElement.StateAnnotation(state);
-    }
-
-    private RuleElement buildStateTransitionElement(
-            final UnificationGrammarParser.StateTransitionContext ctx) {
-        final var transition = parseStateTransition(ctx);
-        return new RuleElement.StateAnnotation(transition);
-    }
-
-    private String parseStateTransition(final UnificationGrammarParser.StateTransitionContext ctx) {
-        if (ctx instanceof UnificationGrammarParser.PushStateContext push) {
-            return push.IDENTIFIER().getText();
-        } else if (ctx instanceof UnificationGrammarParser.PopStateContext) {
-            return "_";
-        } else if (ctx instanceof UnificationGrammarParser.ResetStateContext reset) {
-            return "!" + reset.IDENTIFIER().getText();
-        }
-        throw new IllegalArgumentException("Unknown state transition syntax");
-    }
-
-    private RuleElement buildNonterminal(final UnificationGrammarParser.NonterminalContext ctx) {
-        final var name = ctx.IDENTIFIER().getText();
-        final var features =
-                ctx.featureStruct() != null ? buildFeatureStruct(ctx.featureStruct()) : new Structure();
-
-        return new RuleElement.Nonterminal(name, null, features);
-    }
-
-    private RuleElement buildTerminal(final UnificationGrammarParser.TerminalContext ctx) {
-        final var text = stripQuotes(ctx.STRING().getText());
-        return new RuleElement.Terminal(text);
-    }
-
-    private RuleElement buildRegex(final UnificationGrammarParser.RegexContext ctx) {
-        // Concatenate multiple REGEX tokens (e.g., [a-z][0-9]*)
-        final var pattern = new StringBuilder();
-        for (final var node : ctx.REGEX()) {
-            pattern.append(node.getText());
-        }
-        return new RuleElement.Regex(pattern.toString());
-    }
-
-    private Structure buildFeatureStruct(final UnificationGrammarParser.FeatureStructContext ctx) {
-        final var features = new Structure();
-
-        for (final var pair : ctx.featurePair()) {
-            final var key = pair.IDENTIFIER().getText();
-            final var value = buildFeatureValue(pair.featureValue());
-            features.set(key, value);
-        }
-
-        return features;
-    }
-
-    private Value buildFeatureValue(final UnificationGrammarParser.FeatureValueContext ctx) {
-        if (ctx.IDENTIFIER() != null) {
-            final var text = ctx.IDENTIFIER().getText();
-            // Variables start with uppercase
-            if (!text.isEmpty() && Character.isUpperCase(text.charAt(0))) {
-                return new Variable(text);
-            }
-            return new StringConstant(text);
-        } else if (ctx.STRING() != null) {
-            return new StringConstant(stripQuotes(ctx.STRING().getText()));
-        } else if (ctx.featureStruct() != null) {
-            // Nested feature structures are now fully supported
-            return buildFeatureStruct(ctx.featureStruct());
-        }
-
-        return new StringConstant("");
-    }
-
-    private RuleElement buildAlternation(final UnificationGrammarParser.AlternationContext ctx) {
-        final var options = new ArrayList<RuleElement>();
-
-        for (final var opt : ctx.altOption()) {
-            options.add(buildElement(opt.element()));
-        }
-
-        return new RuleElement.Alternation(options);
-    }
-
-    private RuleElement applyQuantifier(
-            final RuleElement element, final UnificationGrammarParser.QuantifierContext ctx) {
-        final var q = ctx.getText();
-
-        return switch (q) {
-            case "*" -> new RuleElement.Repetition(element, RuleElement.Quantifier.ZERO_OR_MORE);
-            case "+" -> new RuleElement.Repetition(element, RuleElement.Quantifier.ONE_OR_MORE);
-            case "?" -> new RuleElement.Repetition(element, RuleElement.Quantifier.OPTIONAL);
-            default -> throw new RuntimeException("Unknown quantifier: " + q);
-        };
-    }
-
-    private List<Constraint> buildConstraints(final UnificationGrammarParser.WhereClauseContext ctx) {
-        // Single expression returned as list for compatibility with existing API
-        return List.of(buildExpr(ctx.constraintExpr()));
-    }
-
-    /**
-     * Build a constraint expression (handles OR at the top level). constraintExpr : constraintTerm
-     * ('|' constraintTerm)*
-     */
-    private Constraint buildExpr(final UnificationGrammarParser.ConstraintExprContext ctx) {
-        final var terms = ctx.constraintTerm().stream().map(this::buildTerm).toList();
-        return terms.size() == 1 ? terms.getFirst() : new Constraint.Or(terms);
-    }
-
-    /**
-     * Build a constraint term (handles AND via comma). constraintTerm : constraintFactor (','
-     * constraintFactor)*
-     */
-    private Constraint buildTerm(final UnificationGrammarParser.ConstraintTermContext ctx) {
-        final var factors = ctx.constraintFactor().stream().map(this::buildFactor).toList();
-        return factors.size() == 1 ? factors.getFirst() : new Constraint.And(factors);
-    }
-
-    /**
-     * Build a constraint factor (handles NOT, grouping, and defeasible penalties).
-     *
-     * <p>Grammar: constraintFactor : '!' constraintFactor | '(' constraintExpr ')' penalty? |
-     * predicate penalty?
-     *
-     * <p>When a penalty is present (e.g., `:10`), the constraint becomes defeasible with the
-     * specified penalty value. Without a penalty, constraints are required (hard).
-     */
-    private Constraint buildFactor(final UnificationGrammarParser.ConstraintFactorContext ctx) {
-        // Check for negation (first child is '!')
-        if (ctx.getChildCount() > 0 && "!".equals(ctx.getChild(0).getText())) {
-            return new Constraint.Not(buildFactor(ctx.constraintFactor()));
-        }
-
-        // Extract penalty if present
-        final var penalty = ctx.penalty();
-        final var hasDefeasible = penalty != null;
-        final var priority = hasDefeasible ? Integer.parseInt(penalty.NUMBER().getText()) : 0;
-        final var strength = hasDefeasible ? Strength.DEFEASIBLE : Strength.REQUIRED;
-
-        // Check for grouped expression
-        if (ctx.constraintExpr() != null) {
-            final var inner = buildExpr(ctx.constraintExpr());
-            return hasDefeasible ? withStrength(inner, strength, priority) : inner;
-        }
-
-        // Base case: predicate
-        return buildPredicate(ctx.predicate(), strength, priority);
-    }
-
-    /**
-     * Apply strength and priority to an existing constraint.
-     *
-     * <p>Used when a grouped expression has a penalty annotation.
-     */
-    private Constraint withStrength(final Constraint c, final Strength s, final int p) {
-        return switch (c) {
-            case Predicate pred -> Predicate.of(pred.name(), pred.args(), s, p);
-            case Constraint.And and -> new Constraint.And(and.conjuncts(), s, p);
-            case Constraint.Or or -> new Constraint.Or(or.disjuncts(), s, p);
-            case Constraint.Not not -> new Constraint.Not(not.constraint(), s, p);
-        };
-    }
-
-    /**
-     * Build a predicate constraint with specified strength and priority.
-     *
-     * <p>Grammar: predicate : IDENTIFIER '(' args? ')'
-     */
-    private Constraint buildPredicate(
-            final UnificationGrammarParser.PredicateContext ctx,
-            final Strength strength,
-            final int priority) {
-        final var name = ctx.IDENTIFIER().getText();
-        final var arguments = ctx.args() != null ? buildArgs(ctx.args()) : List.<Value>of();
-        return Predicate.of(name, arguments, strength, priority);
-    }
-
-    private List<Value> buildArgs(final UnificationGrammarParser.ArgsContext ctx) {
-        final var args = new ArrayList<Value>();
-
-        for (final var arg : ctx.arg()) {
-            if (arg.featurePath() != null) {
-                args.add(buildFeaturePath(arg.featurePath()));
-            } else if (arg.STRING() != null) {
-                args.add(StringConstant.of(stripQuotes(arg.STRING().getText())));
-            } else if (arg.featureStruct() != null) {
-                // Encode feature structure as string
-                args.add(buildFeatureStruct(arg.featureStruct()));
-            }
-        }
-
-        return args;
-    }
-
-    private Value buildFeaturePath(final UnificationGrammarParser.FeaturePathContext ctx) {
-        final var ids = ctx.IDENTIFIER();
-        if (ids.size() == 1) {
-            // Simple variable: W
-            return Variable.of(ids.getFirst().getText());
-        } else {
-            // Feature path: W.cat -> FeaturePath(W, cat)
-            final var parts = new ArrayList<String>();
-            for (final var id : ids) {
-                parts.add(id.getText());
-            }
-            return new FeaturePath(parts);
-        }
-    }
-
-    private String stripQuotes(final String s) {
-        if (s.length() >= 2) {
-            if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith("\"") && s.endsWith("\""))) {
-                return s.substring(1, s.length() - 1);
-            }
-        }
-        return s;
-    }
+    return builder.toString();
+  }
 }

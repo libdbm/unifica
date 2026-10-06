@@ -1,7 +1,6 @@
 package com.libdbm.ugf.generator;
 
 import com.libdbm.ugf.features.Structure;
-
 import java.util.Optional;
 
 /**
@@ -20,8 +19,8 @@ import java.util.Optional;
  */
 public final class LiteralTerminalGenerator implements TerminalGenerator {
 
-    @Override
-    public Optional<String> generate(final String symbol, final Structure features) {
-        return Optional.of(symbol);
-    }
+  @Override
+  public Optional<String> generate(final String symbol, final Structure features) {
+    return Optional.of(symbol);
+  }
 }

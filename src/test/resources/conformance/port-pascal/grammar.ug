@@ -1,0 +1,336 @@
+# Pascal, ported from grammars-v4 pascal/pascal.g4 (commit 7df52be9).
+# License: BSD 3-clause, Copyright (c) 2013, Tom Everett. Adapted from pascal.g
+# by Hakki Dogusan, Piet Schoutteten and Marton Papp. See NOTICE.md.
+#
+# Keywords are case-insensitive (ANTLR option caseInsensitive = true): each
+# keyword is a lexical category written with case classes, and IDENT excludes
+# every keyword with a negative lookahead.
+
+start program;
+whitespace [ \t\r\n]+;
+skip COMMENT_1, COMMENT_2;
+
+program --> programHeading INTERFACE? block DOT ;
+
+programHeading --> PROGRAM identifier (LPAREN identifierList RPAREN)? SEMI | UNIT identifier SEMI ;
+
+identifier --> IDENT ;
+
+block --> (labelDeclarationPart | constantDefinitionPart | typeDefinitionPart
+          | variableDeclarationPart | procedureAndFunctionDeclarationPart
+          | usesUnitsPart | IMPLEMENTATION)* compoundStatement ;
+
+usesUnitsPart --> USES identifierList SEMI ;
+
+labelDeclarationPart --> LABEL label (COMMA label)* SEMI ;
+
+label --> unsignedInteger ;
+
+constantDefinitionPart --> CONST (constantDefinition SEMI)+ ;
+
+constantDefinition --> identifier EQUAL constant ;
+
+constantChr --> CHR LPAREN unsignedInteger RPAREN ;
+
+constant --> unsignedNumber
+          | sign unsignedNumber
+          | identifier
+          | sign identifier
+          | string
+          | constantChr ;
+
+unsignedNumber --> unsignedInteger | unsignedReal ;
+
+unsignedInteger --> NUM_INT ;
+
+unsignedReal --> NUM_REAL ;
+
+sign --> PLUS | MINUS ;
+
+bool_ --> TRUE | FALSE ;
+
+string --> STRING_LITERAL ;
+
+typeDefinitionPart --> TYPE (typeDefinition SEMI)+ ;
+
+typeDefinition --> identifier EQUAL (type_ | functionType | procedureType) ;
+
+functionType --> FUNCTION formalParameterList? COLON resultType ;
+
+procedureType --> PROCEDURE formalParameterList? ;
+
+type_ --> simpleType | structuredType | pointerType ;
+
+simpleType --> scalarType | subrangeType | typeIdentifier | stringtype ;
+
+scalarType --> LPAREN identifierList RPAREN ;
+
+subrangeType --> constant DOTDOT constant ;
+
+typeIdentifier --> identifier | (CHAR | BOOLEAN | INTEGER | REAL | STRING) ;
+
+structuredType --> PACKED unpackedStructuredType | unpackedStructuredType ;
+
+unpackedStructuredType --> arrayType | recordType | setType | fileType ;
+
+stringtype --> STRING LBRACK (identifier | unsignedNumber) RBRACK ;
+
+arrayType --> ARRAY LBRACK typeList RBRACK OF componentType
+           | ARRAY LBRACK2 typeList RBRACK2 OF componentType ;
+
+typeList --> indexType (COMMA indexType)* ;
+
+indexType --> simpleType ;
+
+componentType --> type_ ;
+
+recordType --> RECORD fieldList? END ;
+
+fieldList --> fixedPart (SEMI variantPart)? | variantPart ;
+
+fixedPart --> recordSection (SEMI recordSection)* ;
+
+recordSection --> identifierList COLON type_ ;
+
+variantPart --> CASE tag OF variant (SEMI variant)* ;
+
+tag --> identifier COLON typeIdentifier | typeIdentifier ;
+
+variant --> constList COLON LPAREN fieldList RPAREN ;
+
+setType --> SET OF baseType ;
+
+baseType --> simpleType ;
+
+fileType --> FILE OF type_ | FILE ;
+
+pointerType --> POINTER typeIdentifier ;
+
+variableDeclarationPart --> VAR variableDeclaration (SEMI variableDeclaration)* SEMI ;
+
+variableDeclaration --> identifierList COLON type_ ;
+
+procedureAndFunctionDeclarationPart --> procedureOrFunctionDeclaration SEMI ;
+
+procedureOrFunctionDeclaration --> procedureDeclaration | functionDeclaration ;
+
+procedureDeclaration --> PROCEDURE identifier formalParameterList? SEMI block ;
+
+formalParameterList --> LPAREN formalParameterSection (SEMI formalParameterSection)* RPAREN ;
+
+formalParameterSection --> parameterGroup
+                        | VAR parameterGroup
+                        | FUNCTION parameterGroup
+                        | PROCEDURE parameterGroup ;
+
+parameterGroup --> identifierList COLON typeIdentifier ;
+
+identifierList --> identifier (COMMA identifier)* ;
+
+constList --> constant (COMMA constant)* ;
+
+functionDeclaration --> FUNCTION identifier formalParameterList? COLON resultType SEMI block ;
+
+resultType --> typeIdentifier ;
+
+# The dangling else, which ANTLR resolves greedily, is resolved by the grammar:
+# the then-branch of an if-then-else is a closedStatement, one that does not
+# end in an if-then without an else, so an else always binds to the nearest
+# if. Statements that can end in a nested statement (if, while, for, with,
+# labels) have closed counterparts.
+statement --> label COLON unlabelledStatement | unlabelledStatement ;
+
+unlabelledStatement --> simpleStatement | structuredStatement ;
+
+closedStatement --> label COLON closedUnlabelledStatement | closedUnlabelledStatement ;
+
+closedUnlabelledStatement --> (simpleStatement | compoundStatement | caseStatement
+                              | repeatStatement | closedIfStatement | closedWhileStatement
+                              | closedForStatement | closedWithStatement) ;
+
+closedIfStatement --> IF expression THEN closedStatement ELSE closedStatement ;
+
+closedWhileStatement --> WHILE expression DO closedStatement ;
+
+closedForStatement --> FOR identifier ASSIGN forList DO closedStatement ;
+
+closedWithStatement --> WITH recordVariableList DO closedStatement ;
+
+simpleStatement --> assignmentStatement | procedureStatement | gotoStatement | emptyStatement_ ;
+
+assignmentStatement --> variable ASSIGN expression ;
+
+variable --> (AT identifier | identifier)
+             (LBRACK expression (COMMA expression)* RBRACK
+             | LBRACK2 expression (COMMA expression)* RBRACK2
+             | DOT identifier
+             | POINTER)* ;
+
+# The ANTLR rules are right recursive (a - b - c groups as a - (b - c)).
+# Rewritten left recursive so trees reflect Pascal's left associativity.
+expression --> expression relationaloperator simpleExpression | simpleExpression ;
+
+relationaloperator --> (EQUAL | NOT_EQUAL | LT | LE | GE | GT | IN) ;
+
+simpleExpression --> simpleExpression additiveoperator term | term ;
+
+additiveoperator --> (PLUS | MINUS | OR) ;
+
+term --> term multiplicativeoperator signedFactor | signedFactor ;
+
+multiplicativeoperator --> (STAR | SLASH | DIV | MOD | AND) ;
+
+signedFactor --> (PLUS | MINUS)? factor ;
+
+factor --> variable
+        | LPAREN expression RPAREN
+        | functionDesignator
+        | unsignedConstant
+        | set_
+        | NOT factor
+        | bool_ ;
+
+unsignedConstant --> unsignedNumber | constantChr | string | NIL ;
+
+functionDesignator --> identifier LPAREN parameterList RPAREN ;
+
+parameterList --> actualParameter (COMMA actualParameter)* ;
+
+set_ --> LBRACK elementList RBRACK | LBRACK2 elementList RBRACK2 ;
+
+elementList --> element (COMMA element)* | ;
+
+element --> expression (DOTDOT expression)? ;
+
+procedureStatement --> identifier (LPAREN parameterList RPAREN)? ;
+
+actualParameter --> expression parameterwidth* ;
+
+parameterwidth --> COLON expression ;
+
+gotoStatement --> GOTO label ;
+
+emptyStatement_ --> ;
+
+structuredStatement --> compoundStatement
+                     | conditionalStatement
+                     | repetetiveStatement
+                     | withStatement ;
+
+compoundStatement --> BEGIN statements END ;
+
+statements --> statement (SEMI statement)* ;
+
+conditionalStatement --> ifStatement | caseStatement ;
+
+ifStatement --> IF expression THEN statement | IF expression THEN closedStatement ELSE statement ;
+
+caseStatement --> CASE expression OF caseListElement (SEMI caseListElement)* (SEMI ELSE statements)? END ;
+
+caseListElement --> constList COLON statement ;
+
+repetetiveStatement --> whileStatement | repeatStatement | forStatement ;
+
+whileStatement --> WHILE expression DO statement ;
+
+repeatStatement --> REPEAT statements UNTIL expression ;
+
+forStatement --> FOR identifier ASSIGN forList DO statement ;
+
+forList --> initialValue (TO | DOWNTO) finalValue ;
+
+initialValue --> expression ;
+
+finalValue --> expression ;
+
+withStatement --> WITH recordVariableList DO statement ;
+
+recordVariableList --> variable (COMMA variable)* ;
+
+# ------------------------------------------------------------------ tokens
+
+AND --> [Aa][Nn][Dd] ;
+ARRAY --> [Aa][Rr][Rr][Aa][Yy] ;
+BEGIN --> [Bb][Ee][Gg][Ii][Nn] ;
+BOOLEAN --> [Bb][Oo][Oo][Ll][Ee][Aa][Nn] ;
+CASE --> [Cc][Aa][Ss][Ee] ;
+CHAR --> [Cc][Hh][Aa][Rr] ;
+CHR --> [Cc][Hh][Rr] ;
+CONST --> [Cc][Oo][Nn][Ss][Tt] ;
+DIV --> [Dd][Ii][Vv] ;
+DO --> [Dd][Oo] ;
+DOWNTO --> [Dd][Oo][Ww][Nn][Tt][Oo] ;
+ELSE --> [Ee][Ll][Ss][Ee] ;
+END --> [Ee][Nn][Dd] ;
+FILE --> [Ff][Ii][Ll][Ee] ;
+FOR --> [Ff][Oo][Rr] ;
+FUNCTION --> [Ff][Uu][Nn][Cc][Tt][Ii][Oo][Nn] ;
+GOTO --> [Gg][Oo][Tt][Oo] ;
+IF --> [Ii][Ff] ;
+IN --> [Ii][Nn] ;
+INTEGER --> [Ii][Nn][Tt][Ee][Gg][Ee][Rr] ;
+LABEL --> [Ll][Aa][Bb][Ee][Ll] ;
+MOD --> [Mm][Oo][Dd] ;
+NIL --> [Nn][Ii][Ll] ;
+NOT --> [Nn][Oo][Tt] ;
+OF --> [Oo][Ff] ;
+OR --> [Oo][Rr] ;
+PACKED --> [Pp][Aa][Cc][Kk][Ee][Dd] ;
+PROCEDURE --> [Pp][Rr][Oo][Cc][Ee][Dd][Uu][Rr][Ee] ;
+PROGRAM --> [Pp][Rr][Oo][Gg][Rr][Aa][Mm] ;
+REAL --> [Rr][Ee][Aa][Ll] ;
+RECORD --> [Rr][Ee][Cc][Oo][Rr][Dd] ;
+REPEAT --> [Rr][Ee][Pp][Ee][Aa][Tt] ;
+SET --> [Ss][Ee][Tt] ;
+THEN --> [Tt][Hh][Ee][Nn] ;
+TO --> [Tt][Oo] ;
+TYPE --> [Tt][Yy][Pp][Ee] ;
+UNTIL --> [Uu][Nn][Tt][Ii][Ll] ;
+VAR --> [Vv][Aa][Rr] ;
+WHILE --> [Ww][Hh][Ii][Ll][Ee] ;
+WITH --> [Ww][Ii][Tt][Hh] ;
+UNIT --> [Uu][Nn][Ii][Tt] ;
+INTERFACE --> [Ii][Nn][Tt][Ee][Rr][Ff][Aa][Cc][Ee] ;
+USES --> [Uu][Ss][Ee][Ss] ;
+STRING --> [Ss][Tt][Rr][Ii][Nn][Gg] ;
+IMPLEMENTATION --> [Ii][Mm][Pp][Ll][Ee][Mm][Ee][Nn][Tt][Aa][Tt][Ii][Oo][Nn] ;
+TRUE --> [Tt][Rr][Uu][Ee] ;
+FALSE --> [Ff][Aa][Ll][Ss][Ee] ;
+
+IDENT --> (?!(?:[Ii][Mm][Pp][Ll][Ee][Mm][Ee][Nn][Tt][Aa][Tt][Ii][Oo][Nn]|[Pp][Rr][Oo][Cc][Ee][Dd][Uu][Rr][Ee]|[Ii][Nn][Tt][Ee][Rr][Ff][Aa][Cc][Ee]|[Ff][Uu][Nn][Cc][Tt][Ii][Oo][Nn]|[Bb][Oo][Oo][Ll][Ee][Aa][Nn]|[Ii][Nn][Tt][Ee][Gg][Ee][Rr]|[Pp][Rr][Oo][Gg][Rr][Aa][Mm]|[Dd][Oo][Ww][Nn][Tt][Oo]|[Pp][Aa][Cc][Kk][Ee][Dd]|[Rr][Ee][Cc][Oo][Rr][Dd]|[Rr][Ee][Pp][Ee][Aa][Tt]|[Ss][Tt][Rr][Ii][Nn][Gg]|[Aa][Rr][Rr][Aa][Yy]|[Bb][Ee][Gg][Ii][Nn]|[Cc][Oo][Nn][Ss][Tt]|[Ll][Aa][Bb][Ee][Ll]|[Uu][Nn][Tt][Ii][Ll]|[Ww][Hh][Ii][Ll][Ee]|[Ff][Aa][Ll][Ss][Ee]|[Cc][Aa][Ss][Ee]|[Cc][Hh][Aa][Rr]|[Ee][Ll][Ss][Ee]|[Ff][Ii][Ll][Ee]|[Gg][Oo][Tt][Oo]|[Rr][Ee][Aa][Ll]|[Tt][Hh][Ee][Nn]|[Tt][Yy][Pp][Ee]|[Ww][Ii][Tt][Hh]|[Uu][Nn][Ii][Tt]|[Uu][Ss][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Aa][Nn][Dd]|[Cc][Hh][Rr]|[Dd][Ii][Vv]|[Ee][Nn][Dd]|[Ff][Oo][Rr]|[Mm][Oo][Dd]|[Nn][Ii][Ll]|[Nn][Oo][Tt]|[Ss][Ee][Tt]|[Vv][Aa][Rr]|[Dd][Oo]|[Ii][Ff]|[Ii][Nn]|[Oo][Ff]|[Oo][Rr]|[Tt][Oo])(?![A-Za-z0-9_]))[A-Za-z][A-Za-z0-9_]* ;
+
+PLUS --> '+' ;
+MINUS --> '-' ;
+STAR --> '*' ;
+SLASH --> '/' ;
+ASSIGN --> ':=' ;
+COMMA --> ',' ;
+SEMI --> ';' ;
+COLON --> ':' ;
+EQUAL --> '=' ;
+NOT_EQUAL --> '<>' ;
+LT --> '<' ;
+LE --> '<=' ;
+GE --> '>=' ;
+GT --> '>' ;
+LPAREN --> '(' ;
+RPAREN --> ')' ;
+LBRACK --> '[' ;
+LBRACK2 --> '(.' ;
+RBRACK --> ']' ;
+RBRACK2 --> '.)' ;
+POINTER --> '^' ;
+AT --> '@' ;
+DOT --> '.' ;
+DOTDOT --> '..' ;
+
+COMMENT_1 --> '(*' (?:[^*]|[*]+[^*\)])* [*]+ ')' ;
+COMMENT_2 --> '{' [^}]* '}' ;
+
+STRING_LITERAL --> "'" (?:''|[^'])* "'" ;
+
+NUM_INT --> [0-9]+ ;
+
+# ANTLR's NUM_REAL also matches a bare digit string (its fraction is optional),
+# which would tie with NUM_INT here; a fraction or an exponent is required.
+NUM_REAL --> [0-9]+ (?:[.][0-9]+(?:[eE][+-]?[0-9]+)?|[eE][+-]?[0-9]+) ;

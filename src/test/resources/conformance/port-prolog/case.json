@@ -1,0 +1,4 @@
+{
+  "rules": ["S-C3", "S-C9", "S-G1", "S-L2", "S-L4", "S-P4", "S-P8"],
+  "description": "Port of grammars-v4 prolog: required text constraints on labelled constituents remove the directive/clause and argument/comma-operator ambiguities, operators chain to the right, and '%' comments are skipped."
+}

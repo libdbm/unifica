@@ -220,7 +220,7 @@ class TokenTests {
     @Test
     @DisplayName("throws on null text")
     void throws_on_null_text() {
-      assertThrows(NullPointerException.class, () -> new Token(null, new Structure(), 0, 0));
+      assertThrows(NullPointerException.class, () -> new Token(null, Structure.EMPTY, 0, 0));
     }
 
     @Test

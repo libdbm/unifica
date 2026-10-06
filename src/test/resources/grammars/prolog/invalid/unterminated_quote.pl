@@ -1,0 +1,1 @@
+greet :- write('hello world).

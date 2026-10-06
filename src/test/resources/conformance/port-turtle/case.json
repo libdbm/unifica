@@ -1,0 +1,4 @@
+{
+  "rules": ["S-G1", "S-G3", "S-G4", "S-L2", "S-L4", "S-P8"],
+  "description": "Port of grammars-v4 Turtle: prefixed names versus the 'a' keyword, numeric literal munch before the statement dot, skipped comments, LANGTAG excluded where the '@base' keyword ties, and rejected literal subjects."
+}

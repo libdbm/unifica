@@ -1,0 +1,11 @@
+{
+  "rules": [
+    "S-G1",
+    "S-G4",
+    "S-L2",
+    "S-L4",
+    "S-P4",
+    "S-P8"
+  ],
+  "description": "Port of grammars-v4 pascal: case-insensitive keywords excluded from identifiers by lookahead, comments as skip categories, the dangling else bound to the nearest if without ambiguity, and named-token tree shape."
+}

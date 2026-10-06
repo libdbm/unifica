@@ -1,0 +1,4 @@
+{
+  "rules": ["S-G1", "S-G4", "S-L2", "S-P1", "S-P8"],
+  "description": "Port of grammars-v4 BNF: quoted and angle-bracketed elements as single tokens, maximal munch of '::=' and '-->' over single-character TEXT, production boundaries found without significant newlines, empty right-hand sides, and the two-character minimum for ID."
+}

@@ -1,0 +1,5 @@
+x=1;
+if (a) if (b) ; else ;
+{ while (i<j) i=i-1; }
+if = 1;
+do ; while (x)

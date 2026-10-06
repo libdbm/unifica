@@ -1,0 +1,11 @@
+{
+  "rules": [
+    "S-N2"
+  ],
+  "description": "Generation never returns a sentence that violates a required constraint.",
+  "generate": {
+    "start": "S",
+    "count": 30,
+    "seed": 3
+  }
+}

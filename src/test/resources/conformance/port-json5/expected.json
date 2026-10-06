@@ -1,0 +1,285 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "{a: 'x',}",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "json5",
+        "children": [
+          {
+            "symbol": "value",
+            "children": [
+              {
+                "symbol": "obj",
+                "children": [
+                  {
+                    "text": "{",
+                    "start": 0,
+                    "end": 1
+                  },
+                  {
+                    "symbol": "pair",
+                    "children": [
+                      {
+                        "symbol": "key",
+                        "children": [
+                          {
+                            "symbol": "IDENTIFIER",
+                            "children": [
+                              {
+                                "text": "a",
+                                "start": 1,
+                                "end": 2
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "text": ":",
+                        "start": 2,
+                        "end": 3
+                      },
+                      {
+                        "symbol": "value",
+                        "children": [
+                          {
+                            "symbol": "STRING",
+                            "children": [
+                              {
+                                "text": "'x'",
+                                "start": 4,
+                                "end": 7
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": ",",
+                    "start": 7,
+                    "end": 8
+                  },
+                  {
+                    "text": "}",
+                    "start": 8,
+                    "end": 9
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "-Infinity",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "json5",
+        "children": [
+          {
+            "symbol": "value",
+            "children": [
+              {
+                "symbol": "number",
+                "children": [
+                  {
+                    "symbol": "SYMBOL",
+                    "children": [
+                      {
+                        "text": "-",
+                        "start": 0,
+                        "end": 1
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "NUMERIC_LITERAL",
+                    "children": [
+                      {
+                        "text": "Infinity",
+                        "start": 1,
+                        "end": 9
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "[null, // c\n 0x1F]",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "json5",
+        "children": [
+          {
+            "symbol": "value",
+            "children": [
+              {
+                "symbol": "arr",
+                "children": [
+                  {
+                    "text": "[",
+                    "start": 0,
+                    "end": 1
+                  },
+                  {
+                    "symbol": "value",
+                    "children": [
+                      {
+                        "symbol": "LITERAL",
+                        "children": [
+                          {
+                            "text": "null",
+                            "start": 1,
+                            "end": 5
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": ",",
+                    "start": 5,
+                    "end": 6
+                  },
+                  {
+                    "symbol": "value",
+                    "children": [
+                      {
+                        "symbol": "number",
+                        "children": [
+                          {
+                            "symbol": "NUMBER",
+                            "children": [
+                              {
+                                "text": "0x1F",
+                                "start": 13,
+                                "end": 17
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": "]",
+                    "start": 17,
+                    "end": 18
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "json5",
+        "children": []
+      }
+    },
+    {
+      "input": "{true: 1}",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "json5",
+        "children": [
+          {
+            "symbol": "value",
+            "children": [
+              {
+                "symbol": "obj",
+                "children": [
+                  {
+                    "text": "{",
+                    "start": 0,
+                    "end": 1
+                  },
+                  {
+                    "symbol": "pair",
+                    "children": [
+                      {
+                        "symbol": "key",
+                        "children": [
+                          {
+                            "symbol": "LITERAL",
+                            "children": [
+                              {
+                                "text": "true",
+                                "start": 1,
+                                "end": 5
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "text": ":",
+                        "start": 5,
+                        "end": 6
+                      },
+                      {
+                        "symbol": "value",
+                        "children": [
+                          {
+                            "symbol": "number",
+                            "children": [
+                              {
+                                "symbol": "NUMBER",
+                                "children": [
+                                  {
+                                    "text": "1",
+                                    "start": 7,
+                                    "end": 8
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": "}",
+                    "start": 8,
+                    "end": 9
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "{a: 1,,}",
+      "outcome": "rejected"
+    }
+  ]
+}

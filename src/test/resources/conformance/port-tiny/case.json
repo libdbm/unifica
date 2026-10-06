@@ -1,0 +1,4 @@
+{
+  "rules": ["S-G1", "S-G3", "S-L2", "S-P4", "S-P8"],
+  "description": "Port of grammars-v4 tiny: single-literal productions (op) are lexical categories that tie on length with the anonymous '-' literal, keywords are excluded from ID, and left-recursive lists give left-nested trees."
+}

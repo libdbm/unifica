@@ -1,0 +1,5 @@
+x:=1
+a + b c
+#(at:put: "c" 1)
+$z
+a foo; bar baz

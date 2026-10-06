@@ -2,8 +2,6 @@ package com.libdbm.ugf.parser;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.libdbm.ugf.constraints.Predicate;
-import com.libdbm.ugf.features.StringConstant;
 import com.libdbm.ugf.features.Structure;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,7 +48,7 @@ class ParseDiagnosticsTests {
     @Test
     @DisplayName("records constraint failure")
     void records_constraint_failure() {
-      final var constraint = Predicate.of("test", List.of());
+      final var constraint = "test()";
 
       diagnostics.recordConstraintFailure("rule1", constraint, "mismatch", 5, true);
 
@@ -59,7 +57,7 @@ class ParseDiagnosticsTests {
 
       final var failure = diagnostics.constraintFailures().getFirst();
       assertEquals("rule1", failure.ruleName());
-      assertEquals(constraint, failure.constraint());
+      assertEquals(constraint, failure.expression());
       assertEquals("mismatch", failure.reason());
       assertEquals(5, failure.position());
       assertTrue(failure.isHard());
@@ -68,7 +66,7 @@ class ParseDiagnosticsTests {
     @Test
     @DisplayName("records soft constraint failure")
     void records_soft_constraint_failure() {
-      final var constraint = Predicate.of("soft", List.of());
+      final var constraint = "soft()";
 
       diagnostics.recordConstraintFailure("rule2", constraint, "preference", 10, false);
 
@@ -160,15 +158,17 @@ class ParseDiagnosticsTests {
     @Test
     @DisplayName("records unification failure")
     void records_unification_failure() {
-      final var waiting = new Structure();
-      waiting.set("num", new StringConstant("sg"));
-      final var completed = new Structure();
-      completed.set("num", new StringConstant("pl"));
-      final var expected = new Structure();
-      expected.set("num", new StringConstant("sg"));
+      final var waiting = Structure.builder().with("num", "sg").build();
+      final var completed = Structure.builder().with("num", "pl").build();
+      final var expected = Structure.builder().with("num", "sg").build();
 
       diagnostics.recordUnificationFailure(
-          "NP", waiting, completed, expected, "Feature 'num' incompatible: expected sg but got pl", 5);
+          "NP",
+          waiting,
+          completed,
+          expected,
+          "Feature 'num' incompatible: expected sg but got pl",
+          5);
 
       assertTrue(diagnostics.hasFailures());
       assertEquals(1, diagnostics.unificationFailures().size());
@@ -185,7 +185,7 @@ class ParseDiagnosticsTests {
     @Test
     @DisplayName("records multiple unification failures")
     void records_multiple_failures() {
-      final var structure = new Structure();
+      final var structure = Structure.EMPTY;
       diagnostics.recordUnificationFailure("NP", structure, structure, structure, "reason1", 1);
       diagnostics.recordUnificationFailure("VP", structure, structure, structure, "reason2", 2);
 
@@ -208,7 +208,7 @@ class ParseDiagnosticsTests {
     @Test
     @DisplayName("generates report with constraint failures")
     void generates_constraint_report() {
-      final var constraint = Predicate.of("eq", List.of());
+      final var constraint = "eq()";
       diagnostics.recordConstraintFailure("np", constraint, "number mismatch", 5, true);
 
       final var report = diagnostics.generateReport();
@@ -222,7 +222,7 @@ class ParseDiagnosticsTests {
     @Test
     @DisplayName("generates report with soft constraint failures")
     void generates_soft_constraint_report() {
-      final var constraint = Predicate.of("prefer", List.of());
+      final var constraint = "prefer()";
       diagnostics.recordConstraintFailure("vp", constraint, "style issue", 10, false);
 
       final var report = diagnostics.generateReport();
@@ -282,15 +282,17 @@ class ParseDiagnosticsTests {
     @Test
     @DisplayName("generates report with unification failures")
     void generates_unification_report() {
-      final var waiting = new Structure();
-      waiting.set("num", new StringConstant("sg"));
-      final var completed = new Structure();
-      completed.set("num", new StringConstant("pl"));
-      final var expected = new Structure();
-      expected.set("num", new StringConstant("sg"));
+      final var waiting = Structure.builder().with("num", "sg").build();
+      final var completed = Structure.builder().with("num", "pl").build();
+      final var expected = Structure.builder().with("num", "sg").build();
 
       diagnostics.recordUnificationFailure(
-          "NP", waiting, completed, expected, "Feature 'num' incompatible: expected sg but got pl", 5);
+          "NP",
+          waiting,
+          completed,
+          expected,
+          "Feature 'num' incompatible: expected sg but got pl",
+          5);
 
       final var report = diagnostics.generateReport();
 
@@ -305,14 +307,14 @@ class ParseDiagnosticsTests {
     @Test
     @DisplayName("generates comprehensive report with all failure types")
     void generates_comprehensive_report() {
-      final var constraint = Predicate.of("test", List.of());
+      final var constraint = "test()";
       diagnostics.recordConstraintFailure("r1", constraint, "reason1", 1, true);
       diagnostics.recordTokenizationError(2, "bad", "good");
       diagnostics.recordParsingIssue("issue", 3);
       diagnostics.recordRegexFailure("pat", "in", 4);
       diagnostics.recordQuantifierLoop("r2", "e*", 100, 5);
       diagnostics.recordUnificationFailure(
-          "S", new Structure(), new Structure(), new Structure(), "feature mismatch", 6);
+          "S", Structure.EMPTY, Structure.EMPTY, Structure.EMPTY, "feature mismatch", 6);
 
       final var report = diagnostics.generateReport();
 
@@ -347,7 +349,7 @@ class ParseDiagnosticsTests {
     @Test
     @DisplayName("legacy 5-arg constraint failure carries null span")
     void legacy_constraint_null_span() {
-      final var constraint = Predicate.of("eq", List.of());
+      final var constraint = "eq()";
       diagnostics.recordConstraintFailure("r", constraint, "why", 3, true);
       assertNull(diagnostics.constraintFailures().getFirst().span());
     }
@@ -355,7 +357,7 @@ class ParseDiagnosticsTests {
     @Test
     @DisplayName("new span overload preserves character offsets")
     void constraint_span_preserved() {
-      final var constraint = Predicate.of("eq", List.of());
+      final var constraint = "eq()";
       final var span = new ParseDiagnostics.Span(2, 7, 12);
       diagnostics.recordConstraintFailure("r", constraint, "why", 2, true, span);
       assertEquals(span, diagnostics.constraintFailures().getFirst().span());
@@ -366,14 +368,14 @@ class ParseDiagnosticsTests {
     void unification_span() {
       final var span = new ParseDiagnostics.Span(1, 4, 7);
       diagnostics.recordUnificationFailure(
-          "NP", new Structure(), new Structure(), new Structure(), "conflict", 1, span);
+          "NP", Structure.EMPTY, Structure.EMPTY, Structure.EMPTY, "conflict", 1, span);
       assertEquals(span, diagnostics.unificationFailures().getFirst().span());
     }
 
     @Test
     @DisplayName("report includes char offsets when span is present")
     void report_includes_char_offsets() {
-      final var constraint = Predicate.of("eq", List.of());
+      final var constraint = "eq()";
       final var span = new ParseDiagnostics.Span(2, 7, 12);
       diagnostics.recordConstraintFailure("r", constraint, "why", 2, true, span);
       final var report = diagnostics.generateReport();
@@ -396,8 +398,7 @@ class ParseDiagnosticsTests {
           new ParseDiagnostics.PathFailure(
               item, span, "blocked waiting for VP", ParseDiagnostics.FailureKind.DEAD_END);
       final var column =
-          new ParseDiagnostics.Column(
-              1, span, List.of(item), List.of("VP"), List.of(failure));
+          new ParseDiagnostics.Column(1, span, List.of(item), List.of("VP"), List.of(failure));
       final var lattice = new ParseDiagnostics.ParseLattice(List.of(column), 1, span);
 
       diagnostics.recordLattice(lattice);
@@ -418,8 +419,7 @@ class ParseDiagnosticsTests {
           new ParseDiagnostics.PathFailure(
               item, span, "blocked waiting for VP", ParseDiagnostics.FailureKind.DEAD_END);
       final var column =
-          new ParseDiagnostics.Column(
-              1, span, List.of(item), List.of("VP"), List.of(failure));
+          new ParseDiagnostics.Column(1, span, List.of(item), List.of("VP"), List.of(failure));
       final var lattice = new ParseDiagnostics.ParseLattice(List.of(column), 1, span);
 
       final var rendered = lattice.render();
@@ -437,9 +437,7 @@ class ParseDiagnosticsTests {
       final var span = new ParseDiagnostics.Span(0, 0, 0);
       final var lattice =
           new ParseDiagnostics.ParseLattice(
-              List.of(
-                  new ParseDiagnostics.Column(
-                      0, span, List.of(), List.of(), List.of())),
+              List.of(new ParseDiagnostics.Column(0, span, List.of(), List.of(), List.of())),
               0,
               span);
       diagnostics.recordLattice(lattice);

@@ -1,0 +1,16 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "ab",
+      "outcome": "accepted",
+      "penalty": 0
+    },
+    {
+      "input": "a#b",
+      "outcome": "rejected"
+    }
+  ]
+}

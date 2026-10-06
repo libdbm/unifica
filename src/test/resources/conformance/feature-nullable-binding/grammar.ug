@@ -1,0 +1,5 @@
+start T;
+T --> S{v: a};
+S{v: a} --> S{v: b};
+S{v: b} --> ;
+S{v: X} --> S{v: X};

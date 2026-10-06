@@ -1,0 +1,383 @@
+# Go, ported from grammars-v4 golang/GoLexer.g4 and golang/GoParser.g4
+# (commit 7df52be9). BSD licence. Copyright (c) 2017 Sasa Coh, Michal Blotniak;
+# (c) 2019 Ivan Kochurkin, Positive Technologies; (c) 2019 Dmitry Rassadin,
+# Positive Technologies; (c) 2021 Martin Mirchev; (c) 2023 Dmitry Litovchenko.
+# See NOTICE.md for the list of deviations from the ANTLR grammar.
+#
+# Automatic semicolon insertion follows the ANTLR lexer. The tokens that end a
+# Go statement switch to the lexical state NLSEMI (ANTLR mode(NLSEMI)), every
+# other token switches back to DEFAULT, and in NLSEMI a line break, ';' or a
+# multi-line comment is an EOS token. Every token is therefore a named category
+# with its mode change: an inline literal could not carry one.
+
+start sourceFile;
+whitespace none;
+skip WS, COMMENT, LINE_COMMENT, WS_NLSEMI, COMMENT_NLSEMI, LINE_COMMENT_NLSEMI;
+
+# ---------------------------------------------------------------- tokens
+
+# Whitespace and comments, by mode. In NLSEMI only blanks and single-line comments are skipped.
+WS --> {DEFAULT} [ \t\r\n]+ ;
+COMMENT --> {DEFAULT} '/*' (?:[^*]|[*]+[^*/])* [*]+ '/' ;
+LINE_COMMENT --> {DEFAULT} '//' [^\r\n]* ;
+WS_NLSEMI --> {NLSEMI} [ \t]+ ;
+COMMENT_NLSEMI --> {NLSEMI} '/*' (?:[^*\r\n]|[*]+[^*/\r\n])* [*]+ '/' ;
+LINE_COMMENT_NLSEMI --> {NLSEMI} '//' [^\r\n]* ;
+
+# A line break, ';' or a multi-line comment after a statement-ending token.
+EOS --> {NLSEMI} (?:[\r\n]+|;|/\*(?:[^*]|[*]+[^*/])*[*]+/) ==> ^DEFAULT ;
+
+SEMI --> {DEFAULT} ';' ==> ^DEFAULT ;
+
+# Keywords
+BREAK --> 'break' ==> ^NLSEMI ;
+CASE --> 'case' ==> ^DEFAULT ;
+CHAN --> 'chan' ==> ^DEFAULT ;
+CONST --> 'const' ==> ^DEFAULT ;
+CONTINUE --> 'continue' ==> ^NLSEMI ;
+DEFAULT --> 'default' ==> ^DEFAULT ;
+DEFER --> 'defer' ==> ^DEFAULT ;
+ELSE --> 'else' ==> ^DEFAULT ;
+FALLTHROUGH --> 'fallthrough' ==> ^NLSEMI ;
+FOR --> 'for' ==> ^DEFAULT ;
+FUNC --> 'func' ==> ^DEFAULT ;
+GO --> 'go' ==> ^DEFAULT ;
+GOTO --> 'goto' ==> ^DEFAULT ;
+IF --> 'if' ==> ^DEFAULT ;
+IMPORT --> 'import' ==> ^DEFAULT ;
+INTERFACE --> 'interface' ==> ^DEFAULT ;
+MAP --> 'map' ==> ^DEFAULT ;
+NIL_LIT --> 'nil' ==> ^NLSEMI ;
+PACKAGE --> 'package' ==> ^DEFAULT ;
+RANGE --> 'range' ==> ^DEFAULT ;
+RETURN --> 'return' ==> ^NLSEMI ;
+SELECT --> 'select' ==> ^DEFAULT ;
+STRUCT --> 'struct' ==> ^DEFAULT ;
+SWITCH --> 'switch' ==> ^DEFAULT ;
+TYPE --> 'type' ==> ^DEFAULT ;
+VAR --> 'var' ==> ^DEFAULT ;
+
+# Every keyword and nil are excluded, so they never tie with IDENTIFIER (S-L2).
+IDENTIFIER --> (?!(?:break|case|chan|const|continue|default|defer|else|fallthrough|for|func|goto|go|if|import|interface|map|nil|package|range|return|select|struct|switch|type|var)(?![\p{L}\p{Nd}_])) [\p{L}_] [\p{L}\p{Nd}_]* ==> ^NLSEMI ;
+
+# Punctuation and operators
+L_PAREN --> '(' ==> ^DEFAULT ;
+R_PAREN --> ')' ==> ^NLSEMI ;
+L_CURLY --> '{' ==> ^DEFAULT ;
+R_CURLY --> '}' ==> ^NLSEMI ;
+L_BRACKET --> '[' ==> ^DEFAULT ;
+R_BRACKET --> ']' ==> ^NLSEMI ;
+ASSIGN --> '=' ==> ^DEFAULT ;
+COMMA --> ',' ==> ^DEFAULT ;
+COLON --> ':' ==> ^DEFAULT ;
+DOT --> '.' ==> ^DEFAULT ;
+PLUS_PLUS --> '++' ==> ^NLSEMI ;
+MINUS_MINUS --> '--' ==> ^NLSEMI ;
+DECLARE_ASSIGN --> ':=' ==> ^DEFAULT ;
+ELLIPSIS --> '...' ==> ^DEFAULT ;
+LOGICAL_OR --> '||' ==> ^DEFAULT ;
+LOGICAL_AND --> '&&' ==> ^DEFAULT ;
+EQUALS --> '==' ==> ^DEFAULT ;
+NOT_EQUALS --> '!=' ==> ^DEFAULT ;
+LESS --> '<' ==> ^DEFAULT ;
+LESS_OR_EQUALS --> '<=' ==> ^DEFAULT ;
+GREATER --> '>' ==> ^DEFAULT ;
+GREATER_OR_EQUALS --> '>=' ==> ^DEFAULT ;
+OR --> '|' ==> ^DEFAULT ;
+DIV --> '/' ==> ^DEFAULT ;
+MOD --> '%' ==> ^DEFAULT ;
+LSHIFT --> '<<' ==> ^DEFAULT ;
+RSHIFT --> '>>' ==> ^DEFAULT ;
+BIT_CLEAR --> '&^' ==> ^DEFAULT ;
+UNDERLYING --> '~' ==> ^DEFAULT ;
+EXCLAMATION --> '!' ==> ^DEFAULT ;
+PLUS --> '+' ==> ^DEFAULT ;
+MINUS --> '-' ==> ^DEFAULT ;
+CARET --> '^' ==> ^DEFAULT ;
+STAR --> '*' ==> ^DEFAULT ;
+AMPERSAND --> '&' ==> ^DEFAULT ;
+RECEIVE --> '<-' ==> ^DEFAULT ;
+
+# Literals
+DECIMAL_LIT --> (?:0|[1-9](?:_?[0-9])*) ==> ^NLSEMI ;
+BINARY_LIT --> '0' [bB] (?:_?[01])+ ==> ^NLSEMI ;
+OCTAL_LIT --> '0' [oO]? (?:_?[0-7])+ ==> ^NLSEMI ;
+HEX_LIT --> '0' [xX] (?:_?[0-9a-fA-F])+ ==> ^NLSEMI ;
+
+FLOAT_LIT --> [0-9] (?:_?[0-9])* (?:[.](?:[0-9](?:_?[0-9])*)?(?:[eE][+-]?[0-9](?:_?[0-9])*)?|[eE][+-]?[0-9](?:_?[0-9])*) ==> ^NLSEMI ;
+FLOAT_LIT --> [.] [0-9] (?:_?[0-9])* (?:[eE][+-]?[0-9](?:_?[0-9])*)? ==> ^NLSEMI ;
+FLOAT_LIT --> '0' [xX] (?:(?:_?[0-9a-fA-F])+(?:[.](?:_?[0-9a-fA-F])*)?|[.][0-9a-fA-F](?:_?[0-9a-fA-F])*) [pP] [+-]? [0-9] (?:_?[0-9])* ==> ^NLSEMI ;
+IMAGINARY_LIT --> (?:0[xX](?:(?:_?[0-9a-fA-F])+(?:[.](?:_?[0-9a-fA-F])*)?|[.][0-9a-fA-F](?:_?[0-9a-fA-F])*)[pP][+-]?[0-9](?:_?[0-9])*|[0-9](?:_?[0-9])*(?:[.](?:[0-9](?:_?[0-9])*)?(?:[eE][+-]?[0-9](?:_?[0-9])*)?|[eE][+-]?[0-9](?:_?[0-9])*)|[.][0-9](?:_?[0-9])*(?:[eE][+-]?[0-9](?:_?[0-9])*)?|0[xX](?:_?[0-9a-fA-F])+|0[bB](?:_?[01])+|0[oO]?(?:_?[0-7])+|0|[1-9](?:_?[0-9])*) 'i' ==> ^NLSEMI ;
+RUNE_LIT --> ['] (?:[\\]u[0-9a-fA-F]{4}|[\\]U[0-9a-fA-F]{8}|[\\][abfnrtv\\'"]|[\\][0-7]{3}|[\\]x[0-9a-fA-F]{2}|[^\r\n']) ['] ==> ^NLSEMI ;
+RAW_STRING_LIT --> [`] [^`]* [`] ==> ^NLSEMI ;
+INTERPRETED_STRING_LIT --> ["] (?:[^"\\]|[\\](?:u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|[abfnrtv\\'"]|[0-7]{3}|x[0-9a-fA-F]{2}))* ["] ==> ^NLSEMI ;
+
+# ---------------------------------------------------------------- source files
+
+sourceFile --> packageClause eos (importDecl eos)* ((functionDecl | methodDecl | declaration) eos)* ;
+
+packageClause --> PACKAGE packageName ;
+
+packageName --> identifier ;
+
+identifier --> IDENTIFIER ;
+
+importDecl --> IMPORT (importSpec | L_PAREN (importSpec eos)* R_PAREN) ;
+
+importSpec --> (DOT | packageName)? importPath ;
+
+importPath --> string_ ;
+
+declaration --> constDecl | typeDecl | varDecl ;
+
+constDecl --> CONST (constSpec | L_PAREN (constSpec eos)* R_PAREN) ;
+
+constSpec --> identifierList (type_? ASSIGN expressionList)? ;
+
+identifierList --> IDENTIFIER (COMMA IDENTIFIER)* ;
+
+expressionList --> expression (COMMA expression)* ;
+
+typeDecl --> TYPE (typeSpec | L_PAREN (typeSpec eos)* R_PAREN) ;
+
+typeSpec --> aliasDecl | typeDef ;
+
+aliasDecl --> IDENTIFIER typeParameters? ASSIGN type_ ;
+
+typeDef --> IDENTIFIER typeParameters? type_ ;
+
+typeParameters --> L_BRACKET typeParameterDecl (COMMA typeParameterDecl)* COMMA? R_BRACKET ;
+
+typeParameterDecl --> identifierList typeElement ;
+
+typeElement --> typeTerm (OR typeTerm)* ;
+
+typeTerm --> UNDERLYING? type_ ;
+
+functionDecl --> FUNC IDENTIFIER typeParameters? signature block? ;
+
+methodDecl --> FUNC receiver IDENTIFIER signature block? ;
+
+receiver --> parameters ;
+
+varDecl --> VAR (varSpec | L_PAREN (varSpec eos)* R_PAREN) ;
+
+varSpec --> identifierList (type_ (ASSIGN expressionList)? | ASSIGN expressionList) ;
+
+# ---------------------------------------------------------------- statements
+
+block --> L_CURLY statementList R_CURLY ;
+
+statementList --> ((SEMI | EOS | ) statement eos)* ;
+
+statement --> declaration | labeledStmt | simpleStmt | goStmt | returnStmt | breakStmt | continueStmt
+           | gotoStmt | fallthroughStmt | block | ifStmt | switchStmt | selectStmt | forStmt | deferStmt ;
+
+simpleStmt --> sendStmt | incDecStmt | assignment | expressionStmt | shortVarDecl ;
+
+expressionStmt --> expression ;
+
+sendStmt --> expression RECEIVE expression ;
+
+incDecStmt --> expression (PLUS_PLUS | MINUS_MINUS) ;
+
+assignment --> expressionList assign_op expressionList ;
+
+assign_op --> (PLUS | MINUS | OR | CARET | STAR | DIV | MOD | LSHIFT | RSHIFT | AMPERSAND | BIT_CLEAR)? ASSIGN ;
+
+shortVarDecl --> identifierList DECLARE_ASSIGN expressionList ;
+
+labeledStmt --> IDENTIFIER COLON statement? ;
+
+returnStmt --> RETURN expressionList? ;
+
+breakStmt --> BREAK IDENTIFIER? ;
+
+continueStmt --> CONTINUE IDENTIFIER? ;
+
+gotoStmt --> GOTO IDENTIFIER ;
+
+fallthroughStmt --> FALLTHROUGH ;
+
+deferStmt --> DEFER expression ;
+
+ifStmt --> IF (expression | (SEMI | EOS) expression | simpleStmt (SEMI | EOS) expression) block (ELSE (ifStmt | block))? ;
+
+switchStmt --> exprSwitchStmt | typeSwitchStmt ;
+
+exprSwitchStmt --> SWITCH (expression? | simpleStmt? eos expression?) L_CURLY exprCaseClause* R_CURLY ;
+
+exprCaseClause --> exprSwitchCase COLON statementList ;
+
+exprSwitchCase --> CASE expressionList | DEFAULT ;
+
+typeSwitchStmt --> SWITCH (typeSwitchGuard | eos typeSwitchGuard | simpleStmt eos typeSwitchGuard) L_CURLY typeCaseClause* R_CURLY ;
+
+typeSwitchGuard --> (IDENTIFIER DECLARE_ASSIGN)? primaryExpr DOT L_PAREN TYPE R_PAREN ;
+
+typeCaseClause --> typeSwitchCase COLON statementList ;
+
+typeSwitchCase --> CASE typeList | DEFAULT ;
+
+typeList --> (type_ | NIL_LIT) (COMMA (type_ | NIL_LIT))* ;
+
+selectStmt --> SELECT L_CURLY commClause* R_CURLY ;
+
+commClause --> commCase COLON statementList ;
+
+commCase --> CASE (sendStmt | recvStmt) | DEFAULT ;
+
+recvStmt --> (expressionList ASSIGN | identifierList DECLARE_ASSIGN)? expression ;
+
+forStmt --> FOR (condition | forClause | rangeClause)? block ;
+
+condition --> expression ;
+
+forClause --> simpleStmt? eos expression? eos simpleStmt? ;
+
+rangeClause --> (expressionList ASSIGN | identifierList DECLARE_ASSIGN)? RANGE expression ;
+
+goStmt --> GO expression ;
+
+# ANTLR: SEMI | EOS | {closingBracket()}?, which accepts an empty eos when the
+# next token is ')' or '}', or at the end of the input.
+eos --> SEMI | EOS ;
+eos --> where before('R_PAREN', 'R_CURLY') | at_end() ;
+
+# ---------------------------------------------------------------- types
+
+type_ --> typeName typeArgs? | typeLit | L_PAREN type_ R_PAREN ;
+
+typeArgs --> L_BRACKET typeList COMMA? R_BRACKET ;
+
+typeName --> qualifiedIdent | IDENTIFIER ;
+
+typeLit --> arrayType | structType | pointerType | functionType | interfaceType | sliceType | mapType | channelType ;
+
+arrayType --> L_BRACKET arrayLength R_BRACKET elementType ;
+
+arrayLength --> expression ;
+
+elementType --> type_ ;
+
+pointerType --> STAR type_ ;
+
+interfaceType --> INTERFACE L_CURLY ((methodSpec | typeElement) eos)* R_CURLY ;
+
+sliceType --> L_BRACKET R_BRACKET elementType ;
+
+mapType --> MAP L_BRACKET type_ R_BRACKET elementType ;
+
+# ANTLR: ({isNotReceive()}? CHAN | CHAN RECEIVE | RECEIVE CHAN) elementType. The
+# predicate attaches '<-' to the leftmost 'chan'; here the element type of a
+# bidirectional channel cannot itself be a receive channel.
+channelType --> CHAN chanElementType | CHAN RECEIVE elementType | RECEIVE CHAN elementType ;
+
+# Not in the ANTLR grammar: type_ without the '<-' 'chan' form.
+chanElementType --> typeName typeArgs?
+                 | L_PAREN type_ R_PAREN
+                 | arrayType | structType | pointerType | functionType | interfaceType | sliceType | mapType
+                 | CHAN chanElementType
+                 | CHAN RECEIVE elementType ;
+
+methodSpec --> IDENTIFIER parameters result | IDENTIFIER parameters ;
+
+functionType --> FUNC signature ;
+
+signature --> parameters result? ;
+
+# A result starting with '(' is always a parameter list (ANTLR chooses this by
+# alternative order), so a parenthesised type is not a result on its own.
+result --> parameters | typeName typeArgs? | typeLit ;
+
+# Either every parameter is named or none is (the Go specification); the
+# ANTLR rule identifierList? ELLIPSIS? type_ is ambiguous for '(a, b int)'.
+parameters --> L_PAREN ((parameterDecl (COMMA parameterDecl)* | parameterType (COMMA parameterType)*) COMMA?)? R_PAREN ;
+
+parameterDecl --> identifierList ELLIPSIS? type_ ;
+
+parameterType --> ELLIPSIS? type_ ;
+
+# ---------------------------------------------------------------- expressions
+
+# Precedence levels replace the ANTLR left-recursive rule with operator
+# alternatives: || < && < comparison < additive < multiplicative < unary.
+expression --> expression LOGICAL_OR andExpr | andExpr ;
+
+andExpr --> andExpr LOGICAL_AND relExpr | relExpr ;
+
+relExpr --> relExpr (EQUALS | NOT_EQUALS | LESS | LESS_OR_EQUALS | GREATER | GREATER_OR_EQUALS) addExpr | addExpr ;
+
+addExpr --> addExpr (PLUS | MINUS | OR | CARET) mulExpr | mulExpr ;
+
+mulExpr --> mulExpr (STAR | DIV | MOD | LSHIFT | RSHIFT | AMPERSAND | BIT_CLEAR) unaryExpr | unaryExpr ;
+
+unaryExpr --> (PLUS | MINUS | EXCLAMATION | CARET | STAR | AMPERSAND | RECEIVE) unaryExpr | primaryExpr ;
+
+# ANTLR: (operand | conversion | methodExpr) chosen by symbol-table predicates,
+# then a flat list of suffixes. methodExpr is dropped ('T.m' and '(*T).m' parse
+# as selectors), conversion is limited to types that cannot be expressions, and
+# explicit type arguments are the suffix instantiation.
+primaryExpr --> (operand | conversion) (DOT IDENTIFIER | index | slice_ | typeAssertion | arguments | instantiation)* ;
+
+conversion --> conversionType L_PAREN expression COMMA? R_PAREN ;
+
+# Not in the ANTLR grammar: a type that cannot also be read as an expression,
+# so 'T(x)' and '(*T)(x)' stay calls. A leading '*' or '<-' would be read as a
+# unary operator, so those types must be parenthesised.
+conversionType --> bareType | L_PAREN nonExprType R_PAREN ;
+
+bareType --> arrayType | structType | functionType | interfaceType | sliceType | mapType | CHAN chanElementType | CHAN RECEIVE elementType ;
+
+nonExprType --> bareType | STAR nonExprType | RECEIVE CHAN elementType | L_PAREN nonExprType R_PAREN ;
+
+# Explicit type arguments: two or more types, or one type that cannot be an
+# expression ('f[T]' with one type name is an index).
+instantiation --> L_BRACKET (type_ COMMA typeList | nonExprType) COMMA? R_BRACKET ;
+
+operand --> literal | operandName | L_PAREN expression R_PAREN ;
+
+literal --> basicLit | compositeLit | functionLit ;
+
+basicLit --> NIL_LIT | integer | string_ | FLOAT_LIT ;
+
+integer --> DECIMAL_LIT | BINARY_LIT | OCTAL_LIT | HEX_LIT | IMAGINARY_LIT | RUNE_LIT ;
+
+operandName --> IDENTIFIER ;
+
+qualifiedIdent --> IDENTIFIER DOT IDENTIFIER ;
+
+compositeLit --> literalType literalValue ;
+
+literalType --> structType | arrayType | L_BRACKET ELLIPSIS R_BRACKET elementType | sliceType | mapType | typeName typeArgs? ;
+
+literalValue --> L_CURLY (elementList COMMA?)? R_CURLY ;
+
+elementList --> keyedElement (COMMA keyedElement)* ;
+
+keyedElement --> (key COLON)? element ;
+
+key --> expression | literalValue ;
+
+element --> expression | literalValue ;
+
+structType --> STRUCT L_CURLY (fieldDecl eos)* R_CURLY ;
+
+fieldDecl --> (identifierList type_ | embeddedField) string_? ;
+
+string_ --> RAW_STRING_LIT | INTERPRETED_STRING_LIT ;
+
+embeddedField --> STAR? typeName typeArgs? ;
+
+functionLit --> FUNC signature block ;
+
+index --> L_BRACKET expression R_BRACKET ;
+
+slice_ --> L_BRACKET (expression? COLON expression? | expression? COLON expression COLON expression) R_BRACKET ;
+
+typeAssertion --> DOT L_PAREN type_ R_PAREN ;
+
+# ANTLR admits a leading type argument only after make or new (isTypeArgument).
+# Here a leading type is admitted after any callee, but only a type that cannot
+# be an expression; 'new(T)' parses T as an expression.
+arguments --> L_PAREN ((expressionList | nonExprType (COMMA expressionList)?) ELLIPSIS? COMMA?)? R_PAREN ;

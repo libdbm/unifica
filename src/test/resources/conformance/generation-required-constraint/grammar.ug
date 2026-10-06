@@ -1,0 +1,4 @@
+start S;
+S --> W:w where starts_with(w, 'a');
+W --> 'apple';
+W --> 'banana';

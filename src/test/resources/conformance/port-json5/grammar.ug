@@ -1,0 +1,45 @@
+# Port of grammars-v4 json5/JSON5.g4 (commit 7df52be9).
+# Source grammar: Student Main, 2020-07-22, public domain (as stated in the .g4 header).
+# Derived from grammars-v4 json/JSON.g4. See NOTICE.md for deviations.
+# Fragments (DOUBLE_QUOTE_CHAR, SINGLE_QUOTE_CHAR, ESCAPE_SEQUENCE, HEX, INT, EXP,
+# IDENTIFIER_START, IDENTIFIER_PART, UNICODE_SEQUENCE, NEWLINE) are inlined into the regexes.
+
+start json5;
+whitespace [ \t\n\r\u00A0\uFEFF\u2003]+;
+skip SINGLE_LINE_COMMENT, MULTI_LINE_COMMENT;
+
+json5 --> value?;
+
+obj --> '{' pair (',' pair)* ','? '}' | '{' '}';
+
+pair --> key ':' value;
+
+key --> STRING | IDENTIFIER | LITERAL | NUMERIC_LITERAL;
+
+value --> STRING | number | obj | arr | LITERAL;
+
+arr --> '[' value (',' value)* ','? ']' | '[' ']';
+
+number --> SYMBOL? (NUMERIC_LITERAL | NUMBER);
+
+# Lexer
+
+# the line terminator is part of the comment, as in ANTLR
+SINGLE_LINE_COMMENT --> '//' [^\r\n\u2028\u2029]* (?:\r\n|[\r\n\u2028\u2029])?;
+MULTI_LINE_COMMENT --> '/*' (?:[^*]|[*]+[^*/])* [*]+ '/';
+
+LITERAL --> (?:true|false|null);
+
+STRING --> '"' (?:[^"\\\r\n]|[\\](?:\r\n|[\r\n\u2028\u2029]|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|[^1-9xu\r\n]))* '"'
+        | "'" (?:[^'\\\r\n]|[\\](?:\r\n|[\r\n\u2028\u2029]|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|[^1-9xu\r\n]))* "'";
+
+# hexadecimal first: Java regex alternation takes the first alternative that matches
+NUMBER --> (?:0[xX][0-9a-fA-F]+|(?:0|[1-9][0-9]*)(?:[.][0-9]*)?(?:[Ee][+-]?[0-9]*)?|[.][0-9]+(?:[Ee][+-]?[0-9]*)?);
+
+NUMERIC_LITERAL --> (?:Infinity|NaN);
+
+SYMBOL --> [+-];
+
+# ANTLR gives LITERAL and NUMERIC_LITERAL priority over IDENTIFIER by rule order; here the
+# negative lookahead keeps IDENTIFIER from matching those words.
+IDENTIFIER --> (?!(?:true|false|null|Infinity|NaN)(?![\p{L}\p{M}\p{N}\p{Pc}$_\u200C\u200D\\])) (?:[\p{L}$_]|[\\]u[0-9a-fA-F]{4}) (?:[\p{L}\p{M}\p{N}\p{Pc}$_\u200C\u200D]|[\\]u[0-9a-fA-F]{4})*;

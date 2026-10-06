@@ -1,0 +1,5 @@
+:- foo.
+f(a, b).
+a :- b, c. % done
+foo(a b).
+p :- write('open).

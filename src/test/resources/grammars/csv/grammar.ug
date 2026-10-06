@@ -1,0 +1,20 @@
+# Port of grammars-v4 csv/CSV.g4 (commit 7df52be9).
+# Copyright (c) 2013 Terence Parr, BSD licence (as stated in the .g4 header).
+#
+# Newlines end rows and spaces belong to fields, so nothing is discarded as whitespace.
+
+start csvFile;
+whitespace none;
+
+csvFile --> hdr row+ ;
+
+hdr --> row ;
+
+row --> field (',' field)* '\r'? '\n' ;
+
+field --> TEXT | STRING | ;
+
+TEXT --> [^,\n\r"]+ ;
+
+# quote-quote is an escaped quote
+STRING --> '"' (?:""|[^"])* '"' ;

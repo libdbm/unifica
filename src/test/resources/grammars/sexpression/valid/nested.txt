@@ -1,0 +1,4 @@
+(define (map f xs)
+  (cond ((null xs) nil)
+        (t (cons (f (car xs)) (map f (cdr xs))))))
+((lambda (x y) (+ x y)) 1.5 -2)

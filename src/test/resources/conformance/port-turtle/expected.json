@@ -1,0 +1,303 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "@prefix : <x> .",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "turtleDoc",
+        "children": [
+          {
+            "symbol": "statement",
+            "children": [
+              {
+                "symbol": "directive",
+                "children": [
+                  {
+                    "symbol": "prefixID",
+                    "children": [
+                      {
+                        "text": "@prefix",
+                        "start": 0,
+                        "end": 7
+                      },
+                      {
+                        "symbol": "PNAME_NS",
+                        "children": [
+                          {
+                            "text": ":",
+                            "start": 8,
+                            "end": 9
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "IRIREF",
+                        "children": [
+                          {
+                            "text": "<x>",
+                            "start": 10,
+                            "end": 13
+                          }
+                        ]
+                      },
+                      {
+                        "text": ".",
+                        "start": 14,
+                        "end": 15
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": ":a a :b, 1.5 .",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "turtleDoc",
+        "children": [
+          {
+            "symbol": "statement",
+            "children": [
+              {
+                "symbol": "triples",
+                "children": [
+                  {
+                    "symbol": "subject",
+                    "children": [
+                      {
+                        "symbol": "iri",
+                        "children": [
+                          {
+                            "symbol": "PrefixedName",
+                            "children": [
+                              {
+                                "symbol": "PNAME_LN",
+                                "children": [
+                                  {
+                                    "text": ":a",
+                                    "start": 0,
+                                    "end": 2
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "predicateObjectList",
+                    "children": [
+                      {
+                        "symbol": "verb",
+                        "children": [
+                          {
+                            "text": "a",
+                            "start": 3,
+                            "end": 4
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "objectList",
+                        "children": [
+                          {
+                            "symbol": "object_",
+                            "children": [
+                              {
+                                "symbol": "iri",
+                                "children": [
+                                  {
+                                    "symbol": "PrefixedName",
+                                    "children": [
+                                      {
+                                        "symbol": "PNAME_LN",
+                                        "children": [
+                                          {
+                                            "text": ":b",
+                                            "start": 5,
+                                            "end": 7
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "text": ",",
+                            "start": 7,
+                            "end": 8
+                          },
+                          {
+                            "symbol": "object_",
+                            "children": [
+                              {
+                                "symbol": "literal",
+                                "children": [
+                                  {
+                                    "symbol": "NumericLiteral",
+                                    "children": [
+                                      {
+                                        "text": "1.5",
+                                        "start": 9,
+                                        "end": 12
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": ".",
+                "start": 13,
+                "end": 14
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "[] <p> \"x\"@en # c\n.",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "turtleDoc",
+        "children": [
+          {
+            "symbol": "statement",
+            "children": [
+              {
+                "symbol": "triples",
+                "children": [
+                  {
+                    "symbol": "subject",
+                    "children": [
+                      {
+                        "symbol": "BlankNode",
+                        "children": [
+                          {
+                            "text": "[]",
+                            "start": 0,
+                            "end": 2
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "predicateObjectList",
+                    "children": [
+                      {
+                        "symbol": "verb",
+                        "children": [
+                          {
+                            "symbol": "predicate",
+                            "children": [
+                              {
+                                "symbol": "iri",
+                                "children": [
+                                  {
+                                    "symbol": "IRIREF",
+                                    "children": [
+                                      {
+                                        "text": "<p>",
+                                        "start": 3,
+                                        "end": 6
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "objectList",
+                        "children": [
+                          {
+                            "symbol": "object_",
+                            "children": [
+                              {
+                                "symbol": "literal",
+                                "children": [
+                                  {
+                                    "symbol": "rdfLiteral",
+                                    "children": [
+                                      {
+                                        "symbol": "String",
+                                        "children": [
+                                          {
+                                            "text": "\"x\"",
+                                            "start": 7,
+                                            "end": 10
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "symbol": "LANGTAG",
+                                        "children": [
+                                          {
+                                            "text": "@en",
+                                            "start": 10,
+                                            "end": 13
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": ".",
+                "start": 18,
+                "end": 19
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "<a> <b> \"x\"@base .",
+      "outcome": "rejected"
+    },
+    {
+      "input": "\"s\" <p> <o> .",
+      "outcome": "rejected"
+    }
+  ]
+}

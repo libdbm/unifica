@@ -1,0 +1,4 @@
+{
+  "rules": ["S-G1", "S-G3", "S-G4", "S-L2", "S-L4", "S-P8"],
+  "description": "Port of the grammars-v4 Erlang grammar: keyword-excluding atom regex, '-spec' winning by maximal munch over '-', '%' comments skipped, named tokens as nodes and inline literals as leaves, missing terminator rejected."
+}

@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "S-C10",
+    "S-P5"
+  ],
+  "description": "Penalties are 64-bit; a sum that overflows ends the parse with the limit outcome."
+}

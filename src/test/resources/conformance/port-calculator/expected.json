@@ -1,0 +1,618 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "x=2^3^e",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "equation",
+        "children": [
+          {
+            "symbol": "expression",
+            "children": [
+              {
+                "symbol": "multiplyingExpression",
+                "children": [
+                  {
+                    "symbol": "powExpression",
+                    "children": [
+                      {
+                        "symbol": "signedAtom",
+                        "children": [
+                          {
+                            "symbol": "atom",
+                            "children": [
+                              {
+                                "symbol": "variable",
+                                "children": [
+                                  {
+                                    "symbol": "VARIABLE",
+                                    "children": [
+                                      {
+                                        "text": "x",
+                                        "start": 0,
+                                        "end": 1
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "relop",
+            "children": [
+              {
+                "text": "="
+              }
+            ]
+          },
+          {
+            "symbol": "expression",
+            "children": [
+              {
+                "symbol": "multiplyingExpression",
+                "children": [
+                  {
+                    "symbol": "powExpression",
+                    "children": [
+                      {
+                        "symbol": "signedAtom",
+                        "children": [
+                          {
+                            "symbol": "atom",
+                            "children": [
+                              {
+                                "symbol": "scientific",
+                                "children": [
+                                  {
+                                    "symbol": "SCIENTIFIC_NUMBER",
+                                    "children": [
+                                      {
+                                        "text": "2"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "text": "^",
+                        "start": 3,
+                        "end": 4
+                      },
+                      {
+                        "symbol": "powExpression",
+                        "children": [
+                          {
+                            "symbol": "signedAtom",
+                            "children": [
+                              {
+                                "symbol": "atom",
+                                "children": [
+                                  {
+                                    "symbol": "scientific",
+                                    "children": [
+                                      {
+                                        "symbol": "SCIENTIFIC_NUMBER",
+                                        "children": [
+                                          {
+                                            "text": "3"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "text": "^",
+                            "start": 5,
+                            "end": 6
+                          },
+                          {
+                            "symbol": "powExpression",
+                            "children": [
+                              {
+                                "symbol": "signedAtom",
+                                "children": [
+                                  {
+                                    "symbol": "atom",
+                                    "children": [
+                                      {
+                                        "symbol": "constant",
+                                        "children": [
+                                          {
+                                            "text": "e",
+                                            "start": 6,
+                                            "end": 7
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "x=8/4/2-1",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "equation",
+        "children": [
+          {
+            "symbol": "expression"
+          },
+          {
+            "symbol": "relop"
+          },
+          {
+            "symbol": "expression",
+            "children": [
+              {
+                "symbol": "expression",
+                "children": [
+                  {
+                    "symbol": "multiplyingExpression",
+                    "children": [
+                      {
+                        "symbol": "multiplyingExpression",
+                        "children": [
+                          {
+                            "symbol": "multiplyingExpression",
+                            "children": [
+                              {
+                                "symbol": "powExpression",
+                                "children": [
+                                  {
+                                    "symbol": "signedAtom",
+                                    "children": [
+                                      {
+                                        "symbol": "atom",
+                                        "children": [
+                                          {
+                                            "symbol": "scientific",
+                                            "children": [
+                                              {
+                                                "symbol": "SCIENTIFIC_NUMBER",
+                                                "children": [
+                                                  {
+                                                    "text": "8"
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "text": "/",
+                            "start": 3,
+                            "end": 4
+                          },
+                          {
+                            "symbol": "powExpression",
+                            "children": [
+                              {
+                                "symbol": "signedAtom",
+                                "children": [
+                                  {
+                                    "symbol": "atom",
+                                    "children": [
+                                      {
+                                        "symbol": "scientific",
+                                        "children": [
+                                          {
+                                            "symbol": "SCIENTIFIC_NUMBER",
+                                            "children": [
+                                              {
+                                                "text": "4"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "text": "/",
+                        "start": 5,
+                        "end": 6
+                      },
+                      {
+                        "symbol": "powExpression",
+                        "children": [
+                          {
+                            "symbol": "signedAtom",
+                            "children": [
+                              {
+                                "symbol": "atom",
+                                "children": [
+                                  {
+                                    "symbol": "scientific",
+                                    "children": [
+                                      {
+                                        "symbol": "SCIENTIFIC_NUMBER",
+                                        "children": [
+                                          {
+                                            "text": "2"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "-"
+              },
+              {
+                "symbol": "multiplyingExpression",
+                "children": [
+                  {
+                    "symbol": "powExpression",
+                    "children": [
+                      {
+                        "symbol": "signedAtom",
+                        "children": [
+                          {
+                            "symbol": "atom",
+                            "children": [
+                              {
+                                "symbol": "scientific",
+                                "children": [
+                                  {
+                                    "symbol": "SCIENTIFIC_NUMBER",
+                                    "children": [
+                                      {
+                                        "text": "1"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "x=-2^cos(y,1)",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "equation",
+        "children": [
+          {
+            "symbol": "expression"
+          },
+          {
+            "symbol": "relop"
+          },
+          {
+            "symbol": "expression",
+            "children": [
+              {
+                "symbol": "multiplyingExpression",
+                "children": [
+                  {
+                    "symbol": "powExpression",
+                    "children": [
+                      {
+                        "symbol": "signedAtom",
+                        "children": [
+                          {
+                            "text": "-"
+                          },
+                          {
+                            "symbol": "signedAtom",
+                            "children": [
+                              {
+                                "symbol": "atom",
+                                "children": [
+                                  {
+                                    "symbol": "scientific",
+                                    "children": [
+                                      {
+                                        "symbol": "SCIENTIFIC_NUMBER",
+                                        "children": [
+                                          {
+                                            "text": "2"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "text": "^"
+                      },
+                      {
+                        "symbol": "powExpression",
+                        "children": [
+                          {
+                            "symbol": "signedAtom",
+                            "children": [
+                              {
+                                "symbol": "func_",
+                                "children": [
+                                  {
+                                    "symbol": "funcname",
+                                    "children": [
+                                      {
+                                        "text": "cos",
+                                        "start": 5,
+                                        "end": 8
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "text": "("
+                                  },
+                                  {
+                                    "symbol": "expression",
+                                    "children": [
+                                      {
+                                        "symbol": "multiplyingExpression",
+                                        "children": [
+                                          {
+                                            "symbol": "powExpression",
+                                            "children": [
+                                              {
+                                                "symbol": "signedAtom",
+                                                "children": [
+                                                  {
+                                                    "symbol": "atom",
+                                                    "children": [
+                                                      {
+                                                        "symbol": "variable",
+                                                        "children": [
+                                                          {
+                                                            "symbol": "VARIABLE",
+                                                            "children": [
+                                                              {
+                                                                "text": "y"
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "text": ","
+                                  },
+                                  {
+                                    "symbol": "expression",
+                                    "children": [
+                                      {
+                                        "symbol": "multiplyingExpression",
+                                        "children": [
+                                          {
+                                            "symbol": "powExpression",
+                                            "children": [
+                                              {
+                                                "symbol": "signedAtom",
+                                                "children": [
+                                                  {
+                                                    "symbol": "atom",
+                                                    "children": [
+                                                      {
+                                                        "symbol": "scientific",
+                                                        "children": [
+                                                          {
+                                                            "symbol": "SCIENTIFIC_NUMBER",
+                                                            "children": [
+                                                              {
+                                                                "text": "1"
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "text": ")"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "cosx=e2",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "equation",
+        "children": [
+          {
+            "symbol": "expression",
+            "children": [
+              {
+                "symbol": "multiplyingExpression",
+                "children": [
+                  {
+                    "symbol": "powExpression",
+                    "children": [
+                      {
+                        "symbol": "signedAtom",
+                        "children": [
+                          {
+                            "symbol": "atom",
+                            "children": [
+                              {
+                                "symbol": "variable",
+                                "children": [
+                                  {
+                                    "symbol": "VARIABLE",
+                                    "children": [
+                                      {
+                                        "text": "cosx",
+                                        "start": 0,
+                                        "end": 4
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "relop",
+            "children": [
+              {
+                "text": "="
+              }
+            ]
+          },
+          {
+            "symbol": "expression",
+            "children": [
+              {
+                "symbol": "multiplyingExpression",
+                "children": [
+                  {
+                    "symbol": "powExpression",
+                    "children": [
+                      {
+                        "symbol": "signedAtom",
+                        "children": [
+                          {
+                            "symbol": "atom",
+                            "children": [
+                              {
+                                "symbol": "variable",
+                                "children": [
+                                  {
+                                    "symbol": "VARIABLE",
+                                    "children": [
+                                      {
+                                        "text": "e2",
+                                        "start": 5,
+                                        "end": 7
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "x=sin(1",
+      "outcome": "rejected"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  "rules": ["S-G1", "S-G3", "S-G4", "S-L2", "S-P1", "S-P8"],
+  "description": "Port of grammars-v4 JSON: named STRING/NUMBER tokens are nodes with one leaf, inline punctuation and keywords are leaves, repetition nodes are spliced out, and malformed objects and arrays are rejected."
+}

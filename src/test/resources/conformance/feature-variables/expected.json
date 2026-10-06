@@ -1,0 +1,47 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "n k",
+      "outcome": "accepted",
+      "penalty": 0,
+      "tree": {
+        "symbol": "s",
+        "features": {}
+      }
+    },
+    {
+      "input": "o a",
+      "outcome": "rejected"
+    },
+    {
+      "input": "o b",
+      "outcome": "accepted",
+      "penalty": 0
+    },
+    {
+      "input": "o",
+      "outcome": "accepted",
+      "penalty": 0
+    },
+    {
+      "input": "r z1 z1",
+      "outcome": "accepted",
+      "penalty": 0,
+      "tree": {
+        "symbol": "s",
+        "features": {
+          "n": {
+            "s": "one"
+          }
+        }
+      }
+    },
+    {
+      "input": "r z1 z2",
+      "outcome": "rejected"
+    }
+  ]
+}

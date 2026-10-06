@@ -1,0 +1,22 @@
+# Port of grammars-v4 json/JSON.g4 (commit 7df52be9).
+# Source grammar: "Taken from The Definitive ANTLR 4 Reference by Terence Parr",
+# derived from https://json.org. The .g4 header states no license; see NOTICE.md.
+# Fragments ESC, UNICODE, HEX, SAFECODEPOINT, INT and EXP are inlined into the regexes.
+
+start json;
+whitespace [ \t\n\r]+;
+
+json --> value;
+
+obj --> '{' pair (',' pair)* '}' | '{' '}';
+
+pair --> STRING ':' value;
+
+arr --> '[' value (',' value)* ']' | '[' ']';
+
+value --> STRING | NUMBER | obj | arr | 'true' | 'false' | 'null';
+
+STRING --> '"' (?:[\\](?:["\\/bfnrt]|u[0-9a-fA-F]{4})|[^"\\\u0000-\u001F])* '"';
+
+# integer part forbids leading 0s, exponent permits them
+NUMBER --> [-]? (?:0|[1-9][0-9]*) (?:[.][0-9]+)? (?:[Ee][+-]?[0-9]+)?;

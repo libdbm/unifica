@@ -1,0 +1,10 @@
+# 1 "html.dot"
+/* Hand-written: HTML labels, mixed-case keywords, ports and comments. */
+STRICT DiGraph html {
+  Node [shape=plaintext];   // default node attributes
+  table [label=<<TABLE BORDER="0"><TR><TD PORT="f0">left</TD><TD>right</TD></TR></TABLE>>];
+  other [label=<plain <B>bold</B> text>];
+  table:f0:n -> other:s [weight=-1.5, color="red"];
+  SubGraph cluster_x { rank = same; x; y }
+  { a b } -> .5
+}

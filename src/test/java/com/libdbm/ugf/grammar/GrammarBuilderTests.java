@@ -2,6 +2,8 @@ package com.libdbm.ugf.grammar;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -255,6 +257,81 @@ class GrammarBuilderTests {
               .add(new GrammarRule("S", List.of(new RuleElement.Nonterminal("undefined"))));
 
       assertThrows(IllegalStateException.class, builder::validated);
+    }
+  }
+
+  @Nested
+  @DisplayName("Immutability")
+  class Immutability {
+
+    @Test
+    void testBuildIsolatedFromBuilderReuse() {
+      final var builder =
+          Grammar.builder()
+              .start("S")
+              .add(new GrammarRule("S", List.of(new RuleElement.Terminal("a"))));
+      final var grammar = builder.build();
+
+      builder.add(new GrammarRule("S", List.of(new RuleElement.Terminal("b"))));
+
+      assertEquals(1, grammar.rulesFor("S").size());
+      assertEquals(2, builder.build().rulesFor("S").size());
+    }
+
+    @Test
+    void testBuiltProductionListsUnmodifiable() {
+      final var grammar =
+          Grammar.builder()
+              .add(new GrammarRule("S", List.of(new RuleElement.Terminal("a"))))
+              .build();
+
+      assertThrows(
+          UnsupportedOperationException.class,
+          () -> grammar.rulesFor("S").add(new GrammarRule("S", List.of())));
+    }
+
+    @Test
+    void testRuleCopiesLists() {
+      final var rhs = new ArrayList<RuleElement>(List.of(new RuleElement.Terminal("a")));
+      final var rule = new GrammarRule("S", rhs);
+
+      rhs.add(new RuleElement.Terminal("b"));
+
+      assertEquals(1, rule.rhs().size());
+    }
+
+    @Test
+    void testAlternationCopiesOptions() {
+      final var options = new ArrayList<RuleElement>(List.of(new RuleElement.Terminal("a")));
+      final var alternation = new RuleElement.Alternation(options);
+
+      options.add(new RuleElement.Terminal("b"));
+
+      assertEquals(1, alternation.options().size());
+    }
+
+    @Test
+    void testImportAndModuleCopySets() {
+      final var symbols = new HashSet<>(Set.of("a"));
+      final var selective = new ImportDeclaration.Selective("x", symbols);
+      final var module = new ModuleInfo("m", symbols);
+
+      symbols.add("b");
+
+      assertEquals(Set.of("a"), selective.symbols());
+      assertEquals(Set.of("a"), module.exports());
+    }
+
+    @Test
+    void testRulesKeepDeclarationOrder() {
+      final var grammar =
+          Grammar.builder()
+              .add(new GrammarRule("Z", List.of(new RuleElement.Terminal("z"))))
+              .add(new GrammarRule("A", List.of(new RuleElement.Terminal("a"))))
+              .add(new GrammarRule("M", List.of(new RuleElement.Terminal("m"))))
+              .build();
+
+      assertEquals(List.of("Z", "A", "M"), grammar.nonterminals());
     }
   }
 }

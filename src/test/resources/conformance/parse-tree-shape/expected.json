@@ -1,0 +1,61 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "12 & ab cd",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "S",
+        "label": null,
+        "children": [
+          {
+            "symbol": "N",
+            "label": "n",
+            "children": [
+              {
+                "text": "12",
+                "start": 0,
+                "end": 2
+              }
+            ]
+          },
+          {
+            "text": "&",
+            "start": 3,
+            "end": 4
+          },
+          {
+            "symbol": "L",
+            "label": null,
+            "children": [
+              {
+                "symbol": "W",
+                "children": [
+                  {
+                    "text": "ab",
+                    "start": 5,
+                    "end": 7
+                  }
+                ]
+              },
+              {
+                "symbol": "W",
+                "children": [
+                  {
+                    "text": "cd",
+                    "start": 8,
+                    "end": 10
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

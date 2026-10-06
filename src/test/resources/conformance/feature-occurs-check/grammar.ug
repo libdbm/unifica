@@ -1,0 +1,5 @@
+start S;
+S --> P{v: X, w: X};
+S --> Q{v: X, w: X};
+P{v: Y, w: {k: Y}} --> 'p';
+Q{v: Y, w: Y} --> 'q';

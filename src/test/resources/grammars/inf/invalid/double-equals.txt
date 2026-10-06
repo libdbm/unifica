@@ -1,0 +1,2 @@
+[Strings]
+Provider == "My Provider"

@@ -1,0 +1,253 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "f() -> ok.",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "forms",
+        "label": null,
+        "children": [
+          {
+            "symbol": "form",
+            "children": [
+              {
+                "symbol": "function_",
+                "children": [
+                  {
+                    "symbol": "functionClause",
+                    "children": [
+                      {
+                        "symbol": "tokAtom",
+                        "children": [
+                          {
+                            "symbol": "TokAtom",
+                            "children": [
+                              {
+                                "text": "f",
+                                "start": 0,
+                                "end": 1
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "clauseArgs",
+                        "children": [
+                          {
+                            "symbol": "patArgumentList",
+                            "children": [
+                              {
+                                "text": "(",
+                                "start": 1,
+                                "end": 2
+                              },
+                              {
+                                "text": ")",
+                                "start": 2,
+                                "end": 3
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "clauseGuard",
+                        "children": []
+                      },
+                      {
+                        "symbol": "clauseBody",
+                        "children": [
+                          {
+                            "text": "->",
+                            "start": 4,
+                            "end": 6
+                          },
+                          {
+                            "symbol": "exprs"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": ".",
+                "start": 9,
+                "end": 10
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "-module(m).",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "forms",
+        "children": [
+          {
+            "symbol": "form",
+            "children": [
+              {
+                "symbol": "attribute",
+                "children": [
+                  {
+                    "text": "-",
+                    "start": 0,
+                    "end": 1
+                  },
+                  {
+                    "symbol": "tokAtom",
+                    "children": [
+                      {
+                        "symbol": "TokAtom",
+                        "children": [
+                          {
+                            "text": "module",
+                            "start": 1,
+                            "end": 7
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "attrVal",
+                    "children": [
+                      {
+                        "symbol": "expr"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": ".",
+                "start": 10,
+                "end": 11
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "-spec f() -> ok.",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "forms",
+        "children": [
+          {
+            "symbol": "form",
+            "children": [
+              {
+                "symbol": "attribute",
+                "children": [
+                  {
+                    "symbol": "AttrName",
+                    "children": [
+                      {
+                        "text": "-spec",
+                        "start": 0,
+                        "end": 5
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "typeSpec",
+                    "children": [
+                      {
+                        "symbol": "specFun",
+                        "children": [
+                          {
+                            "symbol": "tokAtom",
+                            "children": [
+                              {
+                                "symbol": "TokAtom",
+                                "children": [
+                                  {
+                                    "text": "f",
+                                    "start": 6,
+                                    "end": 7
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "typeSigs",
+                        "children": [
+                          {
+                            "symbol": "typeSig",
+                            "children": [
+                              {
+                                "symbol": "funType",
+                                "children": [
+                                  {
+                                    "text": "(",
+                                    "start": 7,
+                                    "end": 8
+                                  },
+                                  {
+                                    "text": ")",
+                                    "start": 8,
+                                    "end": 9
+                                  },
+                                  {
+                                    "text": "->",
+                                    "start": 10,
+                                    "end": 12
+                                  },
+                                  {
+                                    "symbol": "topType"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": ".",
+                "start": 15,
+                "end": 16
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "% comment\nf(X) when X > 0 -> X - 1; f(_) -> 'end'.",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    },
+    {
+      "input": "f() -> end.",
+      "outcome": "rejected"
+    },
+    {
+      "input": "f() -> case X of 1 -> a end",
+      "outcome": "rejected"
+    }
+  ]
+}

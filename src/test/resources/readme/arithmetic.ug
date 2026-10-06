@@ -1,0 +1,8 @@
+# Arithmetic with the usual precedence. Left recursion makes + - * / left associative.
+start Expr;
+
+Expr --> Expr ('+' | '-') Term | Term;
+Term --> Term ('*' | '/') Factor | Factor;
+Factor --> Number | '(' Expr ')';
+
+Number --> [0-9]+ (?:[.][0-9]+)?;

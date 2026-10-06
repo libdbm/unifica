@@ -2,14 +2,19 @@ package com.libdbm.xml;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.libdbm.ugf.ErrorDetails;
+import com.libdbm.ugf.Result;
 import com.libdbm.ugf.features.Structure;
 import com.libdbm.ugf.generator.GrammarGenerator;
 import com.libdbm.ugf.generator.LiteralTerminalGenerator;
 import com.libdbm.ugf.generator.RegexTerminalGenerator;
 import com.libdbm.ugf.grammar.Grammar;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
-import com.libdbm.ugf.parser.ChartParser;
+import com.libdbm.ugf.parser.Parser;
+import com.libdbm.ugf.parser.ParserFactory;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,13 +24,13 @@ final class XMLGeneratorTests {
 
   private Grammar grammar;
   private GrammarGenerator generator;
-  private ChartParser parser;
+  private Parser parser;
 
   @BeforeEach
   void setUp() throws Exception {
     // Load XML grammar
     final var path = Path.of(XMLGeneratorTests.class.getResource("/xml.ug").getPath());
-    grammar = UnificationGrammarParserFactory.parse(path);
+    grammar = UnificationGrammarParserFactory.parse(path).orElseThrow();
 
     // Create terminal generator for XML
     final var random = new Random(42); // Fixed seed for reproducibility
@@ -47,16 +52,30 @@ final class XMLGeneratorTests {
                       new String[] {"hello", "world", "test", "content", "data", "value"};
                   return words[random.nextInt(words.length)];
                 })
+            // Whitespace and attribute text: without these the literal fallback emits the regex
+            // source, which can never parse, and 2.0 returns only sentences that parse (S-N1).
+            .register("[ \\t\\n\\r]+", features -> " ")
+            .register("[^\"<&]+", features -> "value")
             .fallback(new LiteralTerminalGenerator())
             .build();
 
-    generator = new GrammarGenerator(grammar, terminalGen, random, 10);
-    parser = new ChartParser(grammar);
+    generator =
+        GrammarGenerator.builder(grammar)
+            .terminal(terminalGen)
+            .random(random)
+            .maxDepth(10)
+            .build()
+            .orElseThrow();
+    parser = ParserFactory.create(grammar).orElseThrow();
   }
 
   @Test
   void testGenerateSingleDocument() {
-    final var result = generator.generateOne("document", new Structure());
+    final var result =
+        generator
+            .generateOne("document", Structure.EMPTY)
+            .map(Optional::of)
+            .orElse(Optional.empty());
 
     assertTrue(result.isPresent(), "Should generate a document");
     assertFalse(result.get().isEmpty(), "Document should not be empty");
@@ -66,7 +85,7 @@ final class XMLGeneratorTests {
 
   @Test
   void testGenerateMultipleDocuments() {
-    final var documents = generator.generate("document", new Structure(), 5);
+    final var documents = generator.generate("document", Structure.EMPTY, 5).orElse(List.of());
 
     assertEquals(5, documents.size(), "Should generate 5 documents");
 
@@ -80,17 +99,19 @@ final class XMLGeneratorTests {
   void testGeneratedDocumentsAreParseable() {
     // Use shallow generator to avoid overly complex nested structures
     final var shallowGen =
-        new GrammarGenerator(
-            grammar,
-            RegexTerminalGenerator.builder()
-                .register("[a-zA-Z][a-zA-Z0-9_\\-]*", f -> "div")
-                .register("[a-zA-Z0-9_\\-]+", f -> "text")
-                .fallback(new LiteralTerminalGenerator())
-                .build(),
-            new Random(42),
-            3); // Shallow depth
+        GrammarGenerator.builder(grammar)
+            .terminal(
+                RegexTerminalGenerator.builder()
+                    .register("[a-zA-Z][a-zA-Z0-9_\\-]*", f -> "div")
+                    .register("[a-zA-Z0-9_\\-]+", f -> "text")
+                    .fallback(new LiteralTerminalGenerator())
+                    .build())
+            .random(new Random(42))
+            .maxDepth(3)
+            .build()
+            .orElseThrow(); // Shallow depth
 
-    final var documents = shallowGen.generate("document", new Structure(), 5);
+    final var documents = shallowGen.generate("document", Structure.EMPTY, 5).orElse(List.of());
 
     for (final var doc : documents) {
       final var parseResult = parser.parse(doc).toOptional();
@@ -100,7 +121,7 @@ final class XMLGeneratorTests {
 
   @Test
   void testGenerateNormalElement() {
-    final var elements = generator.generate("normal_element", new Structure(), 5);
+    final var elements = generator.generate("normal_element", Structure.EMPTY, 5).orElse(List.of());
 
     assertEquals(5, elements.size(), "Should generate 5 normal elements");
 
@@ -114,7 +135,7 @@ final class XMLGeneratorTests {
 
   @Test
   void testGenerateEmptyElement() {
-    final var elements = generator.generate("empty_element", new Structure(), 5);
+    final var elements = generator.generate("empty_element", Structure.EMPTY, 5).orElse(List.of());
 
     assertEquals(5, elements.size(), "Should generate 5 empty elements");
 
@@ -127,7 +148,7 @@ final class XMLGeneratorTests {
 
   @Test
   void testGenerateTagNames() {
-    final var tagnames = generator.generate("tagname", new Structure(), 5);
+    final var tagnames = generator.generate("tagname", Structure.EMPTY, 5).orElse(List.of());
 
     assertEquals(5, tagnames.size(), "Should generate 5 tag names");
 
@@ -140,7 +161,7 @@ final class XMLGeneratorTests {
 
   @Test
   void testGenerateAttributes() {
-    final var attributes = generator.generate("attributes", new Structure(), 3);
+    final var attributes = generator.generate("attributes", Structure.EMPTY, 3).orElse(List.of());
 
     assertEquals(3, attributes.size(), "Should generate 3 attribute sets");
 
@@ -154,7 +175,7 @@ final class XMLGeneratorTests {
   @Test
   void testRoundTripParseAndGenerate() {
     // Generate documents, parse them, verify they parse successfully
-    final var documents = generator.generate("document", new Structure(), 10);
+    final var documents = generator.generate("document", Structure.EMPTY, 10).orElse(List.of());
 
     int successCount = 0;
     for (final var doc : documents) {
@@ -175,7 +196,7 @@ final class XMLGeneratorTests {
 
   @Test
   void testGenerateAndBuildXML() {
-    final var documents = generator.generate("document", new Structure(), 3);
+    final var documents = generator.generate("document", Structure.EMPTY, 3).orElse(List.of());
 
     for (final var doc : documents) {
       final var result = parser.parse(doc).toOptional();
@@ -193,32 +214,53 @@ final class XMLGeneratorTests {
   void testDeterministicGeneration() {
     // With same seed, should generate same documents
     final var random1 = new Random(123);
-    final var gen1 = new GrammarGenerator(grammar, new LiteralTerminalGenerator(), random1, 10);
+    final var gen1 =
+        GrammarGenerator.builder(grammar)
+            .terminal(new LiteralTerminalGenerator())
+            .random(random1)
+            .maxDepth(10)
+            .build()
+            .orElseThrow();
 
     final var random2 = new Random(123);
-    final var gen2 = new GrammarGenerator(grammar, new LiteralTerminalGenerator(), random2, 10);
+    final var gen2 =
+        GrammarGenerator.builder(grammar)
+            .terminal(new LiteralTerminalGenerator())
+            .random(random2)
+            .maxDepth(10)
+            .build()
+            .orElseThrow();
 
-    final var doc1 = gen1.generateOne("document", new Structure());
-    final var doc2 = gen2.generateOne("document", new Structure());
+    final var doc1 =
+        gen1.generateOne("document", Structure.EMPTY).map(Optional::of).orElse(Optional.empty());
+    final var doc2 =
+        gen2.generateOne("document", Structure.EMPTY).map(Optional::of).orElse(Optional.empty());
 
     assertEquals(doc1, doc2, "Same seed should produce same result");
   }
 
+  /**
+   * Text content only lexes in the CONTENT state, entered after '>', so a bare textcontent never
+   * parses as one (S-N1): 1.x returned such strings unchecked; 2.0 reports the failure instead.
+   * Text content still appears inside generated documents.
+   */
   @Test
   void testGenerateTextContent() {
-    final var content = generator.generate("textcontent", new Structure(), 5);
+    final var standalone = generator.generate("textcontent", Structure.EMPTY, 5);
 
-    assertEquals(5, content.size(), "Should generate 5 text content items");
+    final var error = assertInstanceOf(Result.Failure.class, standalone).error();
+    assertTrue(((ErrorDetails) error).message().contains("does not parse"), String.valueOf(error));
 
-    for (final var text : content) {
-      System.out.println("Generated text content: " + text);
-      assertFalse(text.isEmpty(), "Text content should not be empty");
-    }
+    final var documents = generator.generate("document", Structure.EMPTY, 10).orElse(List.of());
+    assertFalse(documents.isEmpty(), "documents should generate");
+    assertTrue(
+        documents.stream().anyMatch(document -> document.matches("(?s).*>[^<]+<.*")),
+        () -> "some document should contain text content: " + documents);
   }
 
   @Test
   void testGenerateAttributeValues() {
-    final var values = generator.generate("attrvalue", new Structure(), 5);
+    final var values = generator.generate("attrvalue", Structure.EMPTY, 5).orElse(List.of());
 
     assertEquals(5, values.size(), "Should generate 5 attribute values");
 

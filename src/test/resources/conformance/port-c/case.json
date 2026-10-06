@@ -1,0 +1,4 @@
+{
+  "rules": ["S-G1", "S-G4", "S-L2", "S-L4", "S-P2", "S-P4", "S-P7", "S-P8"],
+  "description": "Port of the grammars-v4 C grammar: keyword literals versus the Identifier lookahead, skipped preprocessor lines and comments, production costs that stand in for the ANTLR symbol table (T * p; is a declaration, g(p); a call, (a) - b a subtraction), and the open/closed statement feature that binds else to the nearest if."
+}

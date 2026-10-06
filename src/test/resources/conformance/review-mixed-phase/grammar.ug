@@ -1,0 +1,7 @@
+start S;
+S --> A;
+S --> B;
+S --> C;
+A --> 'y' where (in_state('DEFAULT') | equals('a', 'b'));
+B --> 'z' where !in_state('IN');
+C --> 'w' where !in_state('DEFAULT');

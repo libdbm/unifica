@@ -1,0 +1,422 @@
+# C (C23 with GNU, Clang and Visual C extensions), ported from ANTLR grammars-v4
+# Source: c/CLexer.g4 and c/CParser.g4 at grammars-v4 commit 7df52be9
+# Copyright (c) 2013 Sam Harwell. BSD licence (3-clause), see NOTICE.md.
+#
+# The ANTLR grammar relies on a symbol table (CParserBase) to tell typedef names
+# from other identifiers. This port has no symbol table. It accepts every reading
+# and uses production costs to prefer one (see NOTICE.md, Deviations):
+#   - a block item that parses as both a declaration and an expression statement
+#     is a declaration (expressionStatement costs 1);
+#   - a parenthesised declarator with nothing after it, `T (x)`, costs 2, so
+#     `f(x);` stays a call;
+#   - a declaration whose only type is a typedef name and that declares nothing
+#     (`x;`) costs 2;
+#   - a cast, `sizeof (type)` and other type-name readings inside expressions
+#     cost 1, so `(a) - b` is a subtraction and `sizeof (x)` takes an expression.
+# Feature `t` on specifier lists (none / builtin / name) enforces the C rule that
+# a typedef name is the only type specifier in its list. Feature `open` on
+# statements resolves the dangling else.
+
+start compilationUnit;
+# Whitespace and Newline, plus the form feed and vertical tab that C (C11 6.4) also treats as whitespace.
+whitespace [ \t\r\n\u000B\u000C]+;
+skip BlockComment, LineComment, Directive;
+
+compilationUnit --> translationUnit? ;
+
+# ---------------------------------------------------------------- expressions
+
+constant --> IntegerConstant | FloatingConstant | CharacterConstant | predefinedConstant ;
+
+enumerationConstant --> Identifier ;
+
+predefinedConstant --> 'false' | 'true' | 'nullptr' ;
+
+primaryExpression --> Identifier
+                   | constant
+                   | StringLiteral+
+                   | '(' expression ')'
+                   | genericSelection
+                   | '__func__'
+                   | '__FUNCTION__'
+                   | '__PRETTY_FUNCTION__'
+                   | '__extension__'? '(' compoundStatement ')'
+                   | '__builtin_va_arg' '(' unaryExpression ',' typeName ')'
+                   | '__builtin_offsetof' '(' typeName ',' unaryExpression ')'
+                   | '__builtin_choose_expr' '(' unaryExpression ',' unaryExpression ',' unaryExpression ')'
+                   | '__builtin_types_compatible_p' '(' typeName ',' typeName ')'
+                   | '__builtin_tgmath' '(' exprList ')'
+                   | '__builtin_complex' '(' assignmentExpression ',' assignmentExpression ')' ;
+
+exprList --> assignmentExpression (',' assignmentExpression)* ;
+
+genericSelection --> '_Generic' '(' assignmentExpression ',' genericAssocList ')' ;
+genericAssocList --> genericAssociation (',' genericAssociation)* ;
+genericAssociation --> (typeName | 'default') ':' assignmentExpression ;
+
+postfixExpression --> (primaryExpression | '__extension__'? '(' typeName ')' '{' initializerList? ','? '}')
+                      ('[' expression ']' | '(' argumentExpressionList ')' | ('.' | '->') Identifier | '++' | '--')* ;
+
+argumentExpressionList --> assignmentExpression (',' assignmentExpression)* | ;
+
+unaryExpression --> postfixExpression
+                 | '++' unaryExpression
+                 | '--' unaryExpression
+                 | ('&' | '*' | '+' | '-' | '~' | '!' | '__extension__' | '__real__' | '__imag__') castExpression
+                 | 'sizeof' unaryExpression ;
+unaryExpression --> 'sizeof' '(' typeName ')' @1 ;
+unaryExpression --> Alignof '(' typeName ')' @1 ;
+unaryExpression --> Countof unaryExpression ;
+unaryExpression --> Countof '(' typeName ')' @1 ;
+unaryExpression --> Alignof unaryExpression
+                 | Maxof '(' typeName ')'
+                 | Minof '(' typeName ')'
+                 | '&&' Identifier ;
+
+castExpression --> '(' typeName ')' castExpression @1 ;
+castExpression --> unaryExpression | DigitSequence ;
+
+multiplicativeExpression --> castExpression (('*' | '/' | '%') castExpression)* ;
+additiveExpression --> multiplicativeExpression (('+' | '-') multiplicativeExpression)* ;
+shiftExpression --> additiveExpression (('<<' | '>>') additiveExpression)* ;
+relationalExpression --> shiftExpression (('<' | '>' | '<=' | '>=') shiftExpression)* ;
+equalityExpression --> relationalExpression (('==' | '!=') relationalExpression)* ;
+andExpression --> equalityExpression ('&' equalityExpression)* ;
+exclusiveOrExpression --> andExpression ('^' andExpression)* ;
+inclusiveOrExpression --> exclusiveOrExpression ('|' exclusiveOrExpression)* ;
+logicalAndExpression --> inclusiveOrExpression ('&&' inclusiveOrExpression)* ;
+logicalOrExpression --> logicalAndExpression ('||' logicalAndExpression)* ;
+conditionalExpression --> logicalOrExpression ('?' expression ':' conditionalExpression)? ;
+
+assignmentExpression --> conditionalExpression
+                      | unaryExpression ('=' | '*=' | '/=' | '%=' | '+=' | '-=' | '<<=' | '>>=' | '&=' | '^=' | '|=') assignmentExpression ;
+
+expression --> assignmentExpression (',' assignmentExpression)* ;
+constantExpression --> conditionalExpression ;
+
+# --------------------------------------------------------------- declarations
+
+declaration --> declarationSpecifiers initDeclaratorList ';'
+             | declarationSpecifiers{t: none} ';'
+             | declarationSpecifiers{t: builtin} ';' ;
+declaration --> declarationSpecifiers{t: name} ';' @2 ;
+declaration --> staticAssertDeclaration | attributeDeclaration ;
+
+# At most one typedef name, and never together with another type specifier.
+declarationSpecifiers{t: none} --> declarationSpecifier{t: none}+ ;
+declarationSpecifiers{t: name} --> declarationSpecifier{t: none}* declarationSpecifier{t: name} declarationSpecifier{t: none}* ;
+declarationSpecifiers{t: builtin} --> declarationSpecifier{t: none}* declarationSpecifier{t: builtin}
+    (declarationSpecifier{t: none} | declarationSpecifier{t: builtin})* ;
+
+declarationSpecifier{t: none} --> storageClassSpecifier ;
+declarationSpecifier{t: T} --> typeSpecifier{t: T} ;
+declarationSpecifier{t: none} --> typeQualifier | functionSpecifier | alignmentSpecifier ;
+
+initDeclaratorList --> initDeclarator (',' initDeclarator)* ;
+initDeclarator --> declarator ('=' initializer)? ;
+
+attributeDeclaration --> attributeSpecifierSequence ';' ;
+
+storageClassSpecifier --> 'auto'
+                       | 'constexpr'
+                       | 'extern'
+                       | 'register'
+                       | 'static'
+                       | ThreadLocal
+                       | 'typedef' ;
+
+typeSpecifier{t: builtin} --> 'void'
+                           | 'char'
+                           | 'short'
+                           | 'int'
+                           | 'long'
+                           | 'float'
+                           | 'double'
+                           | 'signed'
+                           | 'unsigned'
+                           | Bool
+                           | '_Complex'
+                           | '__m128'
+                           | '__m128d'
+                           | '__m128i'
+                           | '__extension__' '(' ('__m128' | '__m128d' | '__m128i') ')'
+                           | atomicTypeSpecifier
+                           | structOrUnionSpecifier
+                           | enumSpecifier ;
+typeSpecifier{t: name} --> '__extension__'? typedefName ;
+typeSpecifier{t: builtin} --> typeofSpecifier ;
+
+structOrUnionSpecifier --> structOrUnion attributeSpecifierSequence? gnuAttributes? (Identifier? '{' memberDeclarationList? '}' | Identifier) ;
+
+structOrUnion --> 'struct' | 'union' ;
+
+memberDeclarationList --> memberDeclaration+ ;
+
+memberDeclaration --> attributeSpecifierSequence? specifierQualifierList memberDeclaratorList? ';'
+                   | staticAssertDeclaration
+                   | '__extension__' memberDeclaration ;
+
+specifierQualifierList --> gnuAttributes? typeSpecifierQualifier{t: none}+ attributeSpecifierSequence? ;
+specifierQualifierList --> gnuAttributes? typeSpecifierQualifier{t: none}* typeSpecifierQualifier{t: name}
+    typeSpecifierQualifier{t: none}* attributeSpecifierSequence? ;
+specifierQualifierList --> gnuAttributes? typeSpecifierQualifier{t: none}* typeSpecifierQualifier{t: builtin}
+    (typeSpecifierQualifier{t: none} | typeSpecifierQualifier{t: builtin})* attributeSpecifierSequence? ;
+
+typeSpecifierQualifier{t: T} --> typeSpecifier{t: T} ;
+typeSpecifierQualifier{t: none} --> typeQualifier | alignmentSpecifier ;
+
+memberDeclaratorList --> memberDeclarator (',' gnuAttributes? memberDeclarator)* ;
+
+memberDeclarator --> declarator gnuAttributes? | declarator? ':' constantExpression gnuAttributes? ;
+
+enumSpecifier --> 'enum' attributeSpecifierSequence? gnuAttributes? Identifier? enumTypeSpecifier? '{' enumeratorList ','? '}'
+               | 'enum' Identifier enumTypeSpecifier? ;
+
+enumeratorList --> enumerator (',' enumerator)* ;
+enumerator --> enumerationConstant attributeSpecifierSequence? gnuAttributes? ('=' constantExpression)? ;
+enumTypeSpecifier --> ':' specifierQualifierList ;
+
+atomicTypeSpecifier --> '_Atomic' '(' typeName ')' ;
+
+typeofSpecifier --> (Typeof | Typeof_unqual) '(' typeofSpecifierArgument ')' ;
+typeofSpecifierArgument --> expression ;
+typeofSpecifierArgument --> typeName @1 ;
+
+typeQualifier --> 'const' | Restrict | volatile_ | '_Atomic' ;
+
+functionSpecifier --> Inline
+                   | '_Noreturn'
+                   | '__stdcall'
+                   | gnuAttribute
+                   | '__declspec' '(' (Identifier | Restrict | 'deprecated' '(' StringLiteral? ')') ')' ;
+
+alignmentSpecifier --> Alignas '(' typeName ')' @1 ;
+alignmentSpecifier --> Alignas '(' constantExpression ')' ;
+
+declarator{ptr: yes} --> gnuAttribute? pointer gnuAttribute* directDeclarator gccDeclaratorExtension* ;
+declarator{ptr: no} --> gnuAttribute* directDeclarator gccDeclaratorExtension* ;
+
+# A parenthesised declarator with no suffix is either a pointer declarator in
+# parentheses or a redundant pair around a plain one; the second costs more
+# (item 2 in NOTICE.md), so the suffix group is written out twice.
+directDeclarator --> (Identifier attributeSpecifierSequence? | Identifier ':' DigitSequence | vcSpecificModifer Identifier
+                     | '(' vcSpecificModifer declarator ')' | gnuAttribute)
+                     ('[' typeQualifierList? assignmentExpression? ']' attributeSpecifierSequence?
+                     | '[' 'static' typeQualifierList? assignmentExpression ']' attributeSpecifierSequence?
+                     | '[' typeQualifierList 'static' assignmentExpression ']' attributeSpecifierSequence?
+                     | '[' typeQualifierList? '*' ']' attributeSpecifierSequence?
+                     | '(' parameterTypeList ')' attributeSpecifierSequence?)*
+                  | '(' declarator ')'
+                     ('[' typeQualifierList? assignmentExpression? ']' attributeSpecifierSequence?
+                     | '[' 'static' typeQualifierList? assignmentExpression ']' attributeSpecifierSequence?
+                     | '[' typeQualifierList 'static' assignmentExpression ']' attributeSpecifierSequence?
+                     | '[' typeQualifierList? '*' ']' attributeSpecifierSequence?
+                     | '(' parameterTypeList ')' attributeSpecifierSequence?)+
+                  | '(' declarator{ptr: yes} ')' ;
+directDeclarator --> '(' declarator{ptr: no} ')' @2 ;
+
+pointer --> (('*' | '^') typeQualifierList?)+ ;
+
+typeQualifierList --> typeQualifier+ ;
+
+parameterTypeList --> parameterList (',' '...')? | '...' ;
+
+parameterList --> parameterDeclaration (',' parameterDeclaration)* ;
+
+parameterDeclaration --> attributeSpecifierSequence? declarationSpecifiers (declarator | abstractDeclarator)? ;
+parameterDeclaration --> attributeSpecifierSequence? declarator @1 ;
+parameterDeclaration --> attributeSpecifierSequence? abstractDeclarator @1 ;
+parameterDeclaration --> attributeSpecifierSequence? ;
+
+typeName --> specifierQualifierList abstractDeclarator? ;
+
+abstractDeclarator --> vcSpecificModifer? pointer
+                    | vcSpecificModifer? pointer? directAbstractDeclarator gccDeclaratorExtension* ;
+
+directAbstractDeclarator --> '(' abstractDeclarator ')' gccDeclaratorExtension*
+                          | '[' typeQualifierList? assignmentExpression? ']'
+                          | '[' 'static' typeQualifierList? assignmentExpression ']'
+                          | '[' typeQualifierList 'static' assignmentExpression ']'
+                          | '[' '*' ']'
+                          | '(' parameterTypeList ')' gccDeclaratorExtension*
+                          | directAbstractDeclarator '[' typeQualifierList? assignmentExpression? ']'
+                          | directAbstractDeclarator '[' 'static' typeQualifierList? assignmentExpression ']'
+                          | directAbstractDeclarator '[' typeQualifierList 'static' assignmentExpression ']'
+                          | directAbstractDeclarator '[' '*' ']'
+                          | directAbstractDeclarator '(' parameterTypeList ')' gccDeclaratorExtension* ;
+
+typedefName --> Identifier ;
+
+initializer --> assignmentExpression | '{' initializerList ','? '}' | '{' '}' ;
+
+initializerList --> designation? initializer (',' designation? initializer)* ;
+
+designation --> designatorList '=' | gnuArrayDesignator | gnuIdentifier ':' ;
+
+designatorList --> designator+ ;
+
+designator --> gnuArrayDesignator | '.' Identifier ;
+
+staticAssertDeclaration --> '_Static_assert' '(' constantExpression (',' StringLiteral)? ')' ';' ;
+
+attributeSpecifierSequence --> attributeSpecifier+ ;
+attributeSpecifier --> '[' '[' attributeList ']' ']' ;
+attributeList --> attribute (',' attribute)* ;
+attribute --> attributeToken attributeArgumentClause? ;
+attributeToken --> Identifier | Identifier ':' ':' Identifier ;
+attributeArgumentClause --> '(' balancedTokenSequence? ')' ;
+balancedTokenSequence --> balancedToken+ ;
+balancedToken --> '(' balancedTokenSequence? ')'
+               | '[' balancedTokenSequence? ']'
+               | '{' balancedTokenSequence? '}' ;
+
+# ----------------------------------------------------------------- statements
+
+statement{open: X} --> labeledStatement{open: X} ;
+statement{open: no} --> compoundStatement | expressionStatement ;
+statement{open: X} --> selectionStatement{open: X} | iterationStatement{open: X} ;
+statement{open: no} --> jumpStatement | asmStatement ;
+
+labeledStatement{open: X} --> Identifier ':' statement{open: X} ;
+labeledStatement{open: no} --> Identifier ':' @1 ;
+labeledStatement{open: no} --> Label Identifier ';' ;
+labeledStatement{open: X} --> 'case' constantExpression ':' statement{open: X}
+                           | 'default' ':' statement{open: X} ;
+
+compoundStatement --> '{' blockItemList? '}' ;
+
+blockItemList --> blockItem+ ;
+
+blockItem --> statement | declaration ;
+
+expressionStatement --> expression? ';' @1 ;
+
+selectionStatement{open: yes} --> 'if' '(' expression ')' statement ;
+selectionStatement{open: X} --> 'if' '(' expression ')' statement{open: no} 'else' statement{open: X} ;
+selectionStatement{open: X} --> 'switch' '(' expression ')' statement{open: X} ;
+
+iterationStatement{open: X} --> While '(' expression ')' statement{open: X} ;
+iterationStatement{open: no} --> Do statement While '(' expression ')' ';' ;
+iterationStatement{open: X} --> For '(' forCondition ')' statement{open: X} ;
+
+forCondition --> (forDeclaration | expression?) ';' forExpression? ';' forExpression? ;
+
+forDeclaration --> declarationSpecifiers initDeclaratorList
+                | declarationSpecifiers{t: none}
+                | declarationSpecifiers{t: builtin} ;
+forDeclaration --> declarationSpecifiers{t: name} @2 ;
+
+forExpression --> assignmentExpression (',' assignmentExpression)* ;
+
+jumpStatement --> ('goto' Identifier | 'continue' | 'break' | 'return' expression?) ';' ;
+jumpStatement --> 'goto' unaryExpression ';' @1 ;
+
+# ------------------------------------------------------ external definitions
+
+translationUnit --> externalDeclaration+ ;
+
+externalDeclaration --> '__extension__'? (functionDefinition | declaration | ';' | asmDefinition) ;
+
+functionDefinition --> attributeSpecifierSequence? declarationSpecifiers? declarator declarationList? functionBody ;
+
+declarationList --> declaration+ ;
+
+functionBody --> compoundStatement ;
+
+gnuArrayDesignator --> '[' constantExpression ('...' constantExpression)? ']' ;
+
+gnuIdentifier --> Identifier ;
+
+asmArgument --> asmStringLiteral (':' asmOperands? (':' asmOperands? (':' asmClobbers?)*)?)? ;
+
+asmClobbers --> (asmStringLiteral | Identifier) (',' (asmStringLiteral | Identifier))* ;
+
+asmDefinition --> simpleAsmExpr | asm_ '(' toplevelAsmArgument ')' ;
+
+asm_ --> Asm_1 | Asm_2 | Asm_3 ;
+
+toplevelAsmArgument --> asmStringLiteral ':' asmOperands? (':' asmOperands?)? ;
+
+asmOperand --> asmStringLiteral '(' expression ')'
+            | '[' Identifier ']' asmStringLiteral '(' expression ')' ;
+
+asmOperands --> asmOperand (',' asmOperand)* ;
+
+asmQualifier --> volatile_ | Inline | 'goto' ;
+
+volatile_ --> Volatile_1 | Volatile_2 ;
+
+asmQualifierList --> asmQualifier+ ;
+
+asmStatement --> asm_ asmQualifierList? '(' asmArgument ')' ';' ;
+
+asmStringLiteral --> StringLiteral ;
+
+gccDeclaratorExtension --> asmDefinition | gnuAttribute ;
+
+gnuAttribute --> Attribute '(' '(' gnuAttributeList ')' ')' ;
+gnuAttributeList --> gnuSingleAttribute* ;
+gnuAttributes --> gnuAttribute+ ;
+
+# ANTLR: ~('(' | ')'), any token but a parenthesis. Approximated by the tokens
+# that occur inside GNU attributes.
+gnuSingleAttribute --> (Identifier | IntegerConstant | FloatingConstant | CharacterConstant | StringLiteral
+    | ',' | '=' | '+' | '-' | '*' | '.' | 'const' | 'deprecated' | Inline | Restrict | volatile_) ;
+gnuSingleAttribute --> '(' gnuAttributeList ')' ;
+
+simpleAsmExpr --> asm_ '(' asmStringLiteral ')' ;
+
+vcSpecificModifer --> '__cdecl'
+                   | '__clrcall'
+                   | '__stdcall'
+                   | '__fastcall'
+                   | '__thiscall'
+                   | '__vectorcall' ;
+
+# -------------------------------------------------------------------- lexer
+# Keyword categories the parser refers to by name. Other keywords are inline
+# literals. Identifier excludes every keyword of CLexer.g4.
+
+Attribute --> (?:__attribute__|__attribute) ;
+Alignas --> (?:alignas|_Alignas) ;
+Alignof --> (?:alignof|_Alignof|__alignof__|__alignof) ;
+Maxof --> '_Maxof' ;
+Minof --> '_Minof' ;
+Countof --> '_Countof' ;
+Asm_1 --> 'asm' ;
+Asm_2 --> '__asm' ;
+Asm_3 --> '__asm__' ;
+Bool --> (?:bool|_Bool) ;
+Do --> 'do' ;
+For --> 'for' ;
+While --> 'while' ;
+Inline --> (?:inline|__inline__|__inline) ;
+Label --> '__label__' ;
+Restrict --> (?:restrict|__restrict__|__restrict) ;
+Typeof --> (?:typeof|__typeof__|__typeof) ;
+Typeof_unqual --> (?:typeof_unqual|__typeof_unqual__) ;
+Volatile_1 --> 'volatile' ;
+Volatile_2 --> '__volatile__' ;
+ThreadLocal --> (?:_Thread_local|thread_local) ;
+
+Identifier --> (?!(?:__attribute__|__attribute|__builtin_offsetof|__builtin_va_arg|__builtin_choose_expr|__builtin_types_compatible_p|__builtin_tgmath|__builtin_complex|__cdecl|__clrcall|__declspec|__extension__|__fastcall|__m128|__m128d|__m128i|__stdcall|__thiscall|__vectorcall|__real__|__imag__|__func__|__FUNCTION__|__PRETTY_FUNCTION__|alignas|_Alignas|alignof|_Alignof|__alignof__|__alignof|_Maxof|_Minof|_Countof|asm|__asm|__asm__|auto|bool|_Bool|break|case|char|const|constexpr|continue|default|deprecated|do|double|else|enum|extern|false|float|for|goto|if|inline|__inline__|__inline|int|__label__|long|nullptr|register|restrict|__restrict__|__restrict|return|short|signed|sizeof|static|static_assert|struct|switch|true|typedef|typeof|__typeof__|__typeof|typeof_unqual|__typeof_unqual__|union|unsigned|void|volatile|__volatile__|while|_Atomic|_BitInt|_Complex|_Decimal128|_Decimal32|_Decimal64|_Generic|_Imaginary|_Noreturn|_Static_assert|_Thread_local|thread_local)(?![a-zA-Z0-9_]))
+    (?:[a-zA-Z_]|[\\]u[0-9a-fA-F]{4}|[\\]U[0-9a-fA-F]{8}) (?:[a-zA-Z_0-9]|[\\]u[0-9a-fA-F]{4}|[\\]U[0-9a-fA-F]{8})* ;
+
+IntegerConstant --> (?:0[bB][01]+|(?:0[xX][0-9a-fA-F]+|[1-9][0-9]*|0[0-7]*)(?:[uU](?:ll|LL|[lL])?|(?:ll|LL|[lL])[uU]?)?) ;
+
+FloatingConstant --> (?:(?:[0-9]*[.][0-9]+|[0-9]+[.])(?:[eE][+-]?[0-9]+)?|[0-9]+[eE][+-]?[0-9]+|0[xX](?:[0-9a-fA-F]*[.][0-9a-fA-F]+|[0-9a-fA-F]+[.]?)[pP][+-]?[0-9]+)
+    (?:[fF](?:128|16|32|64)?|[lL]|[dD][fFdDlL]|[bB][fF]16)? ;
+
+# CLexer's DigitSequence (Digit+) only wins over IntegerConstant when it is
+# longer, i.e. for octal-looking sequences containing 8 or 9.
+DigitSequence --> [0] [0-7]* [89] [0-9]* ;
+
+CharacterConstant --> [LuU]? ['] (?:[^'\\\r\n]|[\\]['"?abfnrtv\\]|[\\][0-7]{1,3}|[\\]x[0-9a-fA-F]+|[\\]u[0-9a-fA-F]{4}|[\\]U[0-9a-fA-F]{8})+ ['] ;
+
+StringLiteral --> (?:u8|[uUL])? ["] (?:[^"\\\r\n]|[\\]['"?abfnrtv\\]|[\\][0-7]{1,3}|[\\]x[0-9a-fA-F]+|[\\]u[0-9a-fA-F]{4}|[\\]U[0-9a-fA-F]{8}|[\\]\r?\n)* ["]
+    (?:[ \n\r\t]+(?:u8|[uUL])?["](?:[^"\\\r\n]|[\\]['"?abfnrtv\\]|[\\][0-7]{1,3}|[\\]x[0-9a-fA-F]+|[\\]u[0-9a-fA-F]{4}|[\\]U[0-9a-fA-F]{8}|[\\]\r?\n)*["])* ;
+
+# Preprocessor lines (CLexer: MultiLineMacro, LineDirective, Directive) are skipped.
+Directive --> '#' (?:[^\\\n]|[\\][\s\S])* ;
+BlockComment --> '/*' (?:[^*]|[*]+[^*/])* [*]+ '/' ;
+LineComment --> '//' [^\r\n]* ;

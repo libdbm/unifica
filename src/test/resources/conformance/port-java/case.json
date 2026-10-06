@@ -1,0 +1,4 @@
+{
+  "rules": ["S-G1", "S-G3", "S-G4", "S-L2", "S-L4", "S-P2", "S-P4", "S-P7", "S-P8"],
+  "description": "Port of the grammars-v4 Java grammar: contextual keywords as inline literals beside the IDENTIFIER lookahead, generic types beside relational operators, the open/closed statement feature for the dangling else, a cast cost that makes (a) - b a subtraction, and skipped comments."
+}

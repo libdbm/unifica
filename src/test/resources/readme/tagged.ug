@@ -1,0 +1,8 @@
+# Noun and Verb are filled by an external tagger. Their patterns are used
+# only when the parser lexes text itself.
+start S;
+
+S --> Noun{num: N} Verb{num: N};
+
+Noun --> [a-z]+;
+Verb --> [a-z]+;

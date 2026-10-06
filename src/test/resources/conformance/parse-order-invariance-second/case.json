@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "S-P2",
+    "S-P6"
+  ],
+  "description": "The minimum-penalty derivation is selected regardless of production order (cheaper production second)."
+}

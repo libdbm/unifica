@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-C7"
+  ],
+  "description": "Review 2: lexical predicates are evaluated and replaced by their truth values, never deleted from the expression."
+}

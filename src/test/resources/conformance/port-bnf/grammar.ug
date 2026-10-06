@@ -1,0 +1,51 @@
+# "Switching" BNF: several BNF metasyntax styles (not EBNF).
+# Ported from grammars-v4 bnf/bnfLexer.g4 and bnf/bnfParser.g4 (commit 7df52be9).
+# Author: Ken Domino (October 2023). MIT License (see NOTICE.md).
+#
+# The ANTLR grammar keeps whitespace and newlines as tokens, but allows them
+# before every element and every '|', so productions may continue over
+# several lines. Here whitespace is discarded, quoted and angle-bracketed
+# elements (non-greedy '.*?' in the ANTLR parser) are single tokens, and a
+# production ends where the next 'lhs assign' begins (see NOTICE.md).
+#
+# ANTLR alternatives are separate productions, and grouped sequences are
+# written as groups, as in ANTLR.
+
+start start_;
+
+start_ --> prods? ;
+
+prods --> prod+ ;
+
+prod --> xlhs assign xrhs ;
+
+xlhs --> ID | NAME ;
+
+xrhs --> xalt? (or xalt)* ;
+
+xalt --> xelem+ ;
+
+xelem --> DQUOTED | SQUOTED | NAME | ID | TEXT ;
+
+assign --> ASSIGN1 | ASSIGN2 | ASSIGN3 | ASSIGN4 ;
+
+or --> OR1 | OR2 | OR3 ;
+
+ASSIGN1 --> '::=' ;
+ASSIGN2 --> ':≡' ;
+ASSIGN3 --> '-->' ;
+ASSIGN4 --> '→' ;
+
+OR1 --> '|' ;
+OR2 --> 'o‾r‾' ;
+OR3 --> '∣' ;
+
+ID --> [a-zA-Z] [a-zA-Z0-9_-]+ ;
+
+# ANTLR parser elements '"' .*? '"', '\'' .*? '\'' and '<' .*? '>'.
+DQUOTED --> '"' [^"]* '"' ;
+SQUOTED --> "'" [^']* "'" ;
+NAME --> '<' [^>]* '>' ;
+
+# Any other single character; '|', U+2223 and U+2192 are always operators.
+TEXT --> [^\s|∣→] ;

@@ -1,0 +1,493 @@
+# Java (up to Java 21 syntax), ported from ANTLR grammars-v4
+# Source: java/java/JavaLexer.g4 and java/java/JavaParser.g4 at grammars-v4 commit 7df52be9
+# Copyright (c) 2013 Terence Parr, Sam Harwell; (c) 2017 Ivan Kochurkin;
+# (c) 2021, 2022 Michal Lorek. BSD licence (3-clause), see NOTICE.md.
+#
+# ANTLR resolves the grammar's ambiguities by alternative order and greedy
+# loops. This port is an Earley grammar, so it rewrites the expression rule into
+# precedence levels and uses production costs where ANTLR relies on order
+# (see NOTICE.md, Deviations):
+#   - a cast costs 1, so `(a) - b` is a subtraction (ANTLR picks the
+#     parenthesised primary, its first alternative);
+#   - annotations cost 0 as modifiers, 1 as interface method modifiers, 2 in
+#     front of an interface method's return type and 3 as type annotations at
+#     the start of a type, so each one goes to the earliest loop that can take
+#     it (ANTLR's greedy loops); interface method modifiers that are also
+#     general modifiers cost 1 for the same reason;
+#   - `T::m` as a type reference costs 1 against the expression reading;
+#   - a switch expression costs 2 and an arrow-form switch statement 1, so the
+#     classic switch statement wins and `switch (...) {...};` stays a statement;
+#   - `yield` as an identifier costs 1, so `yield -1;` is a yield statement;
+#   - a switch rule outcome that is a list of block statements costs 1, so a
+#     braced outcome is a block.
+# Feature `open` on statements resolves the dangling else.
+
+start compilationunit;
+whitespace [ \t\r\n\u000C]+;
+skip COMMENT, LINE_COMMENT;
+
+compilationunit --> packageDeclaration? (importDeclaration | ';')*
+                 | packageDeclaration? (importDeclaration | ';')* typeDeclaration (typeDeclaration | ';')*
+                 | modularCompulationUnit ;
+
+modularCompulationUnit --> importDeclaration* moduleDeclaration ;
+
+packageDeclaration --> annotation* 'package' qualifiedName ';' ;
+
+importDeclaration --> 'import' 'static'? qualifiedName ('.' '*')? ';' ;
+
+typeDeclaration --> classOrInterfaceModifier*
+    (classDeclaration | enumDeclaration | interfaceDeclaration | annotationTypeDeclaration | recordDeclaration) ;
+
+modifier --> classOrInterfaceModifier | 'native' | 'synchronized' | 'transient' | 'volatile' ;
+
+classOrInterfaceModifier --> annotation
+                          | 'public'
+                          | 'protected'
+                          | 'private'
+                          | 'static'
+                          | 'abstract'
+                          | 'final'
+                          | 'strictfp'
+                          | 'sealed'
+                          | 'non-sealed' ;
+
+variableModifier --> 'final' | annotation ;
+
+classDeclaration --> 'class' identifier typeParameters? ('extends' typeType)? ('implements' typeList)? ('permits' typeList)? classBody ;
+
+typeParameters --> '<' typeParameter (',' typeParameter)* '>' ;
+
+typeParameter --> annotation* identifier ('extends' annotation* typeBound)? ;
+
+typeBound --> typeType ('&' typeType)* ;
+
+enumDeclaration --> 'enum' identifier ('implements' typeList)? '{' enumConstants? ','? enumBodyDeclarations? '}' ;
+
+enumConstants --> enumConstant (',' enumConstant)* ;
+
+enumConstant --> annotation* identifier arguments? classBody? ;
+
+enumBodyDeclarations --> ';' classBodyDeclaration* ;
+
+interfaceDeclaration --> 'interface' identifier typeParameters? ('extends' typeList)? ('permits' typeList)? interfaceBody ;
+
+classBody --> '{' classBodyDeclaration* '}' ;
+interfaceBody --> '{' interfaceBodyDeclaration* '}' ;
+
+classBodyDeclaration --> ';' | 'static'? block | modifier* memberDeclaration ;
+
+memberDeclaration --> recordDeclaration
+                   | methodDeclaration
+                   | genericMethodDeclaration
+                   | fieldDeclaration
+                   | constructorDeclaration
+                   | genericConstructorDeclaration
+                   | interfaceDeclaration
+                   | annotationTypeDeclaration
+                   | classDeclaration
+                   | enumDeclaration ;
+
+methodDeclaration --> typeTypeOrVoid identifier formalParameters ('[' ']')* ('throws' qualifiedNameList)? methodBody ;
+
+methodBody --> block | ';' ;
+
+typeTypeOrVoid --> typeType | 'void' ;
+
+genericMethodDeclaration --> typeParameters methodDeclaration ;
+genericConstructorDeclaration --> typeParameters constructorDeclaration ;
+
+constructorDeclaration --> identifier formalParameters ('throws' qualifiedNameList)? block ;
+
+compactConstructorDeclaration --> modifier* identifier block ;
+
+fieldDeclaration --> typeType variableDeclarators ';' ;
+
+interfaceBodyDeclaration --> modifier* interfaceMemberDeclaration | ';' ;
+
+interfaceMemberDeclaration --> recordDeclaration
+                            | constDeclaration
+                            | interfaceMethodDeclaration
+                            | genericInterfaceMethodDeclaration
+                            | interfaceDeclaration
+                            | annotationTypeDeclaration
+                            | classDeclaration
+                            | enumDeclaration ;
+
+constDeclaration --> typeType constantDeclarator (',' constantDeclarator)* ';' ;
+
+constantDeclarator --> identifier ('[' ']')* '=' variableInitializer ;
+
+interfaceMethodDeclaration --> interfaceMethodModifier* interfaceCommonBodyDeclaration ;
+
+# Modifiers that `modifier` also accepts cost 1, so ANTLR's greedy
+# interfaceBodyDeclaration `modifier*` loop takes them.
+interfaceMethodModifier --> annotation @1 ;
+interfaceMethodModifier --> 'public' @1 ;
+interfaceMethodModifier --> 'abstract' @1 ;
+interfaceMethodModifier --> 'default' ;
+interfaceMethodModifier --> 'static' @1 ;
+interfaceMethodModifier --> 'strictfp' @1 ;
+
+genericInterfaceMethodDeclaration --> interfaceMethodModifier* typeParameters interfaceCommonBodyDeclaration ;
+
+interfaceCommonBodyDeclaration --> typeTypeOrVoid identifier formalParameters ('[' ']')* ('throws' qualifiedNameList)? methodBody ;
+interfaceCommonBodyDeclaration --> annotation+ typeTypeOrVoid identifier formalParameters ('[' ']')* ('throws' qualifiedNameList)? methodBody @2 ;
+
+variableDeclarators --> variableDeclarator (',' variableDeclarator)* ;
+
+variableDeclarator --> variableDeclaratorId ('=' variableInitializer)? ;
+
+variableDeclaratorId --> identifier ('[' ']')* ;
+
+variableInitializer --> arrayInitializer | expression ;
+
+arrayInitializer --> '{' (variableInitializer (',' variableInitializer)* ','?)? '}' ;
+
+# ANTLR: ((packageName '.' annotation*)? typeIdentifier typeArguments?)+ ('.' annotation* typeIdentifier typeArguments?)*
+classType --> typeIdentifier typeArguments?
+           | classTypePrefix '.' annotation* typeIdentifier typeArguments? ;
+
+# Leading segments are identifiers (package names may be `var`, `record`, ...),
+# the last one a typeIdentifier.
+classTypePrefix --> identifier typeArguments?
+                 | classTypePrefix '.' annotation* identifier typeArguments? ;
+
+typeArgument --> typeType | annotation* '?' (('extends' | 'super') typeType)? ;
+
+qualifiedNameList --> qualifiedName (',' qualifiedName)* ;
+
+formalParameters --> '(' ((receiverParameter | formalParameter) (',' formalParameterList)?)? ')' ;
+
+receiverParameter --> typeType 'this' | typeType qualifiedName '.' 'this' ;
+
+formalParameterList --> formalParameter (',' formalParameter)* ;
+
+formalParameter --> variableModifier* typeType (annotation* '...')? variableDeclaratorId ;
+
+lambdaLVTIList --> lambdaLVTIParameter (',' lambdaLVTIParameter)* ;
+
+lambdaLVTIParameter --> variableModifier* 'var' identifier ;
+
+qualifiedName --> identifier ('.' identifier)* ;
+
+literal --> integerLiteral
+         | floatLiteral
+         | CHAR_LITERAL
+         | STRING_LITERAL
+         | BOOL_LITERAL
+         | NULL_LITERAL
+         | TEXT_BLOCK ;
+
+integerLiteral --> DECIMAL_LITERAL | HEX_LITERAL | OCT_LITERAL | BINARY_LITERAL ;
+
+floatLiteral --> FLOAT_LITERAL | HEX_FLOAT_LITERAL ;
+
+annotation --> '@' qualifiedName annotationFieldValues? ;
+
+annotationFieldValues --> '(' (annotationFieldValue (',' annotationFieldValue)*)? ')' ;
+
+annotationFieldValue --> annotationValue | identifier '=' annotationValue ;
+
+annotationValue --> conditionalExpression | annotation | '{' (annotationValue (',' annotationValue)*)? ','? '}' ;
+
+elementValue --> expression | annotation | elementValueArrayInitializer ;
+
+elementValueArrayInitializer --> '{' (elementValue (',' elementValue)*)? ','? '}' ;
+
+annotationTypeDeclaration --> '@' 'interface' identifier annotationTypeBody ;
+
+annotationTypeBody --> '{' annotationTypeElementDeclaration* '}' ;
+
+annotationTypeElementDeclaration --> modifier* annotationTypeElementRest | ';' ;
+
+annotationTypeElementRest --> typeType annotationMethodOrConstantRest ';'
+                           | classDeclaration
+                           | interfaceDeclaration
+                           | enumDeclaration
+                           | annotationTypeDeclaration
+                           | recordDeclaration ;
+
+annotationMethodOrConstantRest --> annotationMethodRest | annotationConstantRest ;
+
+annotationMethodRest --> identifier '(' ')' defaultValue? ;
+
+annotationConstantRest --> variableDeclarators ;
+
+defaultValue --> 'default' elementValue ;
+
+moduleDeclaration --> annotation* 'open'? 'module' qualifiedName '{' moduleDirective* '}' ;
+
+moduleDirective --> 'requires' requiresModifier* qualifiedName ';'
+                 | 'exports' qualifiedName ('to' qualifiedName (',' qualifiedName)*)? ';'
+                 | 'opens' qualifiedName ('to' qualifiedName (',' qualifiedName)*)? ';'
+                 | 'uses' qualifiedName ';'
+                 | 'provides' qualifiedName 'with' qualifiedName (',' qualifiedName)* ';' ;
+
+requiresModifier --> 'transitive' | 'static' ;
+
+recordDeclaration --> 'record' identifier typeParameters? recordHeader ('implements' typeList)? recordBody ;
+
+recordHeader --> '(' recordComponentList? ')' ;
+
+recordComponentList --> recordComponent (',' recordComponent)* ;
+
+recordComponent --> annotation* typeType (annotation* '...')? identifier ;
+
+recordBody --> '{' (classBodyDeclaration | compactConstructorDeclaration)* '}' ;
+
+block --> '{' blockStatement* '}' ;
+
+blockStatement --> localVariableDeclaration ';' | localTypeDeclaration | statement ;
+
+localVariableDeclaration --> variableModifier* ('var' identifier '=' expression | typeType variableDeclarators) ;
+
+identifier --> IDENTIFIER
+            | 'module'
+            | 'open'
+            | 'requires'
+            | 'exports'
+            | 'opens'
+            | 'to'
+            | 'uses'
+            | 'provides'
+            | 'when'
+            | 'with'
+            | 'transitive' ;
+# Costs 1 so that `yield -1;` is a yield statement (ANTLR: alternative order).
+identifier --> 'yield' @1 ;
+identifier --> 'sealed' | 'permits' | 'record' | 'var' ;
+
+typeIdentifier --> IDENTIFIER
+                | 'module'
+                | 'open'
+                | 'requires'
+                | 'exports'
+                | 'opens'
+                | 'to'
+                | 'uses'
+                | 'provides'
+                | 'with'
+                | 'transitive'
+                | 'sealed' ;
+
+localTypeDeclaration --> classOrInterfaceModifier* (classDeclaration | interfaceDeclaration | recordDeclaration | enumDeclaration) ;
+
+# ----------------------------------------------------------------- statements
+
+statement{open: no} --> block | 'assert' expression (':' expression)? ';' ;
+statement{open: yes} --> 'if' '(' expression ')' statement ;
+statement{open: X} --> 'if' '(' expression ')' statement{open: no} 'else' statement{open: X}
+                    | 'for' '(' forControl ')' statement{open: X}
+                    | 'while' '(' expression ')' statement{open: X} ;
+statement{open: no} --> 'do' statement 'while' '(' expression ')' ';'
+                     | 'try' block (catchClause+ finallyBlock? | finallyBlock)
+                     | 'try' resourceSpecification block catchClause* finallyBlock?
+                     | 'switch' '(' expression ')' '{' switchBlockStatementGroup* switchLabel* '}'
+                     | 'synchronized' '(' expression ')' block
+                     | 'return' expression? ';'
+                     | 'throw' expression ';'
+                     | 'break' identifier? ';'
+                     | 'continue' identifier? ';'
+                     | 'yield' expression ';'
+                     | ';'
+                     | expression ';' ;
+# ANTLR: switchExpression ';'?  The optional ';' is an empty statement here.
+statement{open: no} --> 'switch' '(' expression ')' '{' switchLabeledRule* '}' @1 ;
+statement{open: X} --> identifier ':' statement{open: X} ;
+
+catchClause --> 'catch' '(' variableModifier* catchType identifier ')' block ;
+
+catchType --> qualifiedName ('|' qualifiedName)* ;
+
+finallyBlock --> 'finally' block ;
+
+resourceSpecification --> '(' resources ';'? ')' ;
+
+resources --> resource (';' resource)* ;
+
+resource --> variableModifier* (classOrInterfaceType variableDeclaratorId | 'var' identifier) '=' expression | qualifiedName ;
+
+switchBlockStatementGroup --> switchLabel+ blockStatement+ ;
+
+# ANTLR: (switchLabel ':')+ in groups and a trailing switchLabel* without ':'.
+# The ':' moves into switchLabel. The IDENTIFIER alternative is covered by
+# expression and dropped.
+switchLabel --> 'case' expression ':' | 'case' typeType identifier ':' | 'default' ':' ;
+
+forControl --> enhancedForControl | forInit? ';' expression? ';' expressionList? ;
+
+forInit --> localVariableDeclaration | expressionList ;
+
+enhancedForControl --> variableModifier* (typeType | 'var') variableDeclaratorId ':' expression ;
+
+expressionList --> expression (',' expression)* ;
+
+methodCall --> (identifier | 'this' | 'super') arguments ;
+
+# ---------------------------------------------------------------- expressions
+# ANTLR's left-recursive `expression` rule, rewritten as precedence levels in
+# ANTLR's order (earlier alternatives bind tighter).
+
+expression --> lambdaExpression | assignmentExpression ;
+
+assignmentExpression --> conditionalExpression ;
+assignmentExpression --> conditionalExpression
+    ('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '>>=' | '>>>=' | '<<=' | '%=') expression ;
+
+conditionalExpression --> conditionalOrExpression
+                       | conditionalOrExpression '?' expression ':' (conditionalExpression | lambdaExpression) ;
+
+conditionalOrExpression --> conditionalAndExpression
+                         | conditionalOrExpression '||' conditionalAndExpression ;
+
+conditionalAndExpression --> inclusiveOrExpression
+                          | conditionalAndExpression '&&' inclusiveOrExpression ;
+
+inclusiveOrExpression --> exclusiveOrExpression | inclusiveOrExpression '|' exclusiveOrExpression ;
+
+exclusiveOrExpression --> andExpression | exclusiveOrExpression '^' andExpression ;
+
+andExpression --> equalityExpression | andExpression '&' equalityExpression ;
+
+equalityExpression --> instanceofExpression
+                    | equalityExpression ('==' | '!=') instanceofExpression ;
+
+instanceofExpression --> relationalExpression
+                      | instanceofExpression 'instanceof' (typeType | pattern) ;
+
+# Not left-recursive: `a < b > c` would make `List<String> x = y;` an
+# expression statement too.
+relationalExpression --> shiftExpression
+                      | shiftExpression ('<=' | '>=' | '>' | '<') shiftExpression ;
+
+shiftExpression --> additiveExpression
+                 | shiftExpression '<' '<' additiveExpression
+                 | shiftExpression '>' '>' '>' additiveExpression
+                 | shiftExpression '>' '>' additiveExpression ;
+
+additiveExpression --> multiplicativeExpression
+                    | additiveExpression ('+' | '-') multiplicativeExpression ;
+
+multiplicativeExpression --> unaryExpression
+                          | multiplicativeExpression ('*' | '/' | '%') unaryExpression ;
+
+unaryExpression --> ('+' | '-' | '++' | '--' | '~' | '!') unaryExpression
+                 | castExpression
+                 | 'new' arrayCreator
+                 | postfixExpression ;
+
+castExpression --> '(' annotation* typeBound ')' (unaryExpression | lambdaExpression) @1 ;
+
+postfixExpression --> primary
+                   | methodCall
+                   | postfixExpression '[' expression ']'
+                   | postfixExpression '.' (identifier | methodCall | 'this' | explicitGenericInvocation)
+                   | postfixExpression '.' 'new' nonWildcardTypeArguments? innerCreator
+                   | postfixExpression '.' 'super' superSuffix
+                   | postfixExpression '::' typeArguments? identifier ;
+postfixExpression --> typeType '::' typeArguments? identifier @1 ;
+postfixExpression --> typeType '::' 'new'
+                   | classType '::' typeArguments 'new'
+                   | postfixExpression ('++' | '--') ;
+
+pattern --> variableModifier* typeType annotation* identifier
+         | typeType '(' componentPatternList? ')' ;
+
+componentPatternList --> componentPattern (',' componentPattern)* ;
+
+componentPattern --> pattern ;
+
+lambdaExpression --> lambdaParameters '->' lambdaBody ;
+
+lambdaParameters --> identifier | '(' (formalParameterList | identifier (',' identifier)* | lambdaLVTIList)? ')' ;
+
+lambdaBody --> expression | block ;
+
+primary --> '(' expression ')'
+         | 'this'
+         | 'super'
+         | literal
+         | identifier
+         | typeTypeOrVoid '.' 'class'
+         | nonWildcardTypeArguments (explicitGenericInvocationSuffix | 'this' arguments)
+         | 'new' creator
+         | switchExpression ;
+
+switchExpression --> 'switch' '(' expression ')' '{' switchLabeledRule* '}' @2 ;
+
+switchLabeledRule --> 'case' (expressionList | NULL_LITERAL ',' 'default' | casePattern (',' casePattern)* guard?) ('->' | ':') switchRuleOutcome
+                   | 'default' ('->' | ':') switchRuleOutcome ;
+
+guard --> 'when' expression ;
+
+casePattern --> pattern ;
+
+switchRuleOutcome --> block ;
+switchRuleOutcome --> blockStatement* @1 ;
+
+classOrInterfaceType --> classType ;
+
+creator --> nonWildcardTypeArguments? createdName classCreatorRest | createdName arrayCreatorRest ;
+
+# ANTLR's arrayCreatorRest alternative ('[' expression ']')+ ('[' ']')* is a
+# unary expression here, so `new int[2][3]` cannot also be read as an index.
+arrayCreator --> createdName ('[' expression ']')+ ('[' ']')* ;
+
+createdName --> identifier typeArgumentsOrDiamond? ('.' identifier typeArgumentsOrDiamond?)* | primitiveType ;
+
+innerCreator --> identifier nonWildcardTypeArgumentsOrDiamond? classCreatorRest ;
+
+arrayCreatorRest --> ('[' ']')+ arrayInitializer ;
+
+classCreatorRest --> arguments classBody? ;
+
+explicitGenericInvocation --> nonWildcardTypeArguments explicitGenericInvocationSuffix ;
+
+typeArgumentsOrDiamond --> '<' '>' | typeArguments ;
+
+nonWildcardTypeArgumentsOrDiamond --> '<' '>' | nonWildcardTypeArguments ;
+
+nonWildcardTypeArguments --> '<' typeList '>' ;
+
+typeList --> typeType (',' typeType)* ;
+
+typeType --> (classOrInterfaceType | primitiveType) (annotation* '[' ']')* ;
+typeType --> annotation+ (classOrInterfaceType | primitiveType) (annotation* '[' ']')* @3 ;
+
+primitiveType --> 'boolean' | 'char' | 'byte' | 'short' | 'int' | 'long' | 'float' | 'double' ;
+
+typeArguments --> '<' typeArgument (',' typeArgument)* '>' ;
+
+superSuffix --> arguments | '.' typeArguments? identifier arguments? ;
+
+explicitGenericInvocationSuffix --> 'super' superSuffix | identifier arguments ;
+
+arguments --> '(' expressionList? ')' ;
+
+# -------------------------------------------------------------------- lexer
+
+DECIMAL_LITERAL --> (?:0|[1-9](?:_+[0-9](?:[0-9_]*[0-9])?|(?:[0-9](?:[0-9_]*[0-9])?)?))[lL]? ;
+HEX_LITERAL --> [0] [xX] [0-9a-fA-F] (?:[0-9a-fA-F_]*[0-9a-fA-F])? [lL]? ;
+OCT_LITERAL --> [0] [_]* [0-7] (?:[0-7_]*[0-7])? [lL]? ;
+BINARY_LITERAL --> [0] [bB] [01] (?:[01_]*[01])? [lL]? ;
+
+FLOAT_LITERAL --> (?:(?:[0-9](?:[0-9_]*[0-9])?[.](?:[0-9](?:[0-9_]*[0-9])?)?|[.][0-9](?:[0-9_]*[0-9])?)(?:[eE][+-]?[0-9](?:[0-9_]*[0-9])?)?[fFdD]?|[0-9](?:[0-9_]*[0-9])?(?:[eE][+-]?[0-9](?:[0-9_]*[0-9])?[fFdD]?|[fFdD])) ;
+
+HEX_FLOAT_LITERAL --> [0] [xX] (?:[0-9a-fA-F](?:[0-9a-fA-F_]*[0-9a-fA-F])?[.]?|(?:[0-9a-fA-F](?:[0-9a-fA-F_]*[0-9a-fA-F])?)?[.][0-9a-fA-F](?:[0-9a-fA-F_]*[0-9a-fA-F])?) [pP] [+-]? [0-9] (?:[0-9_]*[0-9])? [fFdD]? ;
+
+BOOL_LITERAL --> (?:true|false) ;
+NULL_LITERAL --> 'null' ;
+
+CHAR_LITERAL --> ['] (?:[^'\\\r\n]|[\\](?:u005c)?[bstnfr"'\\]|[\\](?:u005c)?(?:[0-3]?[0-7])?[0-7]|[\\]u+[0-9a-fA-F]{4}) ['] ;
+
+STRING_LITERAL --> ["] (?:[^"\\\r\n]|[\\](?:u005c)?[bstnfr"'\\]|[\\](?:u005c)?(?:[0-3]?[0-7])?[0-7]|[\\]u+[0-9a-fA-F]{4})* ["] ;
+
+# ANTLR: '"""' [ \t]* [\r\n] (. | EscapeSequence)*? '"""'
+TEXT_BLOCK --> '"""' [ \t]* [\r\n] (?:[^"\\]|[\\][\s\S]|["](?!""))* '"""' ;
+
+COMMENT --> '/*' (?:[^*]|[*]+[^*/])* [*]+ '/' ;
+LINE_COMMENT --> '//' [^\r\n]* ;
+
+IDENTIFIER --> (?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|exports|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|module|native|new|open|opens|package|permits|private|protected|provides|public|record|requires|return|sealed|short|static|strictfp|super|switch|synchronized|this|throw|throws|to|transient|transitive|try|uses|var|void|volatile|when|while|with|yield|true|false|null)(?![a-zA-Z0-9$_\u0080-￿]))
+    (?:[a-zA-Z$_]|[^\u0000-\u007F]) (?:[a-zA-Z0-9$_]|[^\u0000-\u007F])* ;

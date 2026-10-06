@@ -1,0 +1,32 @@
+# Port of grammars-v4 inf/inf.g4 (commit 7df52be9), INF (Windows setup information) files.
+# Original grammar: Copyright (c) 2017, Tom Everett, BSD 3-Clause License.
+#
+# Line ends are EOL tokens, as in ANTLR, so only blanks and tabs are whitespace.
+
+start inf;
+whitespace [ \t]+;
+skip COMMENT;
+
+inf --> (section | EOL)* ;
+
+section --> sectionheader line* ;
+
+sectionheader --> '[' string ']' EOL ;
+
+string --> CHARS | STRING ;
+
+line --> stringlist ('=' stringlist)? EOL ;
+
+stringlist --> string (',' string?)* ;
+
+CHARS --> [A-Za-z0-9.%"\\/*@&_{}<>\-]+ ;
+
+# ANTLR lets CHARS win ties (first rule). A quoted string made only of CHARS
+# characters is matched by CHARS at equal or greater length, so STRING only
+# matches quoted text containing at least one character CHARS cannot match.
+STRING --> (?="[^"\n]*[^A-Za-z0-9.%"\\/*@&_{}<>\-\n])'"' [^"\n]* '"' ;
+
+# As in ANTLR, a comment includes the line break that ends it.
+COMMENT --> ';' [^\r\n]* [\r\n]+ ;
+
+EOL --> [\r\n]+ ;

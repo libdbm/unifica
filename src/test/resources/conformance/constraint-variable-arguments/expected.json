@@ -1,0 +1,25 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "dog runs",
+      "outcome": "accepted",
+      "penalty": 0
+    },
+    {
+      "input": "dog run",
+      "outcome": "rejected"
+    },
+    {
+      "input": "dogs run",
+      "outcome": "accepted",
+      "penalty": 0
+    }
+  ],
+  "generation": {
+    "empty": false,
+    "rejected": []
+  }
+}

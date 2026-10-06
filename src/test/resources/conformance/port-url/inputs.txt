@@ -1,0 +1,8 @@
+http://[::1]:80/
+a://h?x=%20
+s://h:8080
+http://h:80a/
+http//h
+a://h\n\n
+http :// h
+a://h\r\n

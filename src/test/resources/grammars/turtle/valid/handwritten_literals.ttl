@@ -1,0 +1,26 @@
+# Hand-written: literals, blank nodes, collections and SPARQL-style directives.
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+BASE <http://example.org/>
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix : <http://example.org/ns#> .
+
+:alice a foaf:Person ;
+    foaf:name "Alice"@en-GB, 'Alicia'@es ;
+    foaf:age 42 ;
+    :height 1.68 ;
+    :mass -6.02e23 ;
+    :active true ;
+    :born "1984-03-01"^^xsd:date ;
+    :bio """Line one
+and "quoted" line two""" ;
+    :note '''it''s fine''' ;
+    :escaped "tab\there é" ;
+    :knows [ foaf:name "Bob" ; :likes ( :tea :coffee 3 ) ] ;
+    :empty [] ;
+    :list () ;
+    .
+
+_:b1 :p :o .
+[ :p :o ] .
+[ :q _:b1.x ] :r :s .
+:a\-b :c%20d :e:f .

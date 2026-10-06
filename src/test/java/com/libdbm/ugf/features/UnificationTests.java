@@ -2,12 +2,165 @@ package com.libdbm.ugf.features;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.libdbm.ugf.ErrorDetails;
+import com.libdbm.ugf.Result;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class UnificationTests {
+
+  /**
+   * Value unification with bindings flowing back through {@code bindings}, as most tests expect.
+   */
+  private static Optional<Value> unify(
+      final Value left, final Value right, final Map<String, Value> bindings) {
+    return switch (Unifier.unify(left, right, new Bindings(bindings))) {
+      case Result.Success<Unification<Value>, ErrorDetails>(var unification) -> {
+        bindings.putAll(unification.bindings().values());
+        yield Optional.of(unification.value());
+      }
+      case Result.Failure<Unification<Value>, ErrorDetails> failure -> Optional.empty();
+    };
+  }
+
+  private static Optional<Value> unify(final Value left, final Value right) {
+    return unify(left, right, new HashMap<>());
+  }
+
+  private static Optional<Structure> unify(final Structure left, final Structure right) {
+    return Unifier.unify(left, right, Bindings.EMPTY)
+        .map(unification -> Optional.of(unification.value()))
+        .orElse(Optional.empty());
+  }
+
+  @Nested
+  class SingleOperation {
+
+    @Test
+    void testThreeWaySubstitutes() {
+      final var item = Structure.builder().with("other", new Variable("x")).build();
+      final var completed = Structure.builder().with("num", "sg").build();
+      final var expected = Structure.builder().with("num", new Variable("x")).build();
+
+      final var result = Unifier.unify(item, completed, expected, Bindings.EMPTY);
+
+      final var unification = assertInstanceOf(Result.Success.class, result).value();
+      final var structure = ((Unification<?>) unification).value();
+      assertEquals(Structure.builder().with("other", "sg").with("num", "sg").build(), structure);
+      assertEquals(new StringConstant("sg"), ((Unification<?>) unification).bindings().get("x"));
+    }
+
+    @Test
+    void testThreeWayFailureReason() {
+      final var item = Structure.EMPTY;
+      final var completed = Structure.builder().with("num", "pl").build();
+      final var expected = Structure.builder().with("num", "sg").build();
+
+      final var result = Unifier.unify(item, completed, expected, Bindings.EMPTY);
+
+      final var error = assertInstanceOf(Result.Failure.class, result).error();
+      assertEquals(
+          "Feature 'num' incompatible: expected sg but got pl", ((ErrorDetails) error).message());
+    }
+
+    @Test
+    void testOccursThroughBinding() {
+      final var x = new Variable("x");
+      final var binding = Binding.of("t", Structure.builder().with("f", x).build());
+
+      final var result = Unifier.unify(x, binding, Bindings.EMPTY);
+
+      final var error = assertInstanceOf(Result.Failure.class, result).error();
+      assertEquals("unification.occurs", ((ErrorDetails) error).code());
+    }
+
+    @Test
+    void testBindingsAreNotModified() {
+      final var bindings = Bindings.EMPTY;
+
+      Unifier.unify(new Variable("x"), new StringConstant("a"), bindings);
+
+      assertTrue(bindings.isEmpty());
+    }
+
+    @Test
+    void testNumericEquality() {
+      final var values =
+          List.of(
+              NumericConstant.of(1),
+              NumericConstant.parse("1"),
+              NumericConstant.of(1L),
+              NumericConstant.of(1.0));
+      for (final var a : values) {
+        for (final var b : values) {
+          assertEquals(a, b, a + " vs " + b);
+          assertEquals(a.hashCode(), b.hashCode(), a + " vs " + b);
+        }
+      }
+      assertNotEquals(
+          NumericConstant.of(9007199254740993L), NumericConstant.of(9007199254740992.0));
+      assertNotEquals(NumericConstant.of(1), NumericConstant.of(1.5));
+      assertEquals(NumericConstant.of(0.0), NumericConstant.of(-0.0));
+      assertEquals(NumericConstant.of(Double.NaN), NumericConstant.of(Double.NaN));
+      assertNotEquals(NumericConstant.of(1), new StringConstant("1"));
+    }
+
+    @Test
+    void testStructureEqualityUsesNumericEquality() {
+      final var a = Structure.builder().with("n", NumericConstant.of(2)).build();
+      final var b = Structure.builder().with("n", NumericConstant.of(2.0)).build();
+
+      assertEquals(a, b);
+      assertEquals(a.hashCode(), b.hashCode());
+    }
+
+    /** A structure nested {@code depth} levels deep: {@code {next: {next: ... {leaf: x}}}}. */
+    private static Structure deep(final int depth, final Value leaf) {
+      var structure = Structure.builder().with("leaf", leaf).build();
+      for (var i = 0; i < depth; i++) {
+        structure = Structure.builder().with("next", structure).build();
+      }
+      return structure;
+    }
+
+    @Test
+    void testDeepStructure() {
+      final var depth = 10_000;
+      final var left = deep(depth, new Variable("x"));
+      final var right = deep(depth, new StringConstant("v"));
+
+      final var unified = unify(left, right).orElseThrow();
+
+      assertEquals(right, unified);
+      assertEquals(right.hashCode(), unified.hashCode());
+      assertFalse(unified.display().isEmpty());
+      assertEquals(
+          "unification.occurs",
+          ((ErrorDetails)
+                  assertInstanceOf(
+                          Result.Failure.class,
+                          Unifier.unify(new Variable("x"), left, Bindings.EMPTY))
+                      .error())
+              .code());
+    }
+
+    @Test
+    void testResultIsSubstituted() {
+      final var left =
+          Structure.builder().with("a", new Variable("x")).with("b", new Variable("x")).build();
+      final var right = Structure.builder().with("b", "v").build();
+
+      final var unified = unify(left, right);
+
+      assertEquals(
+          Structure.builder().with("a", "v").with("b", "v").build(), unified.orElseThrow());
+    }
+  }
 
   @Nested
   @DisplayName("Value Type Tests")
@@ -252,7 +405,7 @@ class UnificationTests {
     @Test
     @DisplayName("Empty structure creation")
     void empty_structure() {
-      final var fs = new Structure();
+      final var fs = Structure.EMPTY;
       assertTrue(fs.isEmpty());
       assertEquals(0, fs.size());
       assertEquals("{}", fs.display());
@@ -272,14 +425,14 @@ class UnificationTests {
     }
 
     @Test
-    @DisplayName("Get and set feature values")
-    void get_and_set() {
-      final var fs = new Structure();
+    void testWithLeavesOriginalUnchanged() {
+      final var fs = Structure.EMPTY;
       assertNull(fs.get("num"));
 
-      fs.set("num", new StringConstant("sing"));
-      assertNotNull(fs.get("num"));
-      assertEquals("sing", ((StringConstant) fs.get("num")).value());
+      final var updated = fs.with("num", new StringConstant("sing"));
+
+      assertNull(fs.get("num"));
+      assertEquals("sing", ((StringConstant) updated.get("num")).value());
     }
 
     @Test
@@ -304,19 +457,15 @@ class UnificationTests {
     }
 
     @Test
-    @DisplayName("Structure copy creates independent instance")
-    void structure_copy() {
-      final var nested = Structure.builder().with("inner", "original").build();
-      final var fs = Structure.builder().with("outer", nested).build();
+    void testBuilderFromBaseLeavesBaseUnchanged() {
+      final var base = Structure.builder().with("inner", "original").build();
 
-      final var copy = fs.copy();
+      final var derived =
+          Structure.builder(base).with("inner", "modified").with("extra", "x").build();
 
-      // Modify original nested
-      ((Structure) fs.get("outer")).set("inner", new StringConstant("modified"));
-
-      // Copy should be unchanged
-      final var copyNested = (Structure) copy.get("outer");
-      assertEquals("original", ((StringConstant) copyNested.get("inner")).value());
+      assertEquals("original", ((StringConstant) base.get("inner")).value());
+      assertEquals(1, base.size());
+      assertEquals("modified", ((StringConstant) derived.get("inner")).value());
     }
 
     @Test
@@ -476,7 +625,7 @@ class UnificationTests {
     @DisplayName("Unify returns empty when first value is null")
     void unify_with_null_first() {
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(null, new StringConstant("test"), bindings);
+      final var result = unify(null, new StringConstant("test"), bindings);
       assertTrue(result.isEmpty());
     }
 
@@ -484,7 +633,7 @@ class UnificationTests {
     @DisplayName("Unify returns empty when second value is null")
     void unify_with_null_second() {
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(new StringConstant("test"), null, bindings);
+      final var result = unify(new StringConstant("test"), null, bindings);
       assertTrue(result.isEmpty());
     }
 
@@ -492,7 +641,7 @@ class UnificationTests {
     @DisplayName("Unify returns empty when both values are null")
     void unify_with_both_null() {
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(null, null, bindings);
+      final var result = unify(null, null, bindings);
       assertTrue(result.isEmpty());
     }
   }
@@ -507,7 +656,7 @@ class UnificationTests {
       final var a2 = new StringConstant("sing");
 
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(a1, a2, bindings);
+      final var result = unify(a1, a2, bindings);
 
       assertTrue(result.isPresent());
       assertEquals("sing", ((StringConstant) result.get()).value());
@@ -520,7 +669,7 @@ class UnificationTests {
       final var a2 = new StringConstant("plur");
 
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(a1, a2, bindings);
+      final var result = unify(a1, a2, bindings);
 
       assertTrue(result.isEmpty());
     }
@@ -532,7 +681,7 @@ class UnificationTests {
       final var n2 = NumericConstant.of(42);
 
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(n1, n2, bindings);
+      final var result = unify(n1, n2, bindings);
 
       assertTrue(result.isPresent());
       assertEquals(42, ((NumericConstant) result.get()).asInteger());
@@ -545,7 +694,7 @@ class UnificationTests {
       final var n2 = NumericConstant.of(43);
 
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(n1, n2, bindings);
+      final var result = unify(n1, n2, bindings);
 
       assertTrue(result.isEmpty());
     }
@@ -561,7 +710,7 @@ class UnificationTests {
       assertEquals("42", n.display());
 
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(s, n, bindings);
+      final var result = unify(s, n, bindings);
 
       // They fail to unify because they're different types
       assertTrue(result.isEmpty());
@@ -573,7 +722,7 @@ class UnificationTests {
       final var i = NumericConstant.of(42);
       final var l = NumericConstant.of(42L);
 
-      final var result = Unifier.unify(i, l);
+      final var result = unify(i, l);
 
       assertTrue(result.isPresent());
     }
@@ -584,7 +733,7 @@ class UnificationTests {
       final var i = NumericConstant.of(5);
       final var d = NumericConstant.of(5.0);
 
-      final var result = Unifier.unify(i, d);
+      final var result = unify(i, d);
 
       assertTrue(result.isPresent());
     }
@@ -595,7 +744,7 @@ class UnificationTests {
       final var n1 = NumericConstant.of(5);
       final var n2 = NumericConstant.of(6);
 
-      final var result = Unifier.unify(n1, n2);
+      final var result = unify(n1, n2);
 
       assertTrue(result.isEmpty());
     }
@@ -606,7 +755,7 @@ class UnificationTests {
       final var d1 = NumericConstant.of(3.14);
       final var d2 = NumericConstant.of(3.14);
 
-      final var result = Unifier.unify(d1, d2);
+      final var result = unify(d1, d2);
 
       assertTrue(result.isPresent());
     }
@@ -617,7 +766,7 @@ class UnificationTests {
       final var n1 = NumericConstant.parse("42");
       final var n2 = NumericConstant.of(42);
 
-      final var result = Unifier.unify(n1, n2);
+      final var result = unify(n1, n2);
 
       assertTrue(result.isPresent());
     }
@@ -629,7 +778,7 @@ class UnificationTests {
       final var s2 = new StringConstant("");
 
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(s1, s2, bindings);
+      final var result = unify(s1, s2, bindings);
 
       assertTrue(result.isPresent());
     }
@@ -637,11 +786,11 @@ class UnificationTests {
     @Test
     @DisplayName("Identical boolean constants unify")
     void identical_booleans_unify() {
-      final var result1 = Unifier.unify(BooleanConstant.TRUE, BooleanConstant.TRUE);
+      final var result1 = unify(BooleanConstant.TRUE, BooleanConstant.TRUE);
       assertTrue(result1.isPresent());
       assertEquals(BooleanConstant.TRUE, result1.get());
 
-      final var result2 = Unifier.unify(BooleanConstant.FALSE, BooleanConstant.FALSE);
+      final var result2 = unify(BooleanConstant.FALSE, BooleanConstant.FALSE);
       assertTrue(result2.isPresent());
       assertEquals(BooleanConstant.FALSE, result2.get());
     }
@@ -649,7 +798,7 @@ class UnificationTests {
     @Test
     @DisplayName("Different boolean constants fail to unify")
     void different_booleans_dont_unify() {
-      final var result = Unifier.unify(BooleanConstant.TRUE, BooleanConstant.FALSE);
+      final var result = unify(BooleanConstant.TRUE, BooleanConstant.FALSE);
       assertTrue(result.isEmpty());
     }
 
@@ -663,7 +812,7 @@ class UnificationTests {
       assertEquals("true", b.display());
       assertEquals("true", s.display());
 
-      final var result = Unifier.unify(b, s);
+      final var result = unify(b, s);
       assertTrue(result.isEmpty());
     }
 
@@ -671,7 +820,7 @@ class UnificationTests {
     @DisplayName("Boolean and numeric fail to unify")
     void boolean_and_numeric_distinct() {
       // Some languages treat true as 1, but we don't
-      final var result = Unifier.unify(BooleanConstant.TRUE, NumericConstant.of(1));
+      final var result = unify(BooleanConstant.TRUE, NumericConstant.of(1));
       assertTrue(result.isEmpty());
     }
   }
@@ -686,7 +835,7 @@ class UnificationTests {
       final var a = new StringConstant("sing");
 
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(v, a, bindings);
+      final var result = unify(v, a, bindings);
 
       assertTrue(result.isPresent());
       assertEquals(a, result.get());
@@ -700,7 +849,7 @@ class UnificationTests {
       final var b = BooleanConstant.TRUE;
 
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(v, b, bindings);
+      final var result = unify(v, b, bindings);
 
       assertTrue(result.isPresent());
       assertEquals(b, result.get());
@@ -714,7 +863,7 @@ class UnificationTests {
       final var v2 = Variable.of("?y");
 
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(v1, v2, bindings);
+      final var result = unify(v1, v2, bindings);
 
       assertTrue(result.isPresent());
       assertInstanceOf(Variable.class, result.get());
@@ -728,7 +877,7 @@ class UnificationTests {
       final var v = Variable.of("?x");
 
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(v, v, bindings);
+      final var result = unify(v, v, bindings);
 
       assertTrue(result.isPresent());
       assertEquals(v, result.get());
@@ -745,7 +894,7 @@ class UnificationTests {
       bindings.put("x", v2);
       bindings.put("y", a);
 
-      final var result = Unifier.unify(v1, a, bindings);
+      final var result = unify(v1, a, bindings);
       assertTrue(result.isPresent());
       assertEquals(a, result.get());
     }
@@ -757,7 +906,7 @@ class UnificationTests {
       final var fs = Structure.builder().with("feature", v).build();
 
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(v, fs, bindings);
+      final var result = unify(v, fs, bindings);
 
       assertTrue(result.isEmpty());
     }
@@ -770,7 +919,7 @@ class UnificationTests {
       final var outer = Structure.builder().with("outer", inner).build();
 
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(v, outer, bindings);
+      final var result = unify(v, outer, bindings);
 
       assertTrue(result.isEmpty());
     }
@@ -782,7 +931,7 @@ class UnificationTests {
       final var n = NumericConstant.of(42);
 
       final var bindings = new HashMap<String, Value>();
-      final var result = Unifier.unify(v, n, bindings);
+      final var result = unify(v, n, bindings);
 
       assertTrue(result.isPresent());
       assertEquals(n, result.get());
@@ -799,7 +948,7 @@ class UnificationTests {
       final var fs1 = Structure.builder().with("num", "sing").with("person", "3").build();
       final var fs2 = Structure.builder().with("case", "nom").build();
 
-      final var result = Unifier.unify(fs1, fs2);
+      final var result = unify(fs1, fs2);
 
       assertTrue(result.isPresent());
       final var unified = result.get();
@@ -814,7 +963,7 @@ class UnificationTests {
       final var fs1 = Structure.builder().with("num", "sing").with("person", "3").build();
       final var fs2 = Structure.builder().with("num", "sing").build();
 
-      final var result = Unifier.unify(fs1, fs2);
+      final var result = unify(fs1, fs2);
 
       assertTrue(result.isPresent());
       final var unified = result.get();
@@ -828,7 +977,7 @@ class UnificationTests {
       final var fs1 = Structure.builder().with("num", "sing").build();
       final var fs2 = Structure.builder().with("num", "plur").build();
 
-      final var result = Unifier.unify(fs1, fs2);
+      final var result = unify(fs1, fs2);
 
       assertTrue(result.isEmpty());
     }
@@ -840,7 +989,7 @@ class UnificationTests {
       final var fs1 = Structure.builder().with("num", numVar).build();
       final var fs2 = Structure.builder().with("num", "sing").build();
 
-      final var result = Unifier.unify(fs1, fs2);
+      final var result = unify(fs1, fs2);
 
       assertTrue(result.isPresent());
       final var unified = result.get();
@@ -853,7 +1002,7 @@ class UnificationTests {
       final var fs1 = Structure.builder().build();
       final var fs2 = Structure.builder().build();
 
-      final var result = Unifier.unify(fs1, fs2);
+      final var result = unify(fs1, fs2);
 
       assertTrue(result.isPresent());
       assertTrue(result.get().isEmpty());
@@ -868,7 +1017,7 @@ class UnificationTests {
       final var inner2 = Structure.builder().with("case", "nom").build();
       final var fs2 = Structure.builder().with("agr", inner2).build();
 
-      final var result = Unifier.unify(fs1, fs2);
+      final var result = unify(fs1, fs2);
 
       assertTrue(result.isPresent());
       final var unified = result.get();
@@ -888,7 +1037,7 @@ class UnificationTests {
       final var inner2 = Structure.builder().with("case", "acc").build();
       final var fs2 = Structure.builder().with("agr", inner2).build();
 
-      final var result = Unifier.unify(fs1, fs2);
+      final var result = unify(fs1, fs2);
 
       assertTrue(result.isEmpty());
     }
@@ -899,7 +1048,7 @@ class UnificationTests {
       final var fs1 = Structure.builder().with("count", 5L).build();
       final var fs2 = Structure.builder().with("count", 5L).build();
 
-      final var result = Unifier.unify(fs1, fs2);
+      final var result = unify(fs1, fs2);
 
       assertTrue(result.isPresent());
       final var unified = result.get();
@@ -917,7 +1066,7 @@ class UnificationTests {
       final var fs1 = Structure.builder().with("subj_num", v).with("verb_num", v).build();
       final var fs2 = Structure.builder().with("subj_num", "sing").build();
 
-      final var result = Unifier.unify(fs1, fs2);
+      final var result = unify(fs1, fs2);
 
       assertTrue(result.isPresent());
       final var unified = result.get();
@@ -935,11 +1084,11 @@ class UnificationTests {
       final var bindings = new HashMap<String, Value>();
 
       // x = y
-      Unifier.unify(v1, v2, bindings);
+      unify(v1, v2, bindings);
       // y = z
-      Unifier.unify(v2, v3, bindings);
+      unify(v2, v3, bindings);
       // z = "value"
-      final var result = Unifier.unify(v3, new StringConstant("value"), bindings);
+      final var result = unify(v3, new StringConstant("value"), bindings);
 
       assertTrue(result.isPresent());
       assertEquals("value", ((StringConstant) result.get()).value());
@@ -959,7 +1108,7 @@ class UnificationTests {
       final var fs2 =
           Structure.builder().with("agr", Structure.builder().with("num", "plur").build()).build();
 
-      final var result = Unifier.unify(fs1, fs2);
+      final var result = unify(fs1, fs2);
 
       assertTrue(result.isPresent());
       final var unified = result.get();
@@ -980,7 +1129,7 @@ class UnificationTests {
 
       final var fs2 = Structure.builder().with("a", "value").build();
 
-      final var result = Unifier.unify(fs1, fs2);
+      final var result = unify(fs1, fs2);
 
       assertTrue(result.isPresent());
       final var unified = result.get();
@@ -1006,7 +1155,7 @@ class UnificationTests {
 
       final var fs2 = Structure.builder().with("var", "bound").with("extra", "new").build();
 
-      final var result = Unifier.unify(fs1, fs2);
+      final var result = unify(fs1, fs2);
 
       assertTrue(result.isPresent());
       final var unified = result.get();

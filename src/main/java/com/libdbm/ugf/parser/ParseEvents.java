@@ -1,176 +1,119 @@
 package com.libdbm.ugf.parser;
 
-import com.libdbm.ugf.constraints.Constraint;
-import com.libdbm.ugf.constraints.Result;
 import com.libdbm.ugf.features.Structure;
 import com.libdbm.ugf.features.Value;
-import com.libdbm.ugf.grammar.Grammar;
-import com.libdbm.ugf.grammar.GrammarRule;
-import com.libdbm.ugf.grammar.RuleElement;
-
+import com.libdbm.ugf.lexer.Graph;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
- * Event records for parser observation.
- *
- * <p>Each record captures the state at a specific point during parsing. All records are immutable
- * snapshots - they copy mutable data to prevent observers from seeing changes after the event.
+ * Events delivered to a {@link ParseObserver}. Every event carries public data only (PAR-12), and
+ * none is created when the observer is {@link ParseObserver#NOOP} (PAR-8). Positions are token
+ * graph node ids.
  */
 public final class ParseEvents {
 
-    private ParseEvents() {
-    }
+  private ParseEvents() {}
 
-    /**
-     * Fired when parsing begins.
-     *
-     * @param lattice the token lattice (each position may have multiple token alternatives)
-     * @param grammar the grammar being used
-     * @param start   the start symbol
-     */
-    public record Start(List<List<Token>> lattice, Grammar grammar, String start) {
-        public Start {
-            lattice = lattice.stream().map(List::copyOf).toList();
-        }
-    }
+  /**
+   * Parsing begins.
+   *
+   * @param graph the token graph being parsed
+   * @param start the symbol being parsed
+   */
+  public record Start(Graph graph, String start) {}
 
-    /**
-     * Fired when parsing completes (success or failure).
-     *
-     * @param result  the parse result (may have null tree if failed)
-     * @param elapsed time spent parsing
-     */
-    public record End(ParseResult result, Duration elapsed) {
-    }
+  /**
+   * Parsing ends.
+   *
+   * @param result the result
+   * @param elapsed time spent, including lexing
+   */
+  public record End(ParseResult result, Duration elapsed) {}
 
-    /**
-     * Fired when predict operation considers a rule.
-     *
-     * @param position the chart position
-     * @param trigger  the nonterminal that triggered prediction
-     * @param rule     the predicted rule
-     * @param accepted whether the rule was added to the chart
-     * @param reason   if rejected, the reason why
-     * @param item     the item added (null if rejected)
-     */
-    public record Predict(
-            int position,
-            RuleElement.Nonterminal trigger,
-            GrammarRule rule,
-            boolean accepted,
-            String reason,
-            Item item) {
-    }
+  /**
+   * A production was predicted at a node.
+   *
+   * @param position the node
+   * @param symbol the symbol predicted
+   * @param production the production's id
+   */
+  public record Predict(int position, String symbol, int production) {}
 
-    /**
-     * Fired when scan operation attempts to match a token.
-     *
-     * @param position the chart position
-     * @param item     the item being scanned
-     * @param token    the token being matched
-     * @param matched  whether the token matched
-     * @param leaf     the leaf node created (null if not matched)
-     * @param advanced the advanced item (null if not matched)
-     */
-    public record Scan(
-            int position, Item item, Token token, boolean matched, ParseTree.Leaf leaf, Item advanced) {
-    }
+  /**
+   * A token was consumed.
+   *
+   * @param position the node the token leaves from
+   * @param category the token's category
+   * @param text the token's text
+   */
+  public record Scan(int position, String category, String text) {}
 
-    /**
-     * Fired when complete operation processes a completed item.
-     *
-     * @param position  the chart position
-     * @param completed the completed item
-     * @param waiting   items at origin waiting for this symbol
-     * @param advanced  items that were advanced (may be fewer than waiting due to unification failure)
-     * @param result    result of constraint evaluation on completed item
-     */
-    public record Complete(
-            int position, Item completed, List<Item> waiting, List<Item> advanced, Result result) {
-        public Complete {
-            waiting = List.copyOf(waiting);
-            advanced = List.copyOf(advanced);
-        }
-    }
+  /**
+   * A constituent was completed.
+   *
+   * @param origin the node where it starts
+   * @param position the node where it ends
+   * @param symbol its symbol
+   * @param production the production's id
+   * @param penalty its total penalty
+   */
+  public record Complete(int origin, int position, String symbol, int production, long penalty) {}
 
-    /**
-     * Fired when feature unification is attempted during complete.
-     *
-     * @param position  the chart position
-     * @param waiting   the waiting item's features
-     * @param completed the completed item's features
-     * @param target    the target features from the nonterminal reference
-     * @param result    the unified features if successful
-     * @param bindings  variable bindings after unification
-     */
-    public record Unification(
-            int position,
-            Structure waiting,
-            Structure completed,
-            Structure target,
-            Optional<Structure> result,
-            Map<String, Value> bindings) {
-        public Unification {
-            waiting = waiting.copy();
-            completed = completed.copy();
-            target = target.copy();
-            result = result.map(Structure::copy);
-            bindings = Map.copyOf(bindings);
-        }
+  /**
+   * Features written on an element were unified with a child's features.
+   *
+   * @param position the node where the child ends
+   * @param waiting the waiting production's left-hand features
+   * @param completed the child's features
+   * @param target the features written on the element
+   * @param result the unified features if unification succeeded
+   * @param bindings the bindings after unification
+   */
+  public record Unification(
+      int position,
+      Structure waiting,
+      Structure completed,
+      Structure target,
+      Optional<Structure> result,
+      Map<String, Value> bindings) {
+    public Unification {
+      bindings = Map.copyOf(bindings);
     }
+  }
 
-    /**
-     * Fired when constraints are evaluated.
-     *
-     * @param position    the chart position
-     * @param rule        the rule whose constraints are being evaluated
-     * @param constraints the constraints being evaluated
-     * @param result      the evaluation result
-     * @param phase       when the constraints were evaluated (predict or complete)
-     */
-    public record ConstraintEval(
-            int position, GrammarRule rule, List<Constraint> constraints, Result result, Phase phase) {
-        public ConstraintEval {
-            constraints = List.copyOf(constraints);
-        }
+  /**
+   * A production's constraints were evaluated.
+   *
+   * @param position the node where the constituent ends
+   * @param symbol the production's symbol
+   * @param expression the constraints, rendered
+   * @param passed whether every required expression held
+   * @param penalty the weights of false soft groups, when it passed
+   */
+  public record ConstraintEval(
+      int position, String symbol, String expression, boolean passed, long penalty) {}
 
-        /**
-         * When constraints are evaluated.
-         */
-        public enum Phase {
-            PREDICT,
-            COMPLETE,
-            EXTRACT
-        }
+  /**
+   * A node's agenda was finished.
+   *
+   * @param position the node
+   * @param states the states in its chart
+   */
+  public record Position(int position, int states) {}
+
+  /**
+   * No token matched at a position, so the lexer produced an error token (S-L5).
+   *
+   * @param position the node
+   * @param token the unmatched text
+   * @param expected elements the chart expected there
+   */
+  public record Unexpected(int position, String token, Set<String> expected) {
+    public Unexpected {
+      expected = Set.copyOf(expected);
     }
-
-    /**
-     * Fired when processing at a chart position completes.
-     *
-     * @param position   the chart position
-     * @param items      all items in the cell
-     * @param complete   count of complete items
-     * @param incomplete count of incomplete items
-     */
-    public record Position(int position, List<Item> items, int complete, int incomplete) {
-        public Position {
-            items = List.copyOf(items);
-        }
-    }
-
-    /**
-     * Fired when a token is unexpected at a position.
-     *
-     * @param position the chart position
-     * @param token    the unexpected token
-     * @param expected symbols that were expected
-     */
-    public record Unexpected(int position, String token, java.util.Set<String> expected) {
-        public Unexpected {
-            expected = java.util.Set.copyOf(expected);
-        }
-    }
+  }
 }

@@ -1,0 +1,518 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "a=1\nb\n# c\n",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "propertiesFile",
+        "children": [
+          {
+            "symbol": "row",
+            "children": [
+              {
+                "symbol": "line",
+                "children": [
+                  {
+                    "symbol": "key",
+                    "children": [
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": "a",
+                            "start": 0,
+                            "end": 1
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "DELIMITER",
+                    "children": [
+                      {
+                        "text": "=",
+                        "start": 1,
+                        "end": 2
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "key",
+                    "children": [
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": "1",
+                            "start": 2,
+                            "end": 3
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "eol",
+                    "children": [
+                      {
+                        "symbol": "NEWLINE",
+                        "children": [
+                          {
+                            "text": "\n",
+                            "start": 3,
+                            "end": 4
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "row",
+            "children": [
+              {
+                "symbol": "line",
+                "children": [
+                  {
+                    "symbol": "key",
+                    "children": [
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": "b",
+                            "start": 4,
+                            "end": 5
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "eol",
+                    "children": [
+                      {
+                        "symbol": "NEWLINE",
+                        "children": [
+                          {
+                            "text": "\n",
+                            "start": 5,
+                            "end": 6
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "row",
+            "children": [
+              {
+                "symbol": "comment",
+                "children": [
+                  {
+                    "symbol": "COMMENT",
+                    "children": [
+                      {
+                        "text": "# c",
+                        "start": 6,
+                        "end": 9
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "eol",
+                    "children": [
+                      {
+                        "symbol": "NEWLINE",
+                        "children": [
+                          {
+                            "text": "\n",
+                            "start": 9,
+                            "end": 10
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "k =\nv : x y \n",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "propertiesFile",
+        "children": [
+          {
+            "symbol": "row",
+            "children": [
+              {
+                "symbol": "line",
+                "children": [
+                  {
+                    "symbol": "key",
+                    "children": [
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": "k",
+                            "start": 0,
+                            "end": 1
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": " ",
+                            "start": 1,
+                            "end": 2
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "DELIMITER",
+                    "children": [
+                      {
+                        "text": "=",
+                        "start": 2,
+                        "end": 3
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "eol",
+                    "children": [
+                      {
+                        "symbol": "NEWLINE",
+                        "children": [
+                          {
+                            "text": "\n",
+                            "start": 3,
+                            "end": 4
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "row",
+            "children": [
+              {
+                "symbol": "line",
+                "children": [
+                  {
+                    "symbol": "key",
+                    "children": [
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": "v",
+                            "start": 4,
+                            "end": 5
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": " ",
+                            "start": 5,
+                            "end": 6
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "DELIMITER",
+                    "children": [
+                      {
+                        "text": ":",
+                        "start": 6,
+                        "end": 7
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "key",
+                    "children": [
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": " ",
+                            "start": 7,
+                            "end": 8
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": "x",
+                            "start": 8,
+                            "end": 9
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": " ",
+                            "start": 9,
+                            "end": 10
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": "y",
+                            "start": 10,
+                            "end": 11
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": " ",
+                            "start": 11,
+                            "end": 12
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "eol",
+                    "children": [
+                      {
+                        "symbol": "NEWLINE",
+                        "children": [
+                          {
+                            "text": "\n",
+                            "start": 12,
+                            "end": 13
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "a=b\\\n c",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "propertiesFile",
+        "children": [
+          {
+            "symbol": "row",
+            "children": [
+              {
+                "symbol": "line",
+                "children": [
+                  {
+                    "symbol": "key",
+                    "children": [
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": "a",
+                            "start": 0,
+                            "end": 1
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "DELIMITER",
+                    "children": [
+                      {
+                        "text": "=",
+                        "start": 1,
+                        "end": 2
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "key",
+                    "children": [
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": "b",
+                            "start": 2,
+                            "end": 3
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": "\\\n",
+                            "start": 3,
+                            "end": 5
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": " ",
+                            "start": 5,
+                            "end": 6
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": "c",
+                            "start": 6,
+                            "end": 7
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "eol",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "\n\na\n",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "propertiesFile",
+        "children": [
+          {
+            "symbol": "NEWLINE",
+            "children": [
+              {
+                "text": "\n\n",
+                "start": 0,
+                "end": 2
+              }
+            ]
+          },
+          {
+            "symbol": "row",
+            "children": [
+              {
+                "symbol": "line",
+                "children": [
+                  {
+                    "symbol": "key",
+                    "children": [
+                      {
+                        "symbol": "CHARACTER",
+                        "children": [
+                          {
+                            "text": "a",
+                            "start": 2,
+                            "end": 3
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "eol",
+                    "children": [
+                      {
+                        "symbol": "NEWLINE",
+                        "children": [
+                          {
+                            "text": "\n",
+                            "start": 3,
+                            "end": 4
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "propertiesFile",
+        "children": []
+      }
+    },
+    {
+      "input": "a#b",
+      "outcome": "rejected"
+    },
+    {
+      "input": "=x",
+      "outcome": "rejected"
+    }
+  ]
+}

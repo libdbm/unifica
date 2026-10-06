@@ -1,0 +1,6 @@
+{a: 'x',}
+-Infinity
+[null, // c\n 0x1F]
+
+{true: 1}
+{a: 1,,}

@@ -4,6 +4,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.libdbm.ugf.features.StringConstant;
 import com.libdbm.ugf.features.Structure;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -60,7 +65,7 @@ class VocabularyTests {
       final var empty = Vocabulary.empty();
 
       assertTrue(empty.byFeatures(Structure.builder().with("type", "noun").build()).isEmpty());
-      assertTrue(empty.byPattern("[a-z]+", new Structure()).isEmpty());
+      assertTrue(empty.byPattern("[a-z]+", Structure.EMPTY).isEmpty());
     }
   }
 
@@ -188,7 +193,7 @@ class VocabularyTests {
     @Test
     @DisplayName("finds words by regex pattern")
     void finds_by_pattern() {
-      final var matches = vocab.byPattern("c.*", new Structure());
+      final var matches = vocab.byPattern("c.*", Structure.EMPTY);
 
       assertEquals(2, matches.size());
       assertTrue(matches.contains("cat"));
@@ -208,7 +213,7 @@ class VocabularyTests {
     @Test
     @DisplayName("matches full word")
     void matches_full_word() {
-      final var matches = vocab.byPattern("cat", new Structure());
+      final var matches = vocab.byPattern("cat", Structure.EMPTY);
 
       assertEquals(1, matches.size());
       assertTrue(matches.contains("cat"));
@@ -218,8 +223,8 @@ class VocabularyTests {
     @DisplayName("caches pattern results")
     void caches_patterns() {
       // Call twice - second should use cache
-      final var first = vocab.byPattern("[a-z]+", new Structure());
-      final var second = vocab.byPattern("[a-z]+", new Structure());
+      final var first = vocab.byPattern("[a-z]+", Structure.EMPTY);
+      final var second = vocab.byPattern("[a-z]+", Structure.EMPTY);
 
       assertEquals(first.size(), second.size());
     }
@@ -249,7 +254,7 @@ class VocabularyTests {
     @Test
     @DisplayName("empty constraints return all entries")
     void empty_constraints() {
-      final var all = vocab.byFeatures(new Structure());
+      final var all = vocab.byFeatures(Structure.EMPTY);
 
       assertEquals(9, all.size());
     }
@@ -268,5 +273,54 @@ class VocabularyTests {
       assertEquals(1, result.size());
       assertTrue(result.contains("runs"));
     }
+  }
+
+  @Test
+  void testByPatternIsThreadSafe() throws Exception {
+    final var builder = Vocabulary.builder();
+    for (var i = 0; i < 200; i++) {
+      builder.add("w" + i, Structure.EMPTY);
+    }
+    final var vocabulary = builder.build();
+    final var executor = Executors.newFixedThreadPool(8);
+    try {
+      final var futures = new ArrayList<Future<Integer>>();
+      for (var thread = 0; thread < 8; thread++) {
+        final var digit = thread;
+        futures.add(
+            executor.submit(
+                () -> vocabulary.byPattern("w" + digit + "[0-9]*", Structure.EMPTY).size()));
+      }
+      for (var thread = 0; thread < 8; thread++) {
+        assertEquals(
+            vocabulary.byPattern("w" + thread + "[0-9]*", Structure.EMPTY).size(),
+            futures.get(thread).get());
+      }
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
+  /** GEN-9: a pattern equivalent to a registered one, written differently, uses that generator. */
+  @Test
+  void testRegexGeneratorMatchesEquivalentPattern() {
+    final var generator = RegexTerminalGenerator.forNumbers(new Random(1));
+
+    final var token = generator.generate("[0-9][0-9]*", Structure.EMPTY).orElseThrow();
+
+    assertTrue(token.matches("[0-9]+"), token);
+    assertEquals("[a-z]+", generator.generate("[a-z]+", Structure.EMPTY).orElseThrow());
+  }
+
+  /** Review: the pattern cache is bounded, like the builtin regex cache. */
+  @Test
+  void testPatternCacheBounded() {
+    final var vocabulary = Vocabulary.builder().add("dog", Structure.EMPTY).build();
+    for (var index = 0; index < 1_000; index++) {
+      vocabulary.byPattern("d[o]g|x" + index, Structure.EMPTY);
+    }
+
+    assertTrue(vocabulary.cached() <= Vocabulary.PATTERNS, "cached: " + vocabulary.cached());
+    assertEquals(List.of("dog"), vocabulary.byPattern("d[o]g|x1", Structure.EMPTY));
   }
 }

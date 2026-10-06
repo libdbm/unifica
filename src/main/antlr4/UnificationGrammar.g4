@@ -11,7 +11,9 @@ statement
     | importStmt
     | exportStmt
     | startStmt
-    | rule
+    | skipStmt
+    | whitespaceStmt
+    | production
     ;
 
 moduleStmt
@@ -45,25 +47,43 @@ startStmt
     : 'start' IDENTIFIER ';'
     ;
 
-rule
+// Lexical categories matched and discarded between tokens, like whitespace (S-L4)
+skipStmt
+    : 'skip' IDENTIFIER (',' IDENTIFIER)* ';'
+    ;
+
+// Replaces the default whitespace (\s+) skipped between tokens; 'none' disables it (S-L4)
+whitespaceStmt
+    : 'whitespace' (regex | IDENTIFIER) ';'      // the identifier must be 'none'
+    ;
+
+production
     : lexicalRule
     | grammarRule
     ;
 
 // Lexical rules: RHS is terminals/regexes only, allows state constructs
 lexicalRule
-    : lhs '-->' lexicalRhs whereClause? stateTransition? ';'
+    : lhs '-->' lexicalRhs ('|' lexicalRhs)* whereClause? stateTransition? costClause? ';'
     ;
 
 // Grammar rules: RHS can have nonterminals, NO state constructs
+// Top-level '|' separates alternatives; each becomes its own production. An empty alternative
+// is an empty production.
 grammarRule
-    : lhs '-->' rhs whereClause? ';'
+    : lhs '-->' rhs ('|' rhs)* whereClause? costClause? ';'
+    ;
+
+// Production cost (S-P7): added to the penalty whenever the production is used
+costClause
+    : '@' NUMBER
     ;
 
 stateTransition
     : '==>' IDENTIFIER         #pushState
     | '==>' '_'                #popState
     | '==>' '!' IDENTIFIER     #resetState
+    | '==>' '^' IDENTIFIER     #replaceState
     ;
 
 lhs
@@ -71,7 +91,7 @@ lhs
     ;
 
 rhs
-    : element+
+    : element*
     ;
 
 // Lexical RHS: only terminals, regexes, state annotations
@@ -81,7 +101,7 @@ lexicalRhs
 
 lexicalElement
     : labeledLexicalElement quantifier?
-    | lexicalAlternation quantifier?
+    | lexicalGroup quantifier?
     ;
 
 labeledLexicalElement
@@ -93,20 +113,20 @@ baseLexicalElement
     | regex
     | stateAnnotation
     | tokenMatch
-    | '(' lexicalElement ')'
     ;
 
-lexicalAlternation
-    : '(' lexicalAltOption ('|' lexicalAltOption)+ ')'
+// A parenthesised group: a sequence, or alternatives that are each a sequence (S-G4)
+lexicalGroup
+    : '(' lexicalSequence ('|' lexicalSequence)* ')'
     ;
 
-lexicalAltOption
-    : lexicalElement
+lexicalSequence
+    : lexicalElement*
     ;
 
 element
     : labeledElement quantifier?
-    | alternation quantifier?
+    | group quantifier?
     ;
 
 labeledElement
@@ -118,7 +138,6 @@ baseElement
     | terminal
     | regex
     | tokenMatch
-    | '(' element ')'
     ;
 
 // Special case used for grammars with no lexical rules
@@ -156,13 +175,15 @@ featureValue
     | featureStruct    // nested structure
     ;
 
-alternation
-    : '(' altOption ('|' altOption)+ ')'
+// A parenthesised group: a sequence, or alternatives that are each a sequence (S-G4)
+group
+    : '(' sequence ('|' sequence)* ')'
     ;
 
-altOption
-    : element
+sequence
+    : element*
     ;
+
 
 quantifier
     : '*'   // zero or more
@@ -229,15 +250,27 @@ fragment ESC_SEQ
     ;
 
 REGEX
-    : '[' (~[\]\\] | '\\' .)+ ']' [+*?]?          // character class
-    | '(?:' RegexContent ')' [+*?]?               // non-capturing group
-    | '(?!' RegexContent ')' [+*?]?               // negative lookahead
-    | '(?=' RegexContent ')' [+*?]?               // positive lookahead
-    | '.' [+*?]?                                  // dot metacharacter
+    : RegexClass Quantity?                        // character class
+    | '(?:' RegexContent ')' Quantity?            // non-capturing group
+    | '(?!' RegexContent ')' Quantity?            // negative lookahead
+    | '(?=' RegexContent ')' Quantity?            // positive lookahead
+    | '(?<!' RegexContent ')'                     // negative lookbehind
+    | '(?<=' RegexContent ')'                     // positive lookbehind
+    | '.' Quantity?                               // dot metacharacter
     ;
 
+fragment RegexClass
+    : '[' (~[\]\\] | '\\' .)+ ']'
+    ;
+
+// Greedy, lazy (?) or possessive (+) quantifiers, including bounded {n}, {n,} and {n,m}
+fragment Quantity
+    : ([+*?] | '{' [0-9]+ (',' [0-9]*)? '}') [?+]?
+    ;
+
+// Group contents: parentheses nest, and a character class may contain parentheses
 fragment RegexContent
-    : (~[)\\] | '\\' . | '(' RegexContent ')')*
+    : (~[)(\\[] | '\\' . | '(' RegexContent ')' | RegexClass)*
     ;
 
 NUMBER

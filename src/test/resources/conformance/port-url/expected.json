@@ -1,0 +1,484 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "http://[::1]:80/",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "url",
+        "children": [
+          {
+            "symbol": "uri",
+            "children": [
+              {
+                "symbol": "scheme",
+                "children": [
+                  {
+                    "symbol": "string",
+                    "children": [
+                      {
+                        "symbol": "STRING",
+                        "children": [
+                          {
+                            "text": "http",
+                            "start": 0,
+                            "end": 4
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "://",
+                "start": 4,
+                "end": 7
+              },
+              {
+                "symbol": "host",
+                "children": [
+                  {
+                    "symbol": "hostname",
+                    "children": [
+                      {
+                        "text": "[",
+                        "start": 7,
+                        "end": 8
+                      },
+                      {
+                        "symbol": "v6host",
+                        "children": [
+                          {
+                            "text": "::",
+                            "start": 8,
+                            "end": 10
+                          },
+                          {
+                            "symbol": "string",
+                            "children": [
+                              {
+                                "symbol": "DIGITS",
+                                "children": [
+                                  {
+                                    "text": "1",
+                                    "start": 10,
+                                    "end": 11
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "text": "]",
+                        "start": 11,
+                        "end": 12
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": ":",
+                "start": 12,
+                "end": 13
+              },
+              {
+                "symbol": "port",
+                "children": [
+                  {
+                    "symbol": "DIGITS",
+                    "children": [
+                      {
+                        "text": "80",
+                        "start": 13,
+                        "end": 15
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "/",
+                "start": 15,
+                "end": 16
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "a://h?x=%20",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "url",
+        "children": [
+          {
+            "symbol": "uri",
+            "children": [
+              {
+                "symbol": "scheme",
+                "children": [
+                  {
+                    "symbol": "string",
+                    "children": [
+                      {
+                        "symbol": "STRING",
+                        "children": [
+                          {
+                            "text": "a",
+                            "start": 0,
+                            "end": 1
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "://",
+                "start": 1,
+                "end": 4
+              },
+              {
+                "symbol": "host",
+                "children": [
+                  {
+                    "symbol": "hostname",
+                    "children": [
+                      {
+                        "symbol": "string",
+                        "children": [
+                          {
+                            "symbol": "STRING",
+                            "children": [
+                              {
+                                "text": "h",
+                                "start": 4,
+                                "end": 5
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "symbol": "query",
+                "children": [
+                  {
+                    "text": "?",
+                    "start": 5,
+                    "end": 6
+                  },
+                  {
+                    "symbol": "search",
+                    "children": [
+                      {
+                        "symbol": "searchparameter",
+                        "children": [
+                          {
+                            "symbol": "string",
+                            "children": [
+                              {
+                                "symbol": "STRING",
+                                "children": [
+                                  {
+                                    "text": "x",
+                                    "start": 6,
+                                    "end": 7
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "text": "=",
+                            "start": 7,
+                            "end": 8
+                          },
+                          {
+                            "symbol": "HEX",
+                            "children": [
+                              {
+                                "text": "%20",
+                                "start": 8,
+                                "end": 11
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "s://h:8080",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "url",
+        "children": [
+          {
+            "symbol": "uri",
+            "children": [
+              {
+                "symbol": "scheme",
+                "children": [
+                  {
+                    "symbol": "string",
+                    "children": [
+                      {
+                        "symbol": "STRING",
+                        "children": [
+                          {
+                            "text": "s",
+                            "start": 0,
+                            "end": 1
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "://",
+                "start": 1,
+                "end": 4
+              },
+              {
+                "symbol": "host",
+                "children": [
+                  {
+                    "symbol": "hostname",
+                    "children": [
+                      {
+                        "symbol": "string",
+                        "children": [
+                          {
+                            "symbol": "STRING",
+                            "children": [
+                              {
+                                "text": "h",
+                                "start": 4,
+                                "end": 5
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": ":",
+                "start": 5,
+                "end": 6
+              },
+              {
+                "symbol": "port",
+                "children": [
+                  {
+                    "symbol": "DIGITS",
+                    "children": [
+                      {
+                        "text": "8080",
+                        "start": 6,
+                        "end": 10
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "http://h:80a/",
+      "outcome": "rejected"
+    },
+    {
+      "input": "http//h",
+      "outcome": "rejected"
+    },
+    {
+      "input": "a://h\n\n",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "url",
+        "children": [
+          {
+            "symbol": "uri",
+            "children": [
+              {
+                "symbol": "scheme",
+                "children": [
+                  {
+                    "symbol": "string",
+                    "children": [
+                      {
+                        "symbol": "STRING",
+                        "children": [
+                          {
+                            "text": "a",
+                            "start": 0,
+                            "end": 1
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "://",
+                "start": 1,
+                "end": 4
+              },
+              {
+                "symbol": "host",
+                "children": [
+                  {
+                    "symbol": "hostname",
+                    "children": [
+                      {
+                        "symbol": "string",
+                        "children": [
+                          {
+                            "symbol": "STRING",
+                            "children": [
+                              {
+                                "text": "h",
+                                "start": 4,
+                                "end": 5
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "symbol": "WS",
+                "children": [
+                  {
+                    "text": "\n\n",
+                    "start": 5,
+                    "end": 7
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "http :// h",
+      "outcome": "rejected"
+    },
+    {
+      "input": "a://h\r\n",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "url",
+        "children": [
+          {
+            "symbol": "uri",
+            "children": [
+              {
+                "symbol": "scheme",
+                "children": [
+                  {
+                    "symbol": "string",
+                    "children": [
+                      {
+                        "symbol": "STRING",
+                        "children": [
+                          {
+                            "text": "a",
+                            "start": 0,
+                            "end": 1
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "://",
+                "start": 1,
+                "end": 4
+              },
+              {
+                "symbol": "host",
+                "children": [
+                  {
+                    "symbol": "hostname",
+                    "children": [
+                      {
+                        "symbol": "string",
+                        "children": [
+                          {
+                            "symbol": "STRING",
+                            "children": [
+                              {
+                                "text": "h",
+                                "start": 4,
+                                "end": 5
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "symbol": "WS",
+                "children": [
+                  {
+                    "text": "\r\n",
+                    "start": 5,
+                    "end": 7
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

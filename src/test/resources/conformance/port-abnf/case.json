@@ -1,0 +1,4 @@
+{
+  "rules": ["S-G1", "S-G3", "S-G4", "S-L2", "S-L4", "S-P1", "S-P8"],
+  "description": "Port of grammars-v4 ABNF: alternation and repetition prefixes, numeric values as single tokens, skipped comments, and rule boundaries found without a terminator."
+}

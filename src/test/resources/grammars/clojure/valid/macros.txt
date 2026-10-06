@@ -1,0 +1,23 @@
+(ns example.macros
+  (:require [clojure.string :as str]))
+
+; A macro using syntax quote, unquote, unquote-splicing and gensyms.
+(defmacro with-timing [label & body]
+  `(let [start# (System/nanoTime)
+         result# (do ~@body)]
+     (println ~label (- (System/nanoTime) start#))
+     result#))
+
+(defn ^:private shout [s]
+  (str/upper-case s))
+
+(def counter (atom 0))
+(swap! counter inc)
+(println @counter)
+
+(map #(* % %) (range 10))
+(filter #(re-find #"^a.*z$" %1) ["abz" "xyz"])
+(def unique #{1 2 3})
+(def v #'shout)
+#_(this form is discarded)
+(def ^{:doc "metadata map"} documented 1)

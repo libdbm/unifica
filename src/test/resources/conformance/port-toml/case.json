@@ -1,0 +1,10 @@
+{
+  "rules": [
+    "S-G1",
+    "S-L2",
+    "S-L3",
+    "S-L4",
+    "S-P8"
+  ],
+  "description": "Port of grammars-v4 TOML: ANTLR lexer modes as lexical states (pushMode, mode(X) as '==> ^X', popMode), line breaks and comments as tokens outside arrays and skipped inside them, empty expressions and comments, and rejection of a missing value, an unterminated array, two key/value pairs on one line and a line break inside an inline table."
+}

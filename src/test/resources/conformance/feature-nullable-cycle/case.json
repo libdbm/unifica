@@ -1,0 +1,9 @@
+{
+  "rules": [
+    "S-F5",
+    "S-P1",
+    "S-P3",
+    "S-P9"
+  ],
+  "description": "A nullable cycle whose uses differ only in renamed variables adds no derivation, so parsing of the empty input terminates. The cycle-free derivations are S() and S(S()); declaration order selects S(S()), and the result is ambiguous."
+}

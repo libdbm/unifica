@@ -1,0 +1,21 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "x",
+      "outcome": "accepted",
+      "penalty": 1,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "S",
+        "children": [
+          {
+            "symbol": "B"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+;; Literals of every kind the grammar knows.
+(def numbers [42 -7 3.14 -2.5e-3 1e10 0xFF 0b1010 42N -3L Infinity -NaN])
+(def strings ["plain" "with \"escaped\" quotes" "multi
+line"])
+(def chars [\a \( \space \newline A])
+(def misc {:none nil, :yes true, :no false, ::local 1, :ns/key 2})
+(def syms '(foo foo-bar *earmuffs* ->arrow a.b.c clojure.core/map / . a:b))

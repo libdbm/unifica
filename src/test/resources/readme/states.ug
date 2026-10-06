@@ -1,0 +1,14 @@
+# Words, and code spans in backquotes. Inside a code span the lexer is in
+# state CODE, where any run of non-space characters is one Token.
+# Comments run from '#' to the end of the line and are skipped.
+start Text;
+skip Comment;
+
+Text --> (Word | Code)*;
+Code --> Open Token* Close;
+
+Word --> [a-z]+;
+Open --> '`' ==> CODE;
+Token --> {CODE} [^`\s]+;
+Close --> {CODE} '`' ==> _;
+Comment --> '#' [^\n]*;

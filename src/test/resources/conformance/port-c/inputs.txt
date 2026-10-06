@@ -1,0 +1,6 @@
+int x;
+void f(void) { T * p; g(p); }
+void f(void) { if (a) if (b) x(); else y(); }
+int y = (a) - b;
+int x = 1
+#include <stdio.h>\nint main(void) { return 0; } // done

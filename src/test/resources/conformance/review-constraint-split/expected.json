@@ -1,0 +1,26 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "aaac",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "S",
+        "children": [
+          {
+            "symbol": "A",
+            "label": "left"
+          },
+          {
+            "label": "right"
+          },
+          {}
+        ]
+      }
+    }
+  ]
+}

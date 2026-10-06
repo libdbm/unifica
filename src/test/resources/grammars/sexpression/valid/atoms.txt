@@ -1,0 +1,3 @@
+(list -1 +2.5 3 -4.75 - + a1 -x +1a . (a . b) "a \"quoted\" string" "line
+break")
+()

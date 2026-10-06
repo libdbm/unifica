@@ -1,0 +1,16 @@
+# Port of grammars-v4 rfc1035/domain.g4 (commit 7df52be9), RFC 1035 domain names.
+# Original grammar: Copyright (c) 2020, Tom Everett, BSD 3-Clause License.
+# The ANTLR lexer rules LDH_STR, LET_DIG_HYP, LET_DIG, LETTER and DIGIT are
+# inlined into LABEL; the parser never uses them on their own. See NOTICE.md.
+
+start domain;
+
+# A single space is a domain of its own, so whitespace is never discarded.
+whitespace none;
+
+domain --> subdomain | ' ' ;
+
+subdomain --> LABEL ('.' LABEL)* ;
+
+# <label> ::= <letter> [ [ <ldh-str> ] <let-dig> ]
+LABEL --> [a-zA-Z] (?:[a-zA-Z0-9\-]*[a-zA-Z0-9])? ;

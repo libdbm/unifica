@@ -1,0 +1,60 @@
+{
+  "grammar": {"ok": true},
+  "inputs": [
+    {
+      "input": "BEGIN WRITE 1-2 END",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {"symbol": "program", "children": [
+        {"text": "BEGIN", "start": 0, "end": 5},
+        {"symbol": "stmt_list", "children": [
+          {"symbol": "stmt", "children": [
+            {"symbol": "write_stmt", "children": [
+              {"text": "WRITE", "start": 6, "end": 11},
+              {"symbol": "expr_list", "children": [
+                {"symbol": "expr", "children": [
+                  {"symbol": "expr", "children": [
+                    {"symbol": "factor", "children": [
+                      {"symbol": "integer", "children": [
+                        {"symbol": "NUMBER", "children": [{"text": "1", "start": 12, "end": 13}]}]}]}]},
+                  {"symbol": "op", "children": [{"text": "-", "start": 13, "end": 14}]},
+                  {"symbol": "factor", "children": [
+                    {"symbol": "integer", "children": [
+                      {"symbol": "NUMBER", "children": [{"text": "2", "start": 14, "end": 15}]}]}]}]}]}]}]}]},
+        {"text": "END", "start": 16, "end": 19}]}
+    },
+    {
+      "input": "BEGIN READ a, b WRITE a - -1 END",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {"symbol": "program", "children": [
+        {"text": "BEGIN"},
+        {"symbol": "stmt_list", "children": [
+          {"symbol": "stmt_list", "children": [
+            {"symbol": "stmt", "children": [
+              {"symbol": "read_stmt", "children": [
+                {"text": "READ"},
+                {"symbol": "id_list", "children": [
+                  {"symbol": "id_list"},
+                  {"text": ",", "start": 12, "end": 13},
+                  {"symbol": "ident"}]}]}]}]},
+          {"symbol": "stmt", "children": [
+            {"symbol": "write_stmt", "children": [
+              {"text": "WRITE"},
+              {"symbol": "expr_list", "children": [
+                {"symbol": "expr", "children": [
+                  {"symbol": "expr"},
+                  {"symbol": "op", "children": [{"text": "-", "start": 24, "end": 25}]},
+                  {"symbol": "factor", "children": [
+                    {"symbol": "integer", "children": [
+                      {"text": "-", "start": 26, "end": 27},
+                      {"symbol": "NUMBER", "children": [{"text": "1", "start": 27, "end": 28}]}]}]}]}]}]}]}]},
+        {"text": "END", "start": 29, "end": 32}]}
+    },
+    {"input": "BEGIN x := y END", "outcome": "accepted", "penalty": 0, "ambiguous": false},
+    {"input": "BEGIN END", "outcome": "rejected"},
+    {"input": "BEGIN READ END END", "outcome": "rejected"}
+  ]
+}

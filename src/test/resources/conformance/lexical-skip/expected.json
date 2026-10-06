@@ -1,0 +1,32 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "ab /* x */ cd",
+      "outcome": "accepted",
+      "penalty": 0,
+      "tree": {
+        "symbol": "S",
+        "children": [
+          {
+            "symbol": "W"
+          },
+          {
+            "symbol": "W"
+          }
+        ]
+      }
+    },
+    {
+      "input": "ab # rest of line\ncd",
+      "outcome": "accepted",
+      "penalty": 0
+    },
+    {
+      "input": "ab /* unclosed cd",
+      "outcome": "rejected"
+    }
+  ]
+}

@@ -1,0 +1,522 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "x = 1",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "chunk",
+        "children": [
+          {
+            "symbol": "block",
+            "children": [
+              {
+                "symbol": "stat",
+                "children": [
+                  {
+                    "symbol": "varlist",
+                    "label": "vars",
+                    "children": [
+                      {
+                        "symbol": "var",
+                        "children": [
+                          {
+                            "symbol": "NAME",
+                            "children": [
+                              {
+                                "text": "x",
+                                "start": 0,
+                                "end": 1
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": "=",
+                    "start": 2,
+                    "end": 3
+                  },
+                  {
+                    "symbol": "explist",
+                    "children": [
+                      {
+                        "symbol": "exp",
+                        "children": [
+                          {
+                            "symbol": "andexp",
+                            "children": [
+                              {
+                                "symbol": "compareexp",
+                                "children": [
+                                  {
+                                    "symbol": "borexp",
+                                    "children": [
+                                      {
+                                        "symbol": "bxorexp",
+                                        "children": [
+                                          {
+                                            "symbol": "bandexp",
+                                            "children": [
+                                              {
+                                                "symbol": "shiftexp",
+                                                "children": [
+                                                  {
+                                                    "symbol": "concatexp",
+                                                    "children": [
+                                                      {
+                                                        "symbol": "addexp",
+                                                        "children": [
+                                                          {
+                                                            "symbol": "mulexp",
+                                                            "children": [
+                                                              {
+                                                                "symbol": "unaryexp",
+                                                                "children": [
+                                                                  {
+                                                                    "symbol": "powexp",
+                                                                    "children": [
+                                                                      {
+                                                                        "symbol": "simpleexp",
+                                                                        "children": [
+                                                                          {
+                                                                            "symbol": "number",
+                                                                            "children": [
+                                                                              {
+                                                                                "symbol": "INT",
+                                                                                "children": [
+                                                                                  {
+                                                                                    "text": "1",
+                                                                                    "start": 4,
+                                                                                    "end": 5
+                                                                                  }
+                                                                                ]
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "a = f\n(g)()",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "chunk",
+        "children": [
+          {
+            "symbol": "block",
+            "children": [
+              {
+                "symbol": "stat",
+                "children": [
+                  {
+                    "symbol": "varlist",
+                    "label": "vars"
+                  },
+                  {
+                    "text": "="
+                  },
+                  {
+                    "symbol": "explist"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "(f or g)()",
+      "outcome": "accepted",
+      "penalty": 1,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "chunk",
+        "children": [
+          {
+            "symbol": "block",
+            "children": [
+              {
+                "symbol": "stat",
+                "children": [
+                  {
+                    "symbol": "functioncall",
+                    "label": "call",
+                    "children": [
+                      {
+                        "symbol": "prefixexp",
+                        "children": [
+                          {
+                            "text": "("
+                          },
+                          {
+                            "symbol": "exp"
+                          },
+                          {
+                            "text": ")"
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "args",
+                        "children": [
+                          {
+                            "text": "("
+                          },
+                          {
+                            "text": ")"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "s = [==[ a ]] b ]==] --[[ c ]] -- d",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "chunk",
+        "children": [
+          {
+            "symbol": "block",
+            "children": [
+              {
+                "symbol": "stat",
+                "children": [
+                  {
+                    "symbol": "varlist",
+                    "label": "vars"
+                  },
+                  {
+                    "text": "="
+                  },
+                  {
+                    "symbol": "explist",
+                    "children": [
+                      {
+                        "symbol": "exp",
+                        "children": [
+                          {
+                            "symbol": "andexp",
+                            "children": [
+                              {
+                                "symbol": "compareexp",
+                                "children": [
+                                  {
+                                    "symbol": "borexp",
+                                    "children": [
+                                      {
+                                        "symbol": "bxorexp",
+                                        "children": [
+                                          {
+                                            "symbol": "bandexp",
+                                            "children": [
+                                              {
+                                                "symbol": "shiftexp",
+                                                "children": [
+                                                  {
+                                                    "symbol": "concatexp",
+                                                    "children": [
+                                                      {
+                                                        "symbol": "addexp",
+                                                        "children": [
+                                                          {
+                                                            "symbol": "mulexp",
+                                                            "children": [
+                                                              {
+                                                                "symbol": "unaryexp",
+                                                                "children": [
+                                                                  {
+                                                                    "symbol": "powexp",
+                                                                    "children": [
+                                                                      {
+                                                                        "symbol": "simpleexp",
+                                                                        "children": [
+                                                                          {
+                                                                            "symbol": "string",
+                                                                            "children": [
+                                                                              {
+                                                                                "symbol": "LONGSTRING",
+                                                                                "children": [
+                                                                                  {
+                                                                                    "text": "[==[ a ]] b ]==]",
+                                                                                    "start": 4,
+                                                                                    "end": 20
+                                                                                  }
+                                                                                ]
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "x = 2 ^ 3 ^ 2",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "chunk",
+        "children": [
+          {
+            "symbol": "block",
+            "children": [
+              {
+                "symbol": "stat",
+                "children": [
+                  {
+                    "symbol": "varlist",
+                    "label": "vars"
+                  },
+                  {
+                    "text": "="
+                  },
+                  {
+                    "symbol": "explist",
+                    "children": [
+                      {
+                        "symbol": "exp",
+                        "children": [
+                          {
+                            "symbol": "andexp",
+                            "children": [
+                              {
+                                "symbol": "compareexp",
+                                "children": [
+                                  {
+                                    "symbol": "borexp",
+                                    "children": [
+                                      {
+                                        "symbol": "bxorexp",
+                                        "children": [
+                                          {
+                                            "symbol": "bandexp",
+                                            "children": [
+                                              {
+                                                "symbol": "shiftexp",
+                                                "children": [
+                                                  {
+                                                    "symbol": "concatexp",
+                                                    "children": [
+                                                      {
+                                                        "symbol": "addexp",
+                                                        "children": [
+                                                          {
+                                                            "symbol": "mulexp",
+                                                            "children": [
+                                                              {
+                                                                "symbol": "unaryexp",
+                                                                "children": [
+                                                                  {
+                                                                    "symbol": "powexp",
+                                                                    "children": [
+                                                                      {
+                                                                        "symbol": "simpleexp",
+                                                                        "children": [
+                                                                          {
+                                                                            "symbol": "number",
+                                                                            "children": [
+                                                                              {
+                                                                                "symbol": "INT",
+                                                                                "children": [
+                                                                                  {
+                                                                                    "text": "2",
+                                                                                    "start": 4,
+                                                                                    "end": 5
+                                                                                  }
+                                                                                ]
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        ]
+                                                                      },
+                                                                      {
+                                                                        "text": "^",
+                                                                        "start": 6,
+                                                                        "end": 7
+                                                                      },
+                                                                      {
+                                                                        "symbol": "unaryexp",
+                                                                        "children": [
+                                                                          {
+                                                                            "symbol": "powexp",
+                                                                            "children": [
+                                                                              {
+                                                                                "symbol": "simpleexp",
+                                                                                "children": [
+                                                                                  {
+                                                                                    "symbol": "number",
+                                                                                    "children": [
+                                                                                      {
+                                                                                        "symbol": "INT",
+                                                                                        "children": [
+                                                                                          {
+                                                                                            "text": "3",
+                                                                                            "start": 8,
+                                                                                            "end": 9
+                                                                                          }
+                                                                                        ]
+                                                                                      }
+                                                                                    ]
+                                                                                  }
+                                                                                ]
+                                                                              },
+                                                                              {
+                                                                                "text": "^",
+                                                                                "start": 10,
+                                                                                "end": 11
+                                                                              },
+                                                                              {
+                                                                                "symbol": "unaryexp",
+                                                                                "children": [
+                                                                                  {
+                                                                                    "symbol": "powexp",
+                                                                                    "children": [
+                                                                                      {
+                                                                                        "symbol": "simpleexp",
+                                                                                        "children": [
+                                                                                          {
+                                                                                            "symbol": "number",
+                                                                                            "children": [
+                                                                                              {
+                                                                                                "symbol": "INT",
+                                                                                                "children": [
+                                                                                                  {
+                                                                                                    "text": "2",
+                                                                                                    "start": 12,
+                                                                                                    "end": 13
+                                                                                                  }
+                                                                                                ]
+                                                                                              }
+                                                                                            ]
+                                                                                          }
+                                                                                        ]
+                                                                                      }
+                                                                                    ]
+                                                                                  }
+                                                                                ]
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "s = [=[ a ]==]",
+      "outcome": "rejected"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-C8"
+  ],
+  "description": "A predicate called with the wrong number of arguments is a compile error."
+}

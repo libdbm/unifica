@@ -1,0 +1,134 @@
+# Port of grammars-v4 toml/TomlLexer.g4 and toml/TomlParser.g4 (commit 7df52be9), TOML.
+# Original grammar: Apache License, Version 2.0 (Apache Software Foundation header).
+#
+# Lexer modes are lexical states: DEFAULT is ANTLR's default mode, and VALUE, INLINE
+# and ARRAY are SIMPLE_VALUE_MODE, INLINE_TABLE_MODE and ARRAY_MODE. pushMode(X) is
+# '==> X', mode(X) is '==> ^X' and popMode is '==> _'. ANTLR's WS is the whitespace;
+# line breaks and comments are tokens, except inside arrays (see NOTICE.md).
+
+start document;
+whitespace [ \t]+;
+skip ARRAY_NL, ARRAY_COMMENT;
+
+document --> expression (NL expression)* ;
+
+expression --> key_value comment | table comment | comment ;
+
+comment --> COMMENT? ;
+
+key_value --> key EQUALS value ;
+
+key --> simple_key | dotted_key ;
+
+simple_key --> quoted_key | unquoted_key ;
+
+unquoted_key --> UNQUOTED_KEY ;
+
+quoted_key --> BASIC_STRING | LITERAL_STRING ;
+
+dotted_key --> simple_key (DOT simple_key)+ ;
+
+value --> string | integer | floating_point | bool_ | date_time | array_ | inline_table ;
+
+string --> BASIC_STRING | ML_BASIC_STRING | LITERAL_STRING | ML_LITERAL_STRING ;
+
+integer --> DEC_INT | HEX_INT | OCT_INT | BIN_INT ;
+
+floating_point --> FLOAT | INF | NAN ;
+
+bool_ --> BOOLEAN ;
+
+date_time --> OFFSET_DATE_TIME | LOCAL_DATE_TIME | LOCAL_DATE | LOCAL_TIME ;
+
+# ANTLR: L_BRACKET array_values? comment_or_nl R_BRACKET, where array_values wraps
+# each value in comment_or_nl and nl_or_comment. Inside arrays line breaks and
+# comments are skipped instead (ARRAY_NL, ARRAY_COMMENT), see NOTICE.md.
+array_ --> L_BRACKET array_values? R_BRACKET ;
+
+array_values --> value COMMA array_values | value COMMA? ;
+
+table --> standard_table | array_table ;
+
+standard_table --> L_BRACKET key R_BRACKET ;
+
+inline_table --> L_BRACE inline_table_keyvals R_BRACE ;
+
+inline_table_keyvals --> inline_table_keyvals_non_empty? ;
+
+inline_table_keyvals_non_empty --> key EQUALS value (COMMA inline_table_keyvals_non_empty)? ;
+
+array_table --> DOUBLE_L_BRACKET key DOUBLE_R_BRACKET ;
+
+# ---------------------------------------------------------------- lexer
+
+# Default mode.
+NL --> {DEFAULT} (?:[\r]?[\n])+ ;
+COMMENT --> {DEFAULT} '#' [^\n]* ;
+L_BRACKET --> {DEFAULT} '[' ;
+DOUBLE_L_BRACKET --> {DEFAULT} '[[' ;
+R_BRACKET --> {DEFAULT} ']' ;
+DOUBLE_R_BRACKET --> {DEFAULT} ']]' ;
+EQUALS --> {DEFAULT} '=' ==> VALUE ;
+DOT --> {DEFAULT} '.' ;
+COMMA --> {DEFAULT} ',' ;
+BASIC_STRING --> {DEFAULT} '"' (?:\\(?:["\\/bfnrt]|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})|[^"\\\n])* '"' ;
+LITERAL_STRING --> {DEFAULT} "'" [^'\n]* "'" ;
+UNQUOTED_KEY --> {DEFAULT} [A-Za-z0-9_\-]+ ;
+
+# Inline table mode.
+DOT --> {INLINE} '.' ;
+COMMA --> {INLINE} ',' ;
+R_BRACE --> {INLINE} '}' ==> _ ;
+BASIC_STRING --> {INLINE} '"' (?:\\(?:["\\/bfnrt]|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})|[^"\\\n])* '"' ;
+LITERAL_STRING --> {INLINE} "'" [^'\n]* "'" ;
+UNQUOTED_KEY --> {INLINE} [A-Za-z0-9_\-]+ ;
+EQUALS --> {INLINE} '=' ==> VALUE ;
+
+# Array mode: values are lexed in place, and nested arrays and inline tables push.
+ARRAY_NL --> {ARRAY} (?:[\r]?[\n])+ ;
+ARRAY_COMMENT --> {ARRAY} '#' [^\n]* ;
+COMMA --> {ARRAY} ',' ;
+L_BRACE --> {ARRAY} '{' ==> INLINE ;
+L_BRACKET --> {ARRAY} '[' ==> ARRAY ;
+R_BRACKET --> {ARRAY} ']' ==> _ ;
+BOOLEAN --> {ARRAY} (?:true|false) ;
+BASIC_STRING --> {ARRAY} '"' (?:\\(?:["\\/bfnrt]|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})|[^"\\\n])* '"' ;
+ML_BASIC_STRING --> {ARRAY} '"""' (?:\\\r?\n|\\(?:["\\/bfnrt]|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})|[^"\\])* '"""' ;
+LITERAL_STRING --> {ARRAY} "'" [^'\n]* "'" ;
+ML_LITERAL_STRING --> {ARRAY} "'''" (?:[\s\S]*?) "'''" ;
+FLOAT --> {ARRAY} (?:[+-]?(?:[1-9](?:[0-9]|_[0-9])+|[0-9])(?:[eE][+-]?[0-9](?:[0-9]|_[0-9])*|\.[0-9](?:[0-9]|_[0-9])*(?:[eE][+-]?[0-9](?:[0-9]|_[0-9])*)?)) ;
+INF --> {ARRAY} [+\-]? 'inf' ;
+NAN --> {ARRAY} [+\-]? 'nan' ;
+DEC_INT --> {ARRAY} (?:[+-]?(?:[1-9](?:[0-9]|_[0-9])+|[0-9])) ;
+HEX_INT --> {ARRAY} '0x' (?:[0-9A-Fa-f](?:[0-9A-Fa-f]|_[0-9A-Fa-f])*) ;
+OCT_INT --> {ARRAY} '0o' (?:[0-7](?:[0-7]|_[0-7])*) ;
+BIN_INT --> {ARRAY} '0b' (?:[01](?:[01]|_[01])*) ;
+OFFSET_DATE_TIME --> {ARRAY} (?:[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt ][0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})) ;
+LOCAL_DATE_TIME --> {ARRAY} (?:[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt ][0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?) ;
+LOCAL_DATE --> {ARRAY} (?:[0-9]{4}-[0-9]{2}-[0-9]{2}) ;
+LOCAL_TIME --> {ARRAY} (?:[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?) ;
+
+# Simple value mode: one scalar, then back to the enclosing mode; an inline table or
+# an array replaces the mode.
+L_BRACE --> {VALUE} '{' ==> ^INLINE ;
+L_BRACKET --> {VALUE} '[' ==> ^ARRAY ;
+BOOLEAN --> {VALUE} (?:true|false) ==> _ ;
+
+BASIC_STRING --> {VALUE} '"' (?:\\(?:["\\/bfnrt]|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})|[^"\\\n])* '"' ==> _ ;
+ML_BASIC_STRING --> {VALUE} '"""' (?:\\\r?\n|\\(?:["\\/bfnrt]|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})|[^"\\])* '"""' ==> _ ;
+LITERAL_STRING --> {VALUE} "'" [^'\n]* "'" ==> _ ;
+ML_LITERAL_STRING --> {VALUE} "'''" (?:[\s\S]*?) "'''" ==> _ ;
+
+FLOAT --> {VALUE} (?:[+-]?(?:[1-9](?:[0-9]|_[0-9])+|[0-9])(?:[eE][+-]?[0-9](?:[0-9]|_[0-9])*|\.[0-9](?:[0-9]|_[0-9])*(?:[eE][+-]?[0-9](?:[0-9]|_[0-9])*)?)) ==> _ ;
+INF --> {VALUE} [+\-]? 'inf' ==> _ ;
+NAN --> {VALUE} [+\-]? 'nan' ==> _ ;
+
+DEC_INT --> {VALUE} (?:[+-]?(?:[1-9](?:[0-9]|_[0-9])+|[0-9])) ==> _ ;
+HEX_INT --> {VALUE} '0x' (?:[0-9A-Fa-f](?:[0-9A-Fa-f]|_[0-9A-Fa-f])*) ==> _ ;
+OCT_INT --> {VALUE} '0o' (?:[0-7](?:[0-7]|_[0-7])*) ==> _ ;
+BIN_INT --> {VALUE} '0b' (?:[01](?:[01]|_[01])*) ==> _ ;
+
+OFFSET_DATE_TIME --> {VALUE} (?:[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt ][0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})) ==> _ ;
+LOCAL_DATE_TIME --> {VALUE} (?:[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt ][0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?) ==> _ ;
+LOCAL_DATE --> {VALUE} (?:[0-9]{4}-[0-9]{2}-[0-9]{2}) ==> _ ;
+LOCAL_TIME --> {VALUE} (?:[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?) ==> _ ;

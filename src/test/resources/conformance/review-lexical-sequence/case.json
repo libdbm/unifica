@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "S-G1",
+    "S-L2"
+  ],
+  "description": "Review 2: A --> 'a' 'b' is a syntactic sequence of two literal tokens (rule (c)), so both 'ab' and 'a b' parse."
+}

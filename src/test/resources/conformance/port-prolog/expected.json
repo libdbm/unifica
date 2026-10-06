@@ -1,0 +1,203 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": ":- foo.",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "p_text",
+        "children": [
+          {
+            "symbol": "directive",
+            "children": [
+              {
+                "text": ":-",
+                "start": 0,
+                "end": 2
+              },
+              {
+                "symbol": "term",
+                "children": [
+                  {
+                    "symbol": "primary",
+                    "children": [
+                      {
+                        "symbol": "atom",
+                        "children": [
+                          {
+                            "symbol": "LETTER_DIGIT",
+                            "children": [
+                              {
+                                "text": "foo",
+                                "start": 3,
+                                "end": 6
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": ".",
+                "start": 6,
+                "end": 7
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "f(a, b).",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "p_text",
+        "children": [
+          {
+            "symbol": "clause",
+            "children": [
+              {
+                "symbol": "term",
+                "label": "t",
+                "children": [
+                  {
+                    "symbol": "primary",
+                    "children": [
+                      {
+                        "symbol": "atom"
+                      },
+                      {
+                        "text": "(",
+                        "start": 1,
+                        "end": 2
+                      },
+                      {
+                        "symbol": "termlist",
+                        "children": [
+                          {
+                            "symbol": "arg",
+                            "children": [
+                              {
+                                "symbol": "primary"
+                              }
+                            ]
+                          },
+                          {
+                            "text": ",",
+                            "start": 3,
+                            "end": 4
+                          },
+                          {
+                            "symbol": "arg",
+                            "children": [
+                              {
+                                "symbol": "primary"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "text": ")",
+                        "start": 6,
+                        "end": 7
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": ".",
+                "start": 7,
+                "end": 8
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "a :- b, c. % done",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "p_text",
+        "children": [
+          {
+            "symbol": "clause",
+            "children": [
+              {
+                "symbol": "term",
+                "label": "t",
+                "children": [
+                  {
+                    "symbol": "primary"
+                  },
+                  {
+                    "symbol": "operator_",
+                    "children": [
+                      {
+                        "text": ":-",
+                        "start": 2,
+                        "end": 4
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "term",
+                    "children": [
+                      {
+                        "symbol": "primary"
+                      },
+                      {
+                        "symbol": "operator_",
+                        "children": [
+                          {
+                            "text": ",",
+                            "start": 6,
+                            "end": 7
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "term",
+                        "children": [
+                          {
+                            "symbol": "primary"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": ".",
+                "start": 9,
+                "end": 10
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "foo(a b).",
+      "outcome": "rejected"
+    },
+    {
+      "input": "p :- write('open).",
+      "outcome": "rejected"
+    }
+  ]
+}

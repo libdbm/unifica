@@ -1,0 +1,76 @@
+# Turtle (Terse RDF Triple Language).
+# Ported from grammars-v4 turtle/TURTLE.g4 (commit 7df52be9).
+# Copyright (c) 2014 Alejandro Medrano (Universidad Politecnica de Madrid).
+# BSD licence (see NOTICE.md). Derived from http://www.w3.org/TR/turtle/#sec-grammar-grammar
+#
+# ANTLR helper lexer rules are inlined into the regexes of the token
+# categories the parser uses.
+
+start turtleDoc;
+whitespace [\t\r\n\u000C ]+;
+skip LC;
+
+turtleDoc --> statement* ;
+
+statement --> directive | triples '.' ;
+
+directive --> prefixID | base | sparqlPrefix | sparqlBase ;
+
+prefixID --> '@prefix' PNAME_NS IRIREF '.' ;
+
+base --> '@base' IRIREF '.' ;
+
+sparqlBase --> 'BASE' IRIREF ;
+
+sparqlPrefix --> 'PREFIX' PNAME_NS IRIREF ;
+
+triples --> subject predicateObjectList | blankNodePropertyList predicateObjectList? ;
+
+predicateObjectList --> verb objectList (';' (verb objectList)?)* ;
+
+objectList --> object_ (',' object_)* ;
+
+verb --> predicate | 'a' ;
+
+subject --> iri | BlankNode | collection ;
+
+predicate --> iri ;
+
+object_ --> iri | BlankNode | collection | blankNodePropertyList | literal ;
+
+literal --> rdfLiteral | NumericLiteral | BooleanLiteral ;
+
+blankNodePropertyList --> '[' predicateObjectList ']' ;
+
+collection --> '(' object_* ')' ;
+
+rdfLiteral --> String (LANGTAG | '^^' iri)? ;
+
+iri --> IRIREF | PrefixedName ;
+
+PrefixedName --> PNAME_LN | PNAME_NS ;
+
+# INTEGER | DECIMAL | DOUBLE, longest alternatives first.
+NumericLiteral --> [+-]? (?:[0-9]+[.][0-9]*[eE][+-]?[0-9]+|[.][0-9]+[eE][+-]?[0-9]+|[0-9]+[eE][+-]?[0-9]+|[0-9]*[.][0-9]+|[0-9]+) ;
+
+BooleanLiteral --> (?:true|false) ;
+
+# STRING_LITERAL_LONG_SINGLE_QUOTE | STRING_LITERAL_LONG_QUOTE |
+# STRING_LITERAL_QUOTE | STRING_LITERAL_SINGLE_QUOTE (W3C definitions).
+String --> (?:'''(?:(?:'|'')?(?:[^'\\]|\\[tbnrf"'\\]|\\u[0-9A-Fa-f]{4}|\\U[0-9A-Fa-f]{8}))*'''|"""(?:(?:"|"")?(?:[^"\\]|\\[tbnrf"'\\]|\\u[0-9A-Fa-f]{4}|\\U[0-9A-Fa-f]{8}))*"""|"(?:[^"\\\r\n]|\\[tbnrf"'\\]|\\u[0-9A-Fa-f]{4}|\\U[0-9A-Fa-f]{8})*"|'(?:[^'\\\r\n]|\\[tbnrf"'\\]|\\u[0-9A-Fa-f]{4}|\\U[0-9A-Fa-f]{8})*') ;
+
+# BLANK_NODE_LABEL | ANON
+BlankNode --> (?:_:[A-Za-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�_0-9](?:[A-Za-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�_\-0-9·̀-ͯ‿-⁀.]*[A-Za-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�_\-0-9·̀-ͯ‿-⁀])?|\[[ \t\r\n]*\]) ;
+
+IRIREF --> '<' (?:[^\u0000- <>"{}|^`\\]|\\u[0-9A-Fa-f]{4}|\\U[0-9A-Fa-f]{8})* '>' ;
+
+# PN_PREFIX? ':'
+PNAME_NS --> (?:[A-Za-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�](?:[A-Za-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�_\-0-9·̀-ͯ‿-⁀.]*[A-Za-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�_\-0-9·̀-ͯ‿-⁀])?)? ':' ;
+
+# PNAME_NS PN_LOCAL, where PLX is PERCENT | PN_LOCAL_ESC.
+PNAME_LN --> (?:[A-Za-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�](?:[A-Za-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�_\-0-9·̀-ͯ‿-⁀.]*[A-Za-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�_\-0-9·̀-ͯ‿-⁀])?)? ':' (?:[A-Za-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�_:0-9]|%[0-9A-Fa-f]{2}|\\[_~.\-!$&'\(\)*+,;=/?#@%]) (?:(?:[A-Za-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�_\-0-9·̀-ͯ‿-⁀.:]|%[0-9A-Fa-f]{2}|\\[_~.\-!$&'\(\)*+,;=/?#@%])*(?:[A-Za-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�_\-0-9·̀-ͯ‿-⁀:]|%[0-9A-Fa-f]{2}|\\[_~.\-!$&'\(\)*+,;=/?#@%]))? ;
+
+# ANTLR's '@prefix' and '@base' literals win ties against LANGTAG.
+LANGTAG --> '@' (?!(?:prefix|base)(?![a-zA-Z0-9-])) [a-zA-Z]+ (?:-[a-zA-Z0-9]+)* ;
+
+LC --> '#' [^\r\n]+ ;

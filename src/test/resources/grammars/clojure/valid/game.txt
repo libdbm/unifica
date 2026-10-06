@@ -1,0 +1,14 @@
+(ns game.core)
+
+(defrecord Player [name score])
+
+(defn winner
+  "Returns the player with the highest score."
+  [players]
+  (reduce (fn [best p]
+            (if (> (:score p) (:score best)) p best))
+          players))
+
+(let [players [(->Player "ann" 10)
+               (->Player "bob" 12)]]
+  (println (:name (winner players))))

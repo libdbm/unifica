@@ -1,0 +1,11 @@
+{
+  "rules": [
+    "S-G1",
+    "S-G4",
+    "S-L2",
+    "S-L4",
+    "S-P1",
+    "S-P8"
+  ],
+  "description": "Port of grammars-v4 CSV with 'whitespace none': newlines are tokens and spaces belong to fields; quoted fields with escaped quotes, empty fields, a blank line as a row with one empty field, CRLF, and rejection of a missing final newline and an unterminated quoted field."
+}

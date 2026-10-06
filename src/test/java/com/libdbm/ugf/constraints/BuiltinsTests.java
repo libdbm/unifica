@@ -15,19 +15,40 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/** Unit tests for Builtins predicates. */
+/**
+ * Unit tests for the builtin predicates, ported from the 1.x Context API: {@code context} keeps the
+ * old binding calls on top of an immutable {@link Environment}. Arity and unknown names are
+ * compile-time errors in 2.0 (S-C8); here a call the registry would reject evaluates as not passed.
+ */
 class BuiltinsTests {
 
-  private Context context;
+  private static final Predicates REGISTRY = Predicates.standard();
+
+  private Bindings context;
+
+  /** Accumulates bindings into the environment the next {@link #eval} uses. */
+  private static final class Bindings {
+    private Environment environment = Environment.of(REGISTRY);
+
+    Bindings withBinding(final String name, final Value value) {
+      environment = environment.with(name, value);
+      return this;
+    }
+  }
+
+  private record Outcome(boolean passed) {}
 
   @BeforeEach
   void setup() {
-    context = new Context().withPredicates(Builtins.all());
+    context = new Bindings();
   }
 
-  private Result eval(final String name, final Value... args) {
-    final var predicate = Predicate.of(name, List.of(args));
-    return Evaluator.eval(context, predicate);
+  private Outcome eval(final String name, final Value... args) {
+    final var entry = REGISTRY.entry(name);
+    if (entry == null || !entry.accepts(args.length)) {
+      return new Outcome(false);
+    }
+    return new Outcome(context.environment.test(new Expression.Call(name, List.of(args))));
   }
 
   @Nested
@@ -37,16 +58,16 @@ class BuiltinsTests {
     @Test
     @DisplayName("returns all built-in predicates")
     void returns_all() {
-      final var predicates = Builtins.all();
+      final var predicates = REGISTRY.names(Predicates.Phase.SYNTACTIC);
 
       assertFalse(predicates.isEmpty());
-      assertTrue(predicates.containsKey("agree"));
-      assertTrue(predicates.containsKey("unify"));
-      assertTrue(predicates.containsKey("equals"));
-      assertTrue(predicates.containsKey("has_feature"));
-      assertTrue(predicates.containsKey("is_string"));
-      assertTrue(predicates.containsKey("lt"));
-      assertTrue(predicates.containsKey("matches"));
+      assertTrue(predicates.contains("agree"));
+      assertTrue(predicates.contains("unify"));
+      assertTrue(predicates.contains("equals"));
+      assertTrue(predicates.contains("has_feature"));
+      assertTrue(predicates.contains("is_string"));
+      assertTrue(predicates.contains("lt"));
+      assertTrue(predicates.contains("matches"));
     }
   }
 
@@ -81,7 +102,6 @@ class BuiltinsTests {
     void fails_wrong_arity() {
       final var result = eval("agree", StringConstant.of("x"));
       assertFalse(result.passed());
-      assertTrue(result.reason().contains("2 arguments"));
     }
 
     @Test
@@ -90,7 +110,6 @@ class BuiltinsTests {
       context.withBinding("y", Structure.builder().build());
       final var result = eval("agree", Variable.of("?x"), Variable.of("?y"));
       assertFalse(result.passed());
-      assertTrue(result.reason().contains("unbound"));
     }
 
     @Test
@@ -135,7 +154,6 @@ class BuiltinsTests {
 
       final var result = eval("has_feature", Variable.of("?x"), StringConstant.of("num"));
       assertFalse(result.passed());
-      assertTrue(result.reason().contains("structure"));
     }
 
     @Test
@@ -467,7 +485,6 @@ class BuiltinsTests {
       context.withBinding("s", StringConstant.of("abc"));
       final var result = eval("matches", Variable.of("?s"), StringConstant.of("[invalid"));
       assertFalse(result.passed());
-      assertTrue(result.reason().contains("invalid regex"));
     }
 
     @Test
@@ -576,7 +593,6 @@ class BuiltinsTests {
       context.withBinding("x", StringConstant.of("5"));
       final var result = eval("lt", Variable.of("?x"), NumericConstant.of(10));
       assertFalse(result.passed());
-      assertTrue(result.reason().contains("numeric"));
     }
   }
 
@@ -638,11 +654,9 @@ class BuiltinsTests {
     @Test
     @DisplayName("returns failure for unknown predicate")
     void unknown_fails() {
-      final var predicate = Predicate.of("nonexistent", List.of());
-      final var result = Evaluator.eval(context, predicate);
-
-      assertFalse(result.passed());
-      assertTrue(result.reason().contains("Unknown predicate"));
+      // An unknown predicate is a compile error (S-C8): the registry has no entry for it.
+      assertNull(REGISTRY.entry("nonexistent"));
+      assertFalse(eval("nonexistent").passed());
     }
   }
 }

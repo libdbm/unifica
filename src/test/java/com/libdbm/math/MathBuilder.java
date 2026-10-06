@@ -2,7 +2,6 @@ package com.libdbm.math;
 
 import com.libdbm.math.MathExpr.*;
 import com.libdbm.ugf.parser.ParseTree;
-import com.libdbm.ugf.parser.Utilities;
 import java.util.ArrayList;
 
 /** Builds mathematical expression AST from unification grammar parse trees */
@@ -152,7 +151,7 @@ public final class MathBuilder {
     // Number
     for (final var child : children) {
       if (child instanceof ParseTree.Node n && n.symbol().equals("number")) {
-        final var text = Utilities.textOf(n);
+        final var text = n.text();
         if (text == null || text.trim().isEmpty()) {
           throw new IllegalArgumentException("Invalid number node: " + n);
         }
@@ -163,7 +162,7 @@ public final class MathBuilder {
     // Variable
     for (final var child : children) {
       if (child instanceof ParseTree.Node n && n.symbol().equals("variable")) {
-        return new Variable(Utilities.textOf(n));
+        return new Variable(n.text());
       }
     }
 
@@ -181,7 +180,7 @@ public final class MathBuilder {
       String name = null;
       for (final var child : children) {
         if (child instanceof ParseTree.Node n && n.symbol().equals("function")) {
-          name = Utilities.textOf(n);
+          name = n.text();
           break;
         }
       }

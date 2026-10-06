@@ -3,22 +3,25 @@ package com.libdbm.xml;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.libdbm.ugf.grammar.Grammar;
-import com.libdbm.ugf.grammar.GrammarNormalizer;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
-import com.libdbm.ugf.parser.ChartParser;
-import com.libdbm.ugf.parser.LexicalAnalyzer;
+import com.libdbm.ugf.lexer.Edge;
 import com.libdbm.ugf.parser.ParseTree;
+import com.libdbm.ugf.parser.Parser;
+import com.libdbm.ugf.parser.ParserFactory;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class XMLParserTests {
 
-  private static ChartParser parser;
+  private static Parser parser;
   private static Grammar grammar;
-  private static LexicalAnalyzer lexer;
 
   @BeforeAll
   static void setup() throws Exception {
@@ -28,10 +31,11 @@ class XMLParserTests {
     }
     try (final var stream = resource.openStream()) {
       final var content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-      grammar = GrammarNormalizer.normalize(UnificationGrammarParserFactory.parse(content));
+      grammar = UnificationGrammarParserFactory.parse(content).orElseThrow();
       // Do not skip whitespace in XML
-      lexer = LexicalAnalyzer.build(grammar, false);
-      parser = new ChartParser(grammar, lexer);
+      // The 1.x test lexed without skipping whitespace; in 2.0 that is the grammar\'s whitespace
+      // setting.
+      parser = ParserFactory.create(grammar.toBuilder().whitespace("").build()).orElseThrow();
     } catch (final Exception e) {
       throw new RuntimeException("Failed to load XML grammar", e);
     }
@@ -471,22 +475,72 @@ class XMLParserTests {
   // ---------------------------------------------------------------------
   // Tokenization tests (grouped)
   // ---------------------------------------------------------------------
+  /**
+   * One path through the token graph: from each node, the first edge (lowest lexeme id, that is
+   * declaration order). This stands in for the 1.x single-path tokenizer.
+   */
+  /**
+   * The categories offered at each step of {@link #tokens}: every edge sharing that step's span.
+   */
+  private static List<Set<String>> categories(final String input) {
+    final var graph = parser.tokenize(input).orElseThrow();
+    final var steps = new ArrayList<Set<String>>();
+    var node = graph.start();
+    while (!graph.edges(node).isEmpty()) {
+      final var first = graph.edges(node).getFirst();
+      final var set = new TreeSet<String>();
+      for (final var edge : graph.edges(node)) {
+        if (edge.to().offset() == first.to().offset()) {
+          set.add(edge.category());
+        }
+      }
+      steps.add(set);
+      node = first.to();
+    }
+    return steps;
+  }
+
+  private static List<Edge> tokens(final String input) {
+    final var graph = parser.tokenize(input).orElseThrow();
+    final var path = new ArrayList<Edge>();
+    var node = graph.start();
+    while (!graph.edges(node).isEmpty()) {
+      final var edge = graph.edges(node).getFirst();
+      path.add(edge);
+      node = edge.to();
+    }
+    return path;
+  }
+
   @Nested
   class Tokenization {
+    // Equal-length categories are all kept (S-L2, LEX-5), so these tests check that the expected
+    // category is among the alternatives at each position; 1.x preferred constrained categories.
     @Test
     void tokenizesSimpleOpenAndClose() {
       final var input = "<div>hi</div>";
-      final var tokens = lexer.tokenizeSingle(input);
+      final var tokens = tokens(input);
 
       // Expected categories: <div> text </div>
       assertEquals(7, tokens.size(), () -> "Tokens: " + tokens);
-      assertEquals("open_bracket", tokens.get(0).string("cat", null));
-      assertEquals("tagname", tokens.get(1).string("cat", null));
-      assertEquals("close_open", tokens.get(2).string("cat", null));
-      assertEquals("textpart", tokens.get(3).string("cat", null));
-      assertEquals("close_open_bracket", tokens.get(4).string("cat", null));
-      assertEquals("tagname", tokens.get(5).string("cat", null));
-      assertEquals("close_bracket", tokens.get(6).string("cat", null));
+      assertTrue(
+          categories(input).get(0).contains("open_bracket"),
+          () -> "categories: " + categories(input));
+      assertTrue(
+          categories(input).get(1).contains("tagname"), () -> "categories: " + categories(input));
+      assertTrue(
+          categories(input).get(2).contains("close_open"),
+          () -> "categories: " + categories(input));
+      assertTrue(
+          categories(input).get(3).contains("textpart"), () -> "categories: " + categories(input));
+      assertTrue(
+          categories(input).get(4).contains("close_open_bracket"),
+          () -> "categories: " + categories(input));
+      assertTrue(
+          categories(input).get(5).contains("tagname"), () -> "categories: " + categories(input));
+      assertTrue(
+          categories(input).get(6).contains("close_bracket"),
+          () -> "categories: " + categories(input));
 
       // And texts
       assertEquals("<", tokens.get(0).text());
@@ -501,45 +555,59 @@ class XMLParserTests {
     @Test
     void tokenizesAttributesAndStringValues() {
       final var input = "<a href=\"url\" id=\"x\">";
-      final var tokens = lexer.tokenizeSingle(input);
+      final var tokens = tokens(input);
 
       // Expected sequence (ws is significant since skip=false):
       // < tagname ws attrname = " stringpart " ws attrname = " stringpart " >
       // Note: our input already ends with '>' so it's included in tokens.
       assertEquals(15, tokens.size(), () -> "Tokens: " + tokens);
-      assertEquals("open_bracket", tokens.get(0).string("cat", null));
-      assertEquals("tagname", tokens.get(1).string("cat", null));
-      assertEquals("ws", tokens.get(2).string("cat", null));
+      assertTrue(
+          categories(input).get(0).contains("open_bracket"),
+          () -> "categories: " + categories(input));
+      assertTrue(
+          categories(input).get(1).contains("tagname"), () -> "categories: " + categories(input));
+      assertTrue(categories(input).get(2).contains("ws"), () -> "categories: " + categories(input));
       // In this grammar, both 'tagname' (constrained) and 'attrname' (unconstrained)
       // regexes can match attribute names; the lexer prefers constrained categories.
       // So attribute names may be categorized as 'tagname'. Accept either.
       assertTrue(
-          "attrname".equals(tokens.get(3).string("cat", null))
-              || "tagname".equals(tokens.get(3).string("cat", null)),
+          "attrname".equals(tokens.get(3).category()) || "tagname".equals(tokens.get(3).category()),
           () -> "Unexpected name for first attribute name: " + tokens.get(3));
-      assertNull(tokens.get(4).string("cat", null)); // '=' has no explicit name in grammar
-      assertEquals("open_quote", tokens.get(5).string("cat", null));
-      assertEquals("stringpart", tokens.get(6).string("cat", null));
-      assertEquals("close_quote", tokens.get(7).string("cat", null));
-      assertEquals("ws", tokens.get(8).string("cat", null));
+      // An inline literal has the anonymous category of its text (S-G3); 1.x reported no category.
+      assertEquals("'='", tokens.get(4).category());
       assertTrue(
-          "attrname".equals(tokens.get(9).string("cat", null))
-              || "tagname".equals(tokens.get(9).string("cat", null)),
+          categories(input).get(5).contains("open_quote"),
+          () -> "categories: " + categories(input));
+      assertTrue(
+          categories(input).get(6).contains("stringpart"),
+          () -> "categories: " + categories(input));
+      assertTrue(
+          categories(input).get(7).contains("close_quote"),
+          () -> "categories: " + categories(input));
+      assertTrue(categories(input).get(8).contains("ws"), () -> "categories: " + categories(input));
+      assertTrue(
+          "attrname".equals(tokens.get(9).category()) || "tagname".equals(tokens.get(9).category()),
           () -> "Unexpected name for second attribute name: " + tokens.get(9));
-      assertNull(tokens.get(10).string("cat", null)); // '='
-      assertEquals("open_quote", tokens.get(11).string("cat", null));
-      assertEquals("stringpart", tokens.get(12).string("cat", null));
-      assertEquals("close_quote", tokens.get(13).string("cat", null));
+      assertEquals("'='", tokens.get(10).category());
+      assertTrue(
+          categories(input).get(11).contains("open_quote"),
+          () -> "categories: " + categories(input));
+      assertTrue(
+          categories(input).get(12).contains("stringpart"),
+          () -> "categories: " + categories(input));
+      assertTrue(
+          categories(input).get(13).contains("close_quote"),
+          () -> "categories: " + categories(input));
 
       // Last token should be the close of open tag
       assertEquals(">", tokens.getLast().text());
-      assertEquals("close_open", tokens.getLast().string("cat", null));
+      assertEquals("close_open", tokens.getLast().category());
     }
 
     @Test
     void tokenPositionsAreTracked() {
       final var input = "<br/>";
-      final var tokens = lexer.tokenizeSingle(input);
+      final var tokens = tokens(input);
 
       // Expect: '<' 'br' '/>'
       assertEquals(3, tokens.size());
@@ -559,22 +627,21 @@ class XMLParserTests {
     @Test
     void tokenizesCommentsWithinContent() {
       final var input = "<div><!-- hi --></div>";
-      final var tokens = lexer.tokenizeSingle(input);
+      final var tokens = tokens(input);
 
       // Find indices for comment tokens
-      final var openIdx =
-          tokens.stream().map(t -> t.string("cat", null)).toList().indexOf("comment_open");
+      final var openIdx = tokens.stream().map(t -> t.category()).toList().indexOf("comment_open");
       assertTrue(openIdx > 0, () -> "No comment_open in tokens: " + tokens);
 
       // comment_text tokens follow, then comment_close
       int i = openIdx + 1;
       int textCount = 0;
-      while (i < tokens.size() && "comment_text".equals(tokens.get(i).string("cat", null))) {
+      while (i < tokens.size() && "comment_text".equals(tokens.get(i).category())) {
         textCount++;
         i++;
       }
       assertTrue(textCount >= 1, () -> "Expected some comment_text, tokens: " + tokens);
-      assertEquals("comment_close", tokens.get(i).string("cat", null));
+      assertEquals("comment_close", tokens.get(i).category());
     }
   }
 
@@ -587,23 +654,21 @@ class XMLParserTests {
     @Test
     void attributeQuotesCreateAndPopATTRVALUEState() {
       final var input = "<a href=\"http://x\">";
-      final var tokens = lexer.tokenizeSingle(input);
+      final var tokens = tokens(input);
 
       // Find the first open_quote and its matching close_quote, verify only string tokens inside
-      final int open =
-          tokens.stream().map(t -> t.string("cat", null)).toList().indexOf("open_quote");
+      final int open = tokens.stream().map(t -> t.category()).toList().indexOf("open_quote");
       assertTrue(open >= 0, () -> "No open_quote in tokens: " + tokens);
 
       int close = open + 1;
-      while (close < tokens.size()
-          && !"close_quote".equals(tokens.get(close).string("cat", null))) {
+      while (close < tokens.size() && !"close_quote".equals(tokens.get(close).category())) {
         close++;
       }
       assertTrue(close < tokens.size(), () -> "No matching close_quote, tokens: " + tokens);
 
       for (int i = open + 1; i < close; i++) {
         final var tok = tokens.get(i);
-        final var cat = tok.string("cat", null);
+        final var cat = tok.category();
         assertTrue(
             "stringpart".equals(cat) || "char_ref".equals(cat) || "entity_ref".equals(cat),
             () -> "Unexpected token inside attribute value: " + tok);
@@ -613,10 +678,10 @@ class XMLParserTests {
     @Test
     void contentStateAllowsNestedElements() {
       final var input = "<p>hi<b>bold</b>!</p>";
-      final var tokens = lexer.tokenizeSingle(input);
+      final var tokens = tokens(input);
 
       // Expect to see nested element tokens between textparts
-      final var cats = tokens.stream().map(t -> t.string("cat", null)).toList();
+      final var cats = tokens.stream().map(t -> t.category()).toList();
       // At least one open_bracket after a close_open of <p>
       final var firstCloseOpen = cats.indexOf("close_open");
       assertTrue(firstCloseOpen >= 0, () -> "No close_open for <p>: " + tokens);
@@ -626,24 +691,23 @@ class XMLParserTests {
 
       // Ensure nested tag structure exists
       final int idx = firstCloseOpen + 1 + nestedOpen;
-      assertEquals("open_bracket", tokens.get(idx).string("cat", null));
-      assertEquals("tagname", tokens.get(idx + 1).string("cat", null));
-      assertEquals("close_open", tokens.get(idx + 2).string("cat", null));
+      assertEquals("open_bracket", tokens.get(idx).category());
+      assertEquals("tagname", tokens.get(idx + 1).category());
+      assertEquals("close_open", tokens.get(idx + 2).category());
     }
 
     @Test
     void commentStateIsIsolatedFromContent() {
       final var input = "<div><!-- a-b --></div>";
-      final var tokens = lexer.tokenizeSingle(input);
+      final var tokens = tokens(input);
 
       boolean insideComment = false;
       for (final var t : tokens) {
-        if ("comment_open".equals(t.string("cat", null))) insideComment = true;
-        else if ("comment_close".equals(t.string("cat", null))) insideComment = false;
+        if ("comment_open".equals(t.category())) insideComment = true;
+        else if ("comment_close".equals(t.category())) insideComment = false;
         else if (insideComment) {
           // While in COMMENT state, only comment_text tokens should appear
-          assertEquals(
-              "comment_text", t.string("cat", null), () -> "Unexpected token in COMMENT: " + t);
+          assertEquals("comment_text", t.category(), () -> "Unexpected token in COMMENT: " + t);
         }
       }
     }

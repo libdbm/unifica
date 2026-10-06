@@ -1,0 +1,5 @@
+@prefix : <x> .
+:a a :b, 1.5 .
+[] <p> "x"@en # c\n.
+<a> <b> "x"@base .
+"s" <p> <o> .

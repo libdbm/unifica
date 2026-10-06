@@ -1,0 +1,5 @@
+start S;
+S --> B where equals('a', 'b'):5;
+S --> A where equals('a', 'b'):3;
+A --> 'x';
+B --> 'x';

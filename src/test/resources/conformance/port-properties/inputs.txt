@@ -1,0 +1,7 @@
+a=1\nb\n# c\n
+k =\nv : x y \n
+a=b\\\n c
+\n\na\n
+
+a#b
+=x

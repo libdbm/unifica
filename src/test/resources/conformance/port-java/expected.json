@@ -1,0 +1,371 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "class A { List<String> x; }",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "compilationunit",
+        "children": [
+          {
+            "symbol": "typeDeclaration",
+            "children": [
+              {
+                "symbol": "classDeclaration",
+                "children": [
+                  {
+                    "text": "class",
+                    "start": 0,
+                    "end": 5
+                  },
+                  {
+                    "symbol": "identifier",
+                    "children": [
+                      {
+                        "symbol": "IDENTIFIER",
+                        "children": [
+                          {
+                            "text": "A",
+                            "start": 6,
+                            "end": 7
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "classBody",
+                    "children": [
+                      {
+                        "text": "{",
+                        "start": 8,
+                        "end": 9
+                      },
+                      {
+                        "symbol": "classBodyDeclaration",
+                        "children": [
+                          {
+                            "symbol": "memberDeclaration",
+                            "children": [
+                              {
+                                "symbol": "fieldDeclaration",
+                                "children": [
+                                  {
+                                    "symbol": "typeType",
+                                    "children": [
+                                      {
+                                        "symbol": "classOrInterfaceType",
+                                        "children": [
+                                          {
+                                            "symbol": "classType",
+                                            "children": [
+                                              {
+                                                "symbol": "typeIdentifier",
+                                                "children": [
+                                                  {
+                                                    "symbol": "IDENTIFIER",
+                                                    "children": [
+                                                      {
+                                                        "text": "List",
+                                                        "start": 10,
+                                                        "end": 14
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "symbol": "typeArguments",
+                                                "children": [
+                                                  {
+                                                    "text": "<",
+                                                    "start": 14,
+                                                    "end": 15
+                                                  },
+                                                  {
+                                                    "symbol": "typeArgument",
+                                                    "children": [
+                                                      {
+                                                        "symbol": "typeType"
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "text": ">",
+                                                    "start": 21,
+                                                    "end": 22
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "symbol": "variableDeclarators",
+                                    "children": [
+                                      {
+                                        "symbol": "variableDeclarator",
+                                        "children": [
+                                          {
+                                            "symbol": "variableDeclaratorId",
+                                            "children": [
+                                              {
+                                                "symbol": "identifier",
+                                                "children": [
+                                                  {
+                                                    "symbol": "IDENTIFIER",
+                                                    "children": [
+                                                      {
+                                                        "text": "x",
+                                                        "start": 23,
+                                                        "end": 24
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "text": ";",
+                                    "start": 24,
+                                    "end": 25
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "text": "}",
+                        "start": 26,
+                        "end": 27
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "class A { void f() { if (a) if (b) x(); else y(); } }",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "compilationunit",
+        "children": [
+          {
+            "symbol": "typeDeclaration",
+            "children": [
+              {
+                "symbol": "classDeclaration",
+                "children": [
+                  {
+                    "text": "class"
+                  },
+                  {
+                    "symbol": "identifier"
+                  },
+                  {
+                    "symbol": "classBody",
+                    "children": [
+                      {
+                        "text": "{"
+                      },
+                      {
+                        "symbol": "classBodyDeclaration",
+                        "children": [
+                          {
+                            "symbol": "memberDeclaration",
+                            "children": [
+                              {
+                                "symbol": "methodDeclaration",
+                                "children": [
+                                  {
+                                    "symbol": "typeTypeOrVoid"
+                                  },
+                                  {
+                                    "symbol": "identifier"
+                                  },
+                                  {
+                                    "symbol": "formalParameters"
+                                  },
+                                  {
+                                    "symbol": "methodBody",
+                                    "children": [
+                                      {
+                                        "symbol": "block",
+                                        "children": [
+                                          {
+                                            "text": "{"
+                                          },
+                                          {
+                                            "symbol": "blockStatement",
+                                            "children": [
+                                              {
+                                                "symbol": "statement",
+                                                "children": [
+                                                  {
+                                                    "text": "if",
+                                                    "start": 21,
+                                                    "end": 23
+                                                  },
+                                                  {
+                                                    "text": "("
+                                                  },
+                                                  {
+                                                    "symbol": "expression"
+                                                  },
+                                                  {
+                                                    "text": ")"
+                                                  },
+                                                  {
+                                                    "symbol": "statement",
+                                                    "children": [
+                                                      {
+                                                        "text": "if",
+                                                        "start": 28,
+                                                        "end": 30
+                                                      },
+                                                      {
+                                                        "text": "("
+                                                      },
+                                                      {
+                                                        "symbol": "expression"
+                                                      },
+                                                      {
+                                                        "text": ")"
+                                                      },
+                                                      {
+                                                        "symbol": "statement"
+                                                      },
+                                                      {
+                                                        "text": "else",
+                                                        "start": 40,
+                                                        "end": 44
+                                                      },
+                                                      {
+                                                        "symbol": "statement"
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "text": "}"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "text": "}"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "class A { int f() { return (a) - b; } }",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    },
+    {
+      "input": "class A { Object f() { return (String) o; } }",
+      "outcome": "accepted",
+      "penalty": 1,
+      "ambiguous": false
+    },
+    {
+      "input": "class A { int x = 1 }",
+      "outcome": "rejected"
+    },
+    {
+      "input": "/* c */ module m.n { requires transitive java.base; } // end",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "compilationunit",
+        "children": [
+          {
+            "symbol": "modularCompulationUnit",
+            "children": [
+              {
+                "symbol": "moduleDeclaration",
+                "children": [
+                  {
+                    "text": "module",
+                    "start": 8,
+                    "end": 14
+                  },
+                  {
+                    "symbol": "qualifiedName"
+                  },
+                  {
+                    "text": "{"
+                  },
+                  {
+                    "symbol": "moduleDirective",
+                    "children": [
+                      {
+                        "text": "requires"
+                      },
+                      {
+                        "symbol": "requiresModifier",
+                        "children": [
+                          {
+                            "text": "transitive"
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "qualifiedName"
+                      },
+                      {
+                        "text": ";"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

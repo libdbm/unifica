@@ -1,0 +1,415 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "a,b\n1,2\n",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "csvFile",
+        "children": [
+          {
+            "symbol": "hdr",
+            "children": [
+              {
+                "symbol": "row",
+                "children": [
+                  {
+                    "symbol": "field",
+                    "children": [
+                      {
+                        "symbol": "TEXT",
+                        "children": [
+                          {
+                            "text": "a",
+                            "start": 0,
+                            "end": 1
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": ",",
+                    "start": 1,
+                    "end": 2
+                  },
+                  {
+                    "symbol": "field",
+                    "children": [
+                      {
+                        "symbol": "TEXT",
+                        "children": [
+                          {
+                            "text": "b",
+                            "start": 2,
+                            "end": 3
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": "\n",
+                    "start": 3,
+                    "end": 4
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "row",
+            "children": [
+              {
+                "symbol": "field",
+                "children": [
+                  {
+                    "symbol": "TEXT",
+                    "children": [
+                      {
+                        "text": "1",
+                        "start": 4,
+                        "end": 5
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": ",",
+                "start": 5,
+                "end": 6
+              },
+              {
+                "symbol": "field",
+                "children": [
+                  {
+                    "symbol": "TEXT",
+                    "children": [
+                      {
+                        "text": "2",
+                        "start": 6,
+                        "end": 7
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "\n",
+                "start": 7,
+                "end": 8
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "h\n\"x,\"\"y\"\"\",\n",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "csvFile",
+        "children": [
+          {
+            "symbol": "hdr",
+            "children": [
+              {
+                "symbol": "row",
+                "children": [
+                  {
+                    "symbol": "field",
+                    "children": [
+                      {
+                        "symbol": "TEXT",
+                        "children": [
+                          {
+                            "text": "h",
+                            "start": 0,
+                            "end": 1
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": "\n",
+                    "start": 1,
+                    "end": 2
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "row",
+            "children": [
+              {
+                "symbol": "field",
+                "children": [
+                  {
+                    "symbol": "STRING",
+                    "children": [
+                      {
+                        "text": "\"x,\"\"y\"\"\"",
+                        "start": 2,
+                        "end": 11
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": ",",
+                "start": 11,
+                "end": 12
+              },
+              {
+                "symbol": "field",
+                "children": []
+              },
+              {
+                "text": "\n",
+                "start": 12,
+                "end": 13
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "h\n,,\n",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "csvFile",
+        "children": [
+          {
+            "symbol": "hdr",
+            "children": [
+              {
+                "symbol": "row",
+                "children": [
+                  {
+                    "symbol": "field",
+                    "children": [
+                      {
+                        "symbol": "TEXT",
+                        "children": [
+                          {
+                            "text": "h",
+                            "start": 0,
+                            "end": 1
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": "\n",
+                    "start": 1,
+                    "end": 2
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "row",
+            "children": [
+              {
+                "symbol": "field",
+                "children": []
+              },
+              {
+                "text": ",",
+                "start": 2,
+                "end": 3
+              },
+              {
+                "symbol": "field",
+                "children": []
+              },
+              {
+                "text": ",",
+                "start": 3,
+                "end": 4
+              },
+              {
+                "symbol": "field",
+                "children": []
+              },
+              {
+                "text": "\n",
+                "start": 4,
+                "end": 5
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "h\n\n",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "csvFile",
+        "children": [
+          {
+            "symbol": "hdr",
+            "children": [
+              {
+                "symbol": "row",
+                "children": [
+                  {
+                    "symbol": "field",
+                    "children": [
+                      {
+                        "symbol": "TEXT",
+                        "children": [
+                          {
+                            "text": "h",
+                            "start": 0,
+                            "end": 1
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": "\n",
+                    "start": 1,
+                    "end": 2
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "row",
+            "children": [
+              {
+                "symbol": "field",
+                "children": []
+              },
+              {
+                "text": "\n",
+                "start": 2,
+                "end": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "h\n1, 2\r\n",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "csvFile",
+        "children": [
+          {
+            "symbol": "hdr",
+            "children": [
+              {
+                "symbol": "row",
+                "children": [
+                  {
+                    "symbol": "field",
+                    "children": [
+                      {
+                        "symbol": "TEXT",
+                        "children": [
+                          {
+                            "text": "h",
+                            "start": 0,
+                            "end": 1
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": "\n",
+                    "start": 1,
+                    "end": 2
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "row",
+            "children": [
+              {
+                "symbol": "field",
+                "children": [
+                  {
+                    "symbol": "TEXT",
+                    "children": [
+                      {
+                        "text": "1",
+                        "start": 2,
+                        "end": 3
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": ",",
+                "start": 3,
+                "end": 4
+              },
+              {
+                "symbol": "field",
+                "children": [
+                  {
+                    "symbol": "TEXT",
+                    "children": [
+                      {
+                        "text": " 2",
+                        "start": 4,
+                        "end": 6
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "\r",
+                "start": 6,
+                "end": 7
+              },
+              {
+                "text": "\n",
+                "start": 7,
+                "end": 8
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "a\nb",
+      "outcome": "rejected"
+    },
+    {
+      "input": "a,\"b\n",
+      "outcome": "rejected"
+    }
+  ]
+}

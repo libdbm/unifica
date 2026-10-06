@@ -1,7 +1,6 @@
 package com.libdbm.xml;
 
 import com.libdbm.ugf.parser.ParseTree;
-import com.libdbm.ugf.parser.Utilities;
 import com.libdbm.xml.XMLNode.*;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -455,7 +454,7 @@ public final class XMLBuilder {
   }
 
   private String getLeafText(final ParseTree.Node node) {
-    return Utilities.textOf(node);
+    return node.text();
   }
 
   /**
@@ -468,7 +467,7 @@ public final class XMLBuilder {
       return input.substring(positions[0], positions[1]);
     }
     // Fallback to reconstructed text
-    return Utilities.textOf(node);
+    return node.text();
   }
 
   /**

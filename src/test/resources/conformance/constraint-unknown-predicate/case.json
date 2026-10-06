@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-C8"
+  ],
+  "description": "A predicate that is not registered is a compile error."
+}

@@ -1,0 +1,15 @@
+{
+  "rules": [
+    "S-G1",
+    "S-G3",
+    "S-L2",
+    "S-L4",
+    "S-C2",
+    "S-C4",
+    "S-C9",
+    "S-P2",
+    "S-P4",
+    "S-P8"
+  ],
+  "description": "Port of grammars-v4 lua: keywords excluded from NAME, long brackets and long comments with matching levels, Lua precedence levels with right-associative '^', and the paren-statement ambiguity resolved by a weighted starts_with soft group."
+}

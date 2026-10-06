@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "S-G2",
+    "S-G3"
+  ],
+  "description": "Review 2: interior regex [^\"\\\\]* of StringLiteral must not become a standalone token that swallows \"int x;\"."
+}

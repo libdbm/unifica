@@ -1,0 +1,110 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "SRI-NIC.ARPA",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "domain",
+        "children": [
+          {
+            "symbol": "subdomain",
+            "children": [
+              {
+                "symbol": "LABEL",
+                "children": [
+                  {
+                    "text": "SRI-NIC",
+                    "start": 0,
+                    "end": 7
+                  }
+                ]
+              },
+              {
+                "text": ".",
+                "start": 7,
+                "end": 8
+              },
+              {
+                "symbol": "LABEL",
+                "children": [
+                  {
+                    "text": "ARPA",
+                    "start": 8,
+                    "end": 12
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": " ",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "domain",
+        "children": [
+          {
+            "text": " ",
+            "start": 0,
+            "end": 1
+          }
+        ]
+      }
+    },
+    {
+      "input": "A",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "domain",
+        "children": [
+          {
+            "symbol": "subdomain",
+            "children": [
+              {
+                "symbol": "LABEL",
+                "children": [
+                  {
+                    "text": "A",
+                    "start": 0,
+                    "end": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "input": "SRI-.ARPA",
+      "outcome": "rejected"
+    },
+    {
+      "input": "1ABC",
+      "outcome": "rejected"
+    },
+    {
+      "input": "",
+      "outcome": "rejected"
+    },
+    {
+      "input": "  ",
+      "outcome": "rejected"
+    },
+    {
+      "input": "A ",
+      "outcome": "rejected"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-P7"
+  ],
+  "description": "Production costs add to the penalty; the cheaper production is selected."
+}

@@ -1,0 +1,52 @@
+# Port of grammars-v4 url/url.g4 (commit 7df52be9), URLs of the form
+#   scheme:[//[user:password@]host[:port]][/]path[?query][#fragment]
+# Original grammar: Copyright (c) 2016, Tom Everett, BSD 3-Clause License.
+# Nothing is skipped: as in ANTLR, only a trailing run of line breaks (WS) may follow a URL.
+
+start url;
+whitespace none;
+
+url --> uri ;
+
+uri --> scheme '://' login? host (':' port)? ('/' path?)? query? frag? WS? ;
+
+scheme --> string ;
+
+host --> '/'? hostname ;
+
+hostname --> string | '[' v6host ']' ;
+
+# ANTLR: '::'? (string | DIGITS) ((':' | '::') (string | DIGITS))*
+v6host --> '::'? string ((':' | '::') string)* ;
+
+port --> DIGITS ;
+
+path --> string ('/' string)* '/'? ;
+
+user --> string ;
+
+login --> user (':' password)? '@' ;
+
+password --> string ;
+
+# ANTLR: '#' (string | DIGITS)
+frag --> '#' string ;
+
+query --> '?' search ;
+
+search --> searchparameter ('&' searchparameter)* ;
+
+# ANTLR: string ('=' (string | DIGITS | HEX))?
+searchparameter --> string ('=' (string | HEX))? ;
+
+string --> STRING | DIGITS ;
+
+DIGITS --> [0-9]+ ;
+
+HEX --> (?:%[a-fA-F0-9][a-fA-F0-9])+ ;
+
+# ANTLR resolves equal-length ties by rule order, so a run of digits is DIGITS
+# and a run of %XX escapes is HEX. STRING excludes exactly those matches.
+STRING --> (?!(?:[0-9]+|(?:%[a-fA-F0-9][a-fA-F0-9])+)(?![a-zA-Z0-9.+\-]|%[a-fA-F0-9][a-fA-F0-9])) (?:[a-zA-Z~0-9]|%[a-fA-F0-9][a-fA-F0-9]) (?:[a-zA-Z0-9.+\-]|%[a-fA-F0-9][a-fA-F0-9])* ;
+
+WS --> [\r\n]+ ;

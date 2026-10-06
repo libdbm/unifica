@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "S-G2",
+    "S-L3"
+  ],
+  "description": "Review 2: b --> {IN} 'y' compiles to a lexeme of category b that matches only in state IN."
+}

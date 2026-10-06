@@ -1,0 +1,32 @@
+# Port of grammars-v4 properties/PropertiesLexer.g4 and PropertiesParser.g4 (commit 7df52be9).
+# The .g4 headers state no license or author; see NOTICE.md.
+#
+# Line breaks and spaces are tokens, as in ANTLR, so nothing is discarded as whitespace.
+# The ANTLR lexer modes become lexical states: DELIMITER enters VALUE, and the line break
+# that ends a value leaves it. ANTLR's SLASH/SLASH_DELIMITER/SLASH_JOINT (-> more,
+# pushMode(INSIDE)) become the escape alternative [\\](?:[\r]?[\n]|[^\r\n]) of CHARACTER.
+
+start propertiesFile;
+whitespace none;
+
+# ANTLR's parser stops before a leading blank line; here the file may start with one.
+propertiesFile --> NEWLINE? row* ;
+
+row --> comment | line ;
+
+line --> key (DELIMITER key:value?)? eol ;
+
+key --> CHARACTER+ ;
+
+eol --> NEWLINE+ ;
+eol --> where at_end() ;
+
+comment --> COMMENT eol ;
+
+COMMENT --> {DEFAULT} [!#] [^\r\n]* ;
+NEWLINE --> {DEFAULT} [\r\n]+ ;
+DELIMITER --> {DEFAULT} [:=] ==> VALUE ;
+CHARACTER --> {DEFAULT} (?:[^!#:=\r\n\\]|[\\](?:[\r]?[\n]|[^\r\n])) ;
+
+NEWLINE --> {VALUE} [\r]? [\n] ==> _ ;
+CHARACTER --> {VALUE} (?:[^\r\n\\]|[\\](?:[\r]?[\n]|[^\r\n])) ;

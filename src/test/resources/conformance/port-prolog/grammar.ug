@@ -1,0 +1,129 @@
+# Prolog (ISO 13211-1 tokens and terms, single-level operator table).
+# Ported from grammars-v4 prolog/prolog.g4 (commit 7df52be9).
+# Copyright (c) 2013, Tom Everett. BSD licence (see NOTICE.md).
+#
+# ANTLR fragments are inlined into the token regexes.
+
+start p_text;
+whitespace [ \t\r\n]+;
+skip COMMENT, MULTILINE_COMMENT;
+
+p_text --> (directive | clause)* ;
+
+directive --> ':-' term '.' ;
+
+# A term starting with the prefix operator ':-' would make every directive
+# also a clause. ANTLR takes the first alternative (directive); here the
+# clause reading is excluded by a constraint on the term's text.
+clause --> term:t '.' where !matches(t, '(?s):-(?![#$&*+./:<=>?@^~\\\\-]).*') ;
+
+# Arguments are separated by ','. ',' is also an operator, so an argument
+# is a term whose top-level binary operator is not ',' (ISO priority 999).
+termlist --> arg (',' arg)* ;
+
+# ANTLR's single left-recursive term rule with <assoc = right> becomes a
+# right-recursive operator chain over primary terms. A prefix operator
+# applies to the whole rest of the term, as in the ANTLR precedence order
+# (the binary alternative precedes the unary one).
+term --> primary | primary operator_ term | operator_ term ;
+
+arg --> primary ;
+arg --> primary operator_:op arg where !matches(op, ',') ;
+arg --> operator_ arg ;
+
+primary --> VARIABLE
+         | '(' term ')'
+         | integer
+         | FLOAT
+         | atom '(' termlist ')'
+         | '[' termlist ('|' term)? ']'
+         | '{' termlist '}'
+         | atom ;
+
+operator_ --> ':-'
+           | '-->'
+           | '?-'
+           | 'dynamic'
+           | 'multifile'
+           | 'discontiguous'
+           | 'public'
+           | ';'
+           | '->'
+           | ','
+           | '\\+'
+           | '='
+           | '\\='
+           | '=='
+           | '\\=='
+           | '@<'
+           | '@=<'
+           | '@>'
+           | '@>='
+           | '=..'
+           | 'is'
+           | '=:='
+           | '=\\='
+           | '<'
+           | '=<'
+           | '>'
+           | '>='
+           | ':'
+           | '+'
+           | '-'
+           | '/\\'
+           | '\\/'
+           | '*'
+           | '/'
+           | '//'
+           | 'rem'
+           | 'mod'
+           | '<<'
+           | '>>'
+           | '**'
+           | '^'
+           | '\\' ;
+
+atom --> '[' ']'
+      | '{' '}'
+      | LETTER_DIGIT
+      | GRAPHIC_TOKEN
+      | QUOTED
+      | DOUBLE_QUOTED_LIST
+      | BACK_QUOTED_STRING
+      | ';'
+      | '!' ;
+
+integer --> DECIMAL | CHARACTER_CODE_CONSTANT | BINARY | OCTAL | HEX ;
+
+# Names start with a lower-case letter (ANTLR's SMALL_LETTER also admits
+# '_', which made '_' and '_X' atoms). The operator words are literal tokens
+# in ANTLR, which win over LETTER_DIGIT on equal length; here a lookahead
+# excludes them.
+LETTER_DIGIT --> (?!(?:dynamic|multifile|discontiguous|public|is|rem|mod)(?![A-Za-z0-9_]))[a-z][A-Za-z0-9_]* ;
+
+VARIABLE --> [A-Z_][A-Za-z0-9_]* ;
+
+DECIMAL --> [0-9]+ ;
+BINARY --> '0b' [01]+ ;
+OCTAL --> '0o' [0-7]+ ;
+HEX --> '0x' [0-9a-fA-F]+ ;
+
+CHARACTER_CODE_CONSTANT --> "0'" (?:[#$&*+./:<=>?@^~A-Za-z0-9_!\(\),;\[\]{}|% "`-]|''|\\[\\'"`abrftnv]|\\[0-7]+\\|\\x[0-9a-fA-F]+\\) ;
+
+FLOAT --> [0-9]+ '.' [0-9]+ (?:[eE][+-][0-9]+)? ;
+
+# Graphic tokens, except the operator and end tokens that ANTLR lexes as
+# literals (literals win over GRAPHIC_TOKEN on equal length in ANTLR).
+GRAPHIC_TOKEN --> (?!(?::-|-->|\?-|->|\\\+|=|\\=|==|\\==|@<|@=<|@>|@>=|=\.\.|=:=|=\\=|<|=<|>|>=|:|\+|-|/\\|\\/|\*|/|//|<<|>>|\*\*|\^|\\|\.)(?![#$&*+./:<=>?@^~\\-]))[#$&*+./:<=>?@^~\\-]+ ;
+
+QUOTED --> "'" (?:[#$&*+./:<=>?@^~A-Za-z0-9_!\(\),;\[\]{}|% "`-]|''|\\[\\'"`abrftnv]|\\[0-7]+\\|\\x[0-9a-fA-F]+\\|\\\n)* "'" ;
+
+DOUBLE_QUOTED_LIST --> '"' (?:[#$&*+./:<=>?@^~A-Za-z0-9_!\(\),;\[\]{}|% '`-]|""|\\[\\'"`abrftnv]|\\[0-7]+\\|\\x[0-9a-fA-F]+\\|\\\n)* '"' ;
+
+BACK_QUOTED_STRING --> '`' (?:[#$&*+./:<=>?@^~A-Za-z0-9_!\(\),;\[\]{}|% '"-]|``|\\[\\'"`abrftnv]|\\[0-7]+\\|\\x[0-9a-fA-F]+\\|\\\n)* '`' ;
+
+COMMENT --> '%' [^\n\r]* ;
+
+# ANTLR nests block comments and lets one run to end of input; here they
+# do not nest and must be closed.
+MULTILINE_COMMENT --> '/*' (?:[^*]|[*]+[^*/])* [*]+ '/' ;

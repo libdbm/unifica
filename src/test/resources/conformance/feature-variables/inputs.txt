@@ -1,0 +1,6 @@
+n k
+o a
+o b
+o
+r z1 z1
+r z1 z2

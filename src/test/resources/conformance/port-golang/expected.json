@@ -1,0 +1,750 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "package p\nvar x = 1",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "sourceFile",
+        "children": [
+          {
+            "symbol": "packageClause",
+            "children": [
+              {
+                "symbol": "PACKAGE",
+                "children": [
+                  {
+                    "text": "package",
+                    "start": 0,
+                    "end": 7
+                  }
+                ]
+              },
+              {
+                "symbol": "packageName",
+                "children": [
+                  {
+                    "symbol": "identifier",
+                    "children": [
+                      {
+                        "symbol": "IDENTIFIER",
+                        "children": [
+                          {
+                            "text": "p",
+                            "start": 8,
+                            "end": 9
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "eos",
+            "children": [
+              {
+                "symbol": "EOS",
+                "children": [
+                  {
+                    "text": "\n",
+                    "start": 9,
+                    "end": 10
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "declaration",
+            "children": [
+              {
+                "symbol": "varDecl",
+                "children": [
+                  {
+                    "symbol": "VAR",
+                    "children": [
+                      {
+                        "text": "var",
+                        "start": 10,
+                        "end": 13
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "varSpec",
+                    "children": [
+                      {
+                        "symbol": "identifierList",
+                        "children": [
+                          {
+                            "symbol": "IDENTIFIER",
+                            "children": [
+                              {
+                                "text": "x",
+                                "start": 14,
+                                "end": 15
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "ASSIGN",
+                        "children": [
+                          {
+                            "text": "=",
+                            "start": 16,
+                            "end": 17
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "expressionList",
+                        "children": [
+                          {
+                            "symbol": "expression",
+                            "children": [
+                              {
+                                "symbol": "andExpr",
+                                "children": [
+                                  {
+                                    "symbol": "relExpr",
+                                    "children": [
+                                      {
+                                        "symbol": "addExpr",
+                                        "children": [
+                                          {
+                                            "symbol": "mulExpr",
+                                            "children": [
+                                              {
+                                                "symbol": "unaryExpr",
+                                                "children": [
+                                                  {
+                                                    "symbol": "primaryExpr",
+                                                    "children": [
+                                                      {
+                                                        "symbol": "operand",
+                                                        "children": [
+                                                          {
+                                                            "symbol": "literal",
+                                                            "children": [
+                                                              {
+                                                                "symbol": "basicLit",
+                                                                "children": [
+                                                                  {
+                                                                    "symbol": "integer",
+                                                                    "children": [
+                                                                      {
+                                                                        "symbol": "DECIMAL_LIT",
+                                                                        "children": [
+                                                                          {
+                                                                            "text": "1",
+                                                                            "start": 18,
+                                                                            "end": 19
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "eos",
+            "children": []
+          }
+        ]
+      }
+    },
+    {
+      "input": "package p\nfunc f() {\nx := 10\n*p\n}",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "sourceFile",
+        "children": [
+          {
+            "symbol": "packageClause",
+            "children": [
+              {
+                "symbol": "PACKAGE",
+                "children": [
+                  {
+                    "text": "package",
+                    "start": 0,
+                    "end": 7
+                  }
+                ]
+              },
+              {
+                "symbol": "packageName",
+                "children": [
+                  {
+                    "symbol": "identifier",
+                    "children": [
+                      {
+                        "symbol": "IDENTIFIER",
+                        "children": [
+                          {
+                            "text": "p",
+                            "start": 8,
+                            "end": 9
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "eos",
+            "children": [
+              {
+                "symbol": "EOS",
+                "children": [
+                  {
+                    "text": "\n",
+                    "start": 9,
+                    "end": 10
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "functionDecl",
+            "children": [
+              {
+                "symbol": "FUNC",
+                "children": [
+                  {
+                    "text": "func",
+                    "start": 10,
+                    "end": 14
+                  }
+                ]
+              },
+              {
+                "symbol": "IDENTIFIER",
+                "children": [
+                  {
+                    "text": "f",
+                    "start": 15,
+                    "end": 16
+                  }
+                ]
+              },
+              {
+                "symbol": "signature",
+                "children": [
+                  {
+                    "symbol": "parameters",
+                    "children": [
+                      {
+                        "symbol": "L_PAREN",
+                        "children": [
+                          {
+                            "text": "(",
+                            "start": 16,
+                            "end": 17
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "R_PAREN",
+                        "children": [
+                          {
+                            "text": ")",
+                            "start": 17,
+                            "end": 18
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "symbol": "block",
+                "children": [
+                  {
+                    "symbol": "L_CURLY",
+                    "children": [
+                      {
+                        "text": "{",
+                        "start": 19,
+                        "end": 20
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "statementList",
+                    "children": [
+                      {
+                        "symbol": "statement",
+                        "children": [
+                          {
+                            "symbol": "simpleStmt",
+                            "children": [
+                              {
+                                "symbol": "shortVarDecl",
+                                "children": [
+                                  {
+                                    "symbol": "identifierList",
+                                    "children": [
+                                      {
+                                        "symbol": "IDENTIFIER",
+                                        "children": [
+                                          {
+                                            "text": "x",
+                                            "start": 21,
+                                            "end": 22
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "symbol": "DECLARE_ASSIGN",
+                                    "children": [
+                                      {
+                                        "text": ":=",
+                                        "start": 23,
+                                        "end": 25
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "symbol": "expressionList",
+                                    "children": [
+                                      {
+                                        "symbol": "expression",
+                                        "children": [
+                                          {
+                                            "symbol": "andExpr",
+                                            "children": [
+                                              {
+                                                "symbol": "relExpr",
+                                                "children": [
+                                                  {
+                                                    "symbol": "addExpr",
+                                                    "children": [
+                                                      {
+                                                        "symbol": "mulExpr",
+                                                        "children": [
+                                                          {
+                                                            "symbol": "unaryExpr",
+                                                            "children": [
+                                                              {
+                                                                "symbol": "primaryExpr",
+                                                                "children": [
+                                                                  {
+                                                                    "symbol": "operand",
+                                                                    "children": [
+                                                                      {
+                                                                        "symbol": "literal",
+                                                                        "children": [
+                                                                          {
+                                                                            "symbol": "basicLit",
+                                                                            "children": [
+                                                                              {
+                                                                                "symbol": "integer",
+                                                                                "children": [
+                                                                                  {
+                                                                                    "symbol": "DECIMAL_LIT",
+                                                                                    "children": [
+                                                                                      {
+                                                                                        "text": "10",
+                                                                                        "start": 26,
+                                                                                        "end": 28
+                                                                                      }
+                                                                                    ]
+                                                                                  }
+                                                                                ]
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "eos",
+                        "children": [
+                          {
+                            "symbol": "EOS",
+                            "children": [
+                              {
+                                "text": "\n",
+                                "start": 28,
+                                "end": 29
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "statement",
+                        "children": [
+                          {
+                            "symbol": "simpleStmt",
+                            "children": [
+                              {
+                                "symbol": "expressionStmt",
+                                "children": [
+                                  {
+                                    "symbol": "expression",
+                                    "children": [
+                                      {
+                                        "symbol": "andExpr",
+                                        "children": [
+                                          {
+                                            "symbol": "relExpr",
+                                            "children": [
+                                              {
+                                                "symbol": "addExpr",
+                                                "children": [
+                                                  {
+                                                    "symbol": "mulExpr",
+                                                    "children": [
+                                                      {
+                                                        "symbol": "unaryExpr",
+                                                        "children": [
+                                                          {
+                                                            "symbol": "STAR",
+                                                            "children": [
+                                                              {
+                                                                "text": "*",
+                                                                "start": 29,
+                                                                "end": 30
+                                                              }
+                                                            ]
+                                                          },
+                                                          {
+                                                            "symbol": "unaryExpr",
+                                                            "children": [
+                                                              {
+                                                                "symbol": "primaryExpr",
+                                                                "children": [
+                                                                  {
+                                                                    "symbol": "operand",
+                                                                    "children": [
+                                                                      {
+                                                                        "symbol": "operandName",
+                                                                        "children": [
+                                                                          {
+                                                                            "symbol": "IDENTIFIER",
+                                                                            "children": [
+                                                                              {
+                                                                                "text": "p",
+                                                                                "start": 30,
+                                                                                "end": 31
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "eos",
+                        "children": [
+                          {
+                            "symbol": "EOS",
+                            "children": [
+                              {
+                                "text": "\n",
+                                "start": 31,
+                                "end": 32
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "symbol": "R_CURLY",
+                    "children": [
+                      {
+                        "text": "}",
+                        "start": 32,
+                        "end": 33
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "eos",
+            "children": []
+          }
+        ]
+      }
+    },
+    {
+      "input": "package p\nfunc f() { x := 1 y := 2 }",
+      "outcome": "rejected"
+    },
+    {
+      "input": "package p\nvar a = []int{\n1,\n2\n}",
+      "outcome": "rejected"
+    },
+    {
+      "input": "package p /* c */; import (\"a\"; \"b\") // end",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "sourceFile",
+        "children": [
+          {
+            "symbol": "packageClause",
+            "children": [
+              {
+                "symbol": "PACKAGE",
+                "children": [
+                  {
+                    "text": "package",
+                    "start": 0,
+                    "end": 7
+                  }
+                ]
+              },
+              {
+                "symbol": "packageName",
+                "children": [
+                  {
+                    "symbol": "identifier",
+                    "children": [
+                      {
+                        "symbol": "IDENTIFIER",
+                        "children": [
+                          {
+                            "text": "p",
+                            "start": 8,
+                            "end": 9
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "eos",
+            "children": [
+              {
+                "symbol": "EOS",
+                "children": [
+                  {
+                    "text": ";",
+                    "start": 17,
+                    "end": 18
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "importDecl",
+            "children": [
+              {
+                "symbol": "IMPORT",
+                "children": [
+                  {
+                    "text": "import",
+                    "start": 19,
+                    "end": 25
+                  }
+                ]
+              },
+              {
+                "symbol": "L_PAREN",
+                "children": [
+                  {
+                    "text": "(",
+                    "start": 26,
+                    "end": 27
+                  }
+                ]
+              },
+              {
+                "symbol": "importSpec",
+                "children": [
+                  {
+                    "symbol": "importPath",
+                    "children": [
+                      {
+                        "symbol": "string_",
+                        "children": [
+                          {
+                            "symbol": "INTERPRETED_STRING_LIT",
+                            "children": [
+                              {
+                                "text": "\"a\"",
+                                "start": 27,
+                                "end": 30
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "symbol": "eos",
+                "children": [
+                  {
+                    "symbol": "EOS",
+                    "children": [
+                      {
+                        "text": ";",
+                        "start": 30,
+                        "end": 31
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "symbol": "importSpec",
+                "children": [
+                  {
+                    "symbol": "importPath",
+                    "children": [
+                      {
+                        "symbol": "string_",
+                        "children": [
+                          {
+                            "symbol": "INTERPRETED_STRING_LIT",
+                            "children": [
+                              {
+                                "text": "\"b\"",
+                                "start": 32,
+                                "end": 35
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "symbol": "eos",
+                "children": []
+              },
+              {
+                "symbol": "R_PAREN",
+                "children": [
+                  {
+                    "text": ")",
+                    "start": 35,
+                    "end": 36
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "symbol": "eos",
+            "children": []
+          }
+        ]
+      }
+    },
+    {
+      "input": "package p\nfunc f() { return }",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    }
+  ]
+}

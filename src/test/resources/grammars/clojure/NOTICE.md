@@ -1,0 +1,16 @@
+# clojure
+
+- Source: `clojure/Clojure.g4` and `clojure/examples/example1.txt` in [antlr/grammars-v4](https://github.com/antlr/grammars-v4) at commit `7df52be9`.
+- **Authors:** converted to ANTLR 4 by Terence Parr; reworked for grammar specificity by Reid Mckenzie (Dec. 14 2014). The header credits earlier versions to matthias.koester (clojure-eclipse), Laurent Petit (ccw) and Jingguo Yao, with unclear provenance.
+- **License:** the `.g4` header states no license. The grammars-v4 repository default applies; the checkout used for the port contains only `src/`, so the repository license text could not be confirmed and is not reproduced here.
+
+## Deviations
+
+- **Token priority by lookahead.** ANTLR resolves equal-length lexer matches by declaration order; Unifica keeps them as alternatives (S-L2). `SYMBOL` matches many texts that earlier ANTLR tokens claim: negative numbers (`-1`, `-1.5`, `-1e3`, `-1N`, `-3L`), `Infinity`, `NaN`, `nil`, `true`, `false`, and character literals (`\a`, `\newline`, `A`), because `SYMBOL_HEAD` admits `-`, `\` and letters. `SYMBOL` therefore carries a negative lookahead that excludes exactly those texts when they would end where the symbol ends. Longer symbols that merely start with them (`-1.5x`, `nilly`, `\abc`) remain `SYMBOL`, as in ANTLR.
+- **Comments.** `TRASH -> channel(HIDDEN)` becomes `whitespace [ \n\r\t,]+;` (ANTLR's `WS`, which includes the comma) and the skip category `Comment`. `SYMBOL_HEAD` admits `;`, and ANTLR declares `SYMBOL` and `NS_SYMBOL` before `TRASH`, so a `;` run that is a whole symbol up to the end of the line (`;;;;`, `;x`) is a `SYMBOL` in ANTLR, not a comment. `Comment` has a lookahead that reproduces this; a `;` line containing a space or another non-symbol character is a comment. Unifica's built-in whitespace skipping uses `\s`, which also covers form feed and vertical tab; ANTLR treats those as symbol characters.
+- **Fragments inlined** (`NAME`, `SYMBOL_HEAD`, `SYMBOL_REST`, `FLOAT_TAIL`, `HEXD`, ...). `SYMBOL : '.' | '/' | NAME` drops the `'.'` alternative because `NAME` already matches `.`. `BOOLEAN` is written as a regex group so that it stays one lexical category. `EOF` dropped.
+- **Ambiguity inherited from the source grammar.** ANTLR resolves these by ordered choice; Earley reports them as `ambiguous`, and the tie-break (S-P3, declaration order) selects the same tree ANTLR builds:
+  - `gensym : SYMBOL '#'` allows whitespace before `#`, so a symbol followed by a regex or dispatch form (`(re-find #"a" s)`, `(f #inst "...")`) also parses as a gensym followed by a string. The `literal` reading is selected. `valid/macros.txt` is ambiguous for this reason.
+  - `#^{...} x` parses as `meta_data('#^' map_ form)` or as `meta_data('#^' form)` followed by `x`. The first is selected.
+- **Behaviour kept from ANTLR that differs from Clojure.** `:nil`, `:true` and `:false` are rejected, because `NIL` and `BOOLEAN` are not symbols and `simple_keyword` needs a `symbol`. Ratios (`1/2`) lex as `LONG`, `SYMBOL` `/`, `LONG`.
+- **Examples.** The single source example (`example1.txt`) is included. Three hand-written samples were added: `literals.txt` (every literal kind), `macros.txt` (syntax quote, gensyms, unquote-splicing, metadata, anonymous functions, regex, set, var quote, discard, deref) and `game.txt` (an ordinary program).

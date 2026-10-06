@@ -1,0 +1,12 @@
+{
+  "rules": [
+    "S-F5",
+    "S-N2"
+  ],
+  "description": "A variable bound by unification holds for the rest of the production use, including as a constraint argument, in parsing and in generation.",
+  "generate": {
+    "start": "S",
+    "count": 20,
+    "seed": 5
+  }
+}

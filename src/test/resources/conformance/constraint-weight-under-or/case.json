@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-C6"
+  ],
+  "description": "A soft group under or is a compile error."
+}

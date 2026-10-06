@@ -1,0 +1,9 @@
+a = [1, [2]]
+[t]\nx.y = { z = true } # c
+1 = 2000-01-01
+# only\n\na = 1\n
+a = [\n  1, # one\n  2,\n]\n
+a = # no value
+a = [1, 2
+a = 1 b = 2
+x = { a = 1,\n b = 2 }

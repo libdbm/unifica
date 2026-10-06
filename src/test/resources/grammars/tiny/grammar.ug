@@ -1,0 +1,43 @@
+# TINY, a toy language with assignment, READ and WRITE statements.
+# Ported from grammars-v4 tiny/tiny.g4 (commit 7df52be9).
+# Copyright (c) 2016, Tom Everett. BSD licence (see NOTICE.md).
+#
+# The rules are those of tiny.g4, including its left-recursive lists.
+
+start program;
+whitespace [ \r\n]+;
+
+program --> 'BEGIN' stmt_list 'END' ;
+
+stmt_list --> stmt_list stmt | stmt ;
+
+stmt --> assign_stmt | read_stmt | write_stmt ;
+
+assign_stmt --> ident ':=' expr ;
+
+read_stmt --> 'READ' id_list ;
+
+write_stmt --> 'WRITE' expr_list ;
+
+id_list --> id_list ',' ident | ident ;
+
+expr_list --> expr_list ',' expr | expr ;
+
+expr --> expr op factor | factor ;
+
+factor --> ident | integer ;
+
+integer --> '-'? NUMBER ;
+
+# A production whose right-hand side is a single literal is lexical, so op
+# is a token category here (a node with one leaf, the same tree shape as the
+# ANTLR parser rule).
+op --> '+' | '-' ;
+
+ident --> ID ;
+
+# In ANTLR the implicit keyword tokens win over ID on equal length; here the
+# keywords are excluded from ID with a lookahead.
+ID --> (?!(?:BEGIN|END|READ|WRITE)(?![a-zA-Z]))[a-zA-Z]+ ;
+
+NUMBER --> [0-9]+ ;

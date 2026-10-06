@@ -1,0 +1,228 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "graph{a--b}",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "graph",
+        "children": [
+          {
+            "symbol": "GRAPH",
+            "children": [
+              {
+                "text": "graph",
+                "start": 0,
+                "end": 5
+              }
+            ]
+          },
+          {
+            "text": "{",
+            "start": 5,
+            "end": 6
+          },
+          {
+            "symbol": "stmt_list",
+            "children": [
+              {
+                "symbol": "stmt",
+                "children": [
+                  {
+                    "symbol": "edge_stmt",
+                    "children": [
+                      {
+                        "symbol": "node_id",
+                        "children": [
+                          {
+                            "symbol": "id_",
+                            "children": [
+                              {
+                                "symbol": "ID",
+                                "children": [
+                                  {
+                                    "text": "a",
+                                    "start": 6,
+                                    "end": 7
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "symbol": "edgeRHS",
+                        "children": [
+                          {
+                            "symbol": "edgeop",
+                            "children": [
+                              {
+                                "text": "--",
+                                "start": 7,
+                                "end": 9
+                              }
+                            ]
+                          },
+                          {
+                            "symbol": "node_id",
+                            "children": [
+                              {
+                                "symbol": "id_",
+                                "children": [
+                                  {
+                                    "symbol": "ID",
+                                    "children": [
+                                      {
+                                        "text": "b",
+                                        "start": 9,
+                                        "end": 10
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "text": "}",
+            "start": 10,
+            "end": 11
+          }
+        ]
+      }
+    },
+    {
+      "input": "graph{x=1 /* c */ y}",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false,
+      "tree": {
+        "symbol": "graph",
+        "children": [
+          {
+            "symbol": "GRAPH",
+            "children": [
+              {
+                "text": "graph",
+                "start": 0,
+                "end": 5
+              }
+            ]
+          },
+          {
+            "text": "{",
+            "start": 5,
+            "end": 6
+          },
+          {
+            "symbol": "stmt_list",
+            "children": [
+              {
+                "symbol": "stmt",
+                "children": [
+                  {
+                    "symbol": "id_",
+                    "children": [
+                      {
+                        "symbol": "ID",
+                        "children": [
+                          {
+                            "text": "x",
+                            "start": 6,
+                            "end": 7
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": "=",
+                    "start": 7,
+                    "end": 8
+                  },
+                  {
+                    "symbol": "id_",
+                    "children": [
+                      {
+                        "symbol": "NUMBER",
+                        "children": [
+                          {
+                            "text": "1",
+                            "start": 8,
+                            "end": 9
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "symbol": "stmt",
+                "children": [
+                  {
+                    "symbol": "node_stmt",
+                    "children": [
+                      {
+                        "symbol": "node_id",
+                        "children": [
+                          {
+                            "symbol": "id_",
+                            "children": [
+                              {
+                                "symbol": "ID",
+                                "children": [
+                                  {
+                                    "text": "y",
+                                    "start": 18,
+                                    "end": 19
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "text": "}",
+            "start": 19,
+            "end": 20
+          }
+        ]
+      }
+    },
+    {
+      "input": "Digraph G{node[a=b];}",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    },
+    {
+      "input": "digraph{node}",
+      "outcome": "rejected"
+    },
+    {
+      "input": "graph{a->}",
+      "outcome": "rejected"
+    }
+  ]
+}

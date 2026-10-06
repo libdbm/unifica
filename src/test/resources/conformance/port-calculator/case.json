@@ -1,0 +1,4 @@
+{
+  "rules": ["S-G1", "S-G3", "S-G4", "S-L2", "S-P2", "S-P4", "S-P8"],
+  "description": "Port of grammars-v4 calculator: nested precedence levels make + - and * / left associative and ^ right associative, prefix signs bind tighter than ^, keyword literals (cos, e) and the keyword-excluding VARIABLE regex do not tie, and longer identifiers that start with a keyword are variables."
+}

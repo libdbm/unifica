@@ -1,0 +1,6 @@
+class A { List<String> x; }
+class A { void f() { if (a) if (b) x(); else y(); } }
+class A { int f() { return (a) - b; } }
+class A { Object f() { return (String) o; } }
+class A { int x = 1 }
+/* c */ module m.n { requires transitive java.base; } // end
