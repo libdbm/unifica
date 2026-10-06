@@ -170,9 +170,9 @@ class UnificationGrammarLexerTests {
       // Ensure '.' in module names doesn't conflict with REGEX '.'
       final var grammar =
           """
-          module syntax.core;
-          s --> 'x';
-          """;
+                            module syntax.core;
+                            s --> 'x';
+                            """;
       final var g = UnificationGrammarParserFactory.parse(grammar).orElseThrow();
       assertEquals("syntax.core", g.module().name());
     }
@@ -181,9 +181,9 @@ class UnificationGrammarLexerTests {
     void importWithDottedModule() {
       final var grammar =
           """
-          import syntax.core.*;
-          s --> 'x';
-          """;
+                            import syntax.core.*;
+                            s --> 'x';
+                            """;
       final var g = UnificationGrammarParserFactory.parse(grammar).orElseThrow();
       assertFalse(g.imports().isEmpty());
     }
@@ -193,9 +193,9 @@ class UnificationGrammarLexerTests {
       // Module path with dots, followed by regex with character class (bare .* not valid)
       final var grammar =
           """
-          module a.b.c;
-          s --> [a-z]+ [\\s\\S]* ;
-          """;
+                            module a.b.c;
+                            s --> [a-z]+ [\\s\\S]* ;
+                            """;
       final var g = UnificationGrammarParserFactory.parse(grammar).orElseThrow();
       assertEquals("a.b.c", g.module().name());
       assertNotNull(g.rulesFor("s"));

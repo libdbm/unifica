@@ -11,6 +11,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Supports filtering by event type and collects events for later inspection.
  *
+ * <p>Not thread-safe: use one observer per parse, or per thread, rather than one shared by a {@link
+ * Parser} that parses concurrently.
+ *
  * <p>Usage:
  *
  * <pre>{@code
@@ -24,12 +27,11 @@ import org.slf4j.LoggerFactory;
  */
 public final class LoggingObserver implements ParseObserver {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(LoggingObserver.class);
-  private final EnumSet<Type> filter;
-
   /** The most events an observer keeps unless told otherwise. */
   public static final int CAPACITY = 10_000;
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(LoggingObserver.class);
+  private final EnumSet<Type> filter;
   private final List<Object> events = new ArrayList<>();
   private final boolean log;
   private final int capacity;
@@ -63,6 +65,16 @@ public final class LoggingObserver implements ParseObserver {
     this.capacity = capacity;
   }
 
+  /** Create observer that only collects events without logging. */
+  public static LoggingObserver quiet() {
+    return new LoggingObserver(EnumSet.allOf(Type.class), false);
+  }
+
+  /** Create observer for specific event types without logging. */
+  public static LoggingObserver quiet(final EnumSet<Type> filter) {
+    return new LoggingObserver(filter, false);
+  }
+
   /** How many events were not kept because the observer was full. */
   public long dropped() {
     return dropped;
@@ -74,16 +86,6 @@ public final class LoggingObserver implements ParseObserver {
     } else {
       dropped++;
     }
-  }
-
-  /** Create observer that only collects events without logging. */
-  public static LoggingObserver quiet() {
-    return new LoggingObserver(EnumSet.allOf(Type.class), false);
-  }
-
-  /** Create observer for specific event types without logging. */
-  public static LoggingObserver quiet(final EnumSet<Type> filter) {
-    return new LoggingObserver(filter, false);
   }
 
   @Override

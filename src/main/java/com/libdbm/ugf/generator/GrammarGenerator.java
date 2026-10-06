@@ -10,33 +10,12 @@ import com.libdbm.ugf.constraints.Environment;
 import com.libdbm.ugf.constraints.Evaluator;
 import com.libdbm.ugf.constraints.Expression;
 import com.libdbm.ugf.constraints.Predicates;
-import com.libdbm.ugf.features.Binding;
-import com.libdbm.ugf.features.Bindings;
-import com.libdbm.ugf.features.Structure;
-import com.libdbm.ugf.features.Unification;
-import com.libdbm.ugf.features.Unifier;
-import com.libdbm.ugf.features.Value;
-import com.libdbm.ugf.features.Values;
-import com.libdbm.ugf.features.Variable;
+import com.libdbm.ugf.features.*;
 import com.libdbm.ugf.grammar.Grammar;
 import com.libdbm.ugf.grammar.GrammarRule;
 import com.libdbm.ugf.grammar.RuleElement;
-import com.libdbm.ugf.parser.Limits;
-import com.libdbm.ugf.parser.Options;
-import com.libdbm.ugf.parser.Outcome;
-import com.libdbm.ugf.parser.ParseObserver;
-import com.libdbm.ugf.parser.Parser;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Random;
-import java.util.Set;
+import com.libdbm.ugf.parser.*;
+import java.util.*;
 
 /**
  * Generates sentences from a grammar (S-N1, S-N2).
@@ -102,6 +81,48 @@ public final class GrammarGenerator {
     return new Builder(grammar);
   }
 
+  /** True if {@code expression} calls any predicate in {@code names}. */
+  private static boolean calls(final Expression expression, final Set<String> names) {
+    return switch (expression) {
+      case Expression.Call call -> names.contains(call.name());
+      case Expression.And and -> and.terms().stream().anyMatch(term -> calls(term, names));
+      case Expression.Or or -> or.terms().stream().anyMatch(term -> calls(term, names));
+      case Expression.Not not -> calls(not.term(), names);
+      case Expression.Weighted weighted -> calls(weighted.term(), names);
+      case Expression.Literal literal -> false;
+    };
+  }
+
+  private static Structure substitute(final Structure structure, final Bindings bindings) {
+    return Unifier.unify(structure, Structure.EMPTY, bindings)
+        .map(Unification::value)
+        .orElse(structure);
+  }
+
+  /**
+   * The variables of the production use renamed with {@code suffix}, under their source names and
+   * with their bindings substituted, for constraint arguments.
+   */
+  private static Map<String, Value> variables(final Bindings bindings, final String suffix) {
+    final var values = new HashMap<String, Value>();
+    bindings
+        .values()
+        .forEach(
+            (name, value) -> {
+              if (name.endsWith(suffix)) {
+                values.put(
+                    name.substring(0, name.length() - suffix.length()),
+                    Unifier.substitute(value, bindings));
+              }
+            });
+    return values;
+  }
+
+  /** Appends {@code suffix} to every variable, so each production use has its own (S-F5). */
+  private static Structure rename(final Structure structure, final String suffix) {
+    return (Structure) Values.rename(structure, variable -> new Variable(variable.name() + suffix));
+  }
+
   /**
    * Generates up to {@code count} sentences of {@code start} whose features unify with {@code
    * features}.
@@ -163,6 +184,59 @@ public final class GrammarGenerator {
     return Result.failure(ErrorDetails.of(FAILED, reason));
   }
 
+  /**
+   * True if the production's required constraints hold (S-N2). Lexical and positional predicates
+   * need a lexical state or a span, so expressions that call them are left to the final parse.
+   */
+  private boolean holds(
+      final Production production,
+      final Map<String, Value> variables,
+      final Map<String, Value> labels,
+      final Binding self) {
+    if (production.plan().required().isEmpty()) {
+      return true;
+    }
+    final var environment =
+        Environment.of(compiled.predicates())
+            .with(variables)
+            .with(labels)
+            .with(production.symbol(), self);
+    for (final var expression : production.plan().required()) {
+      if (!calls(expression, deferred) && !Evaluator.truth(expression, environment)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * The minimum derivation height of every symbol, by fixed point; used to stay within the depth.
+   */
+  private void heights() {
+    lexical.keySet().forEach(symbol -> heights.put(symbol, 1));
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (final var production : compiled.productions()) {
+        final var height = height(production);
+        if (height < heights.getOrDefault(production.symbol(), UNREACHABLE)) {
+          heights.put(production.symbol(), height);
+          changed = true;
+        }
+      }
+    }
+  }
+
+  private int height(final Production production) {
+    var tallest = 0;
+    for (final var element : production.rhs()) {
+      if (element instanceof Element.Symbol symbol) {
+        tallest = Math.max(tallest, heights.getOrDefault(symbol.name(), UNREACHABLE));
+      }
+    }
+    return tallest >= UNREACHABLE ? UNREACHABLE : tallest + 1;
+  }
+
   /** A way to expand a symbol: one of its productions, or one of its lexical rules. */
   private sealed interface Candidate {
     record Derivation(Production production) implements Candidate {}
@@ -174,10 +248,81 @@ public final class GrammarGenerator {
   private record Expansion(List<String> tokens, Structure features, Bindings bindings) {}
 
   /**
+   * Builds a generator. The vocabulary generator is created in {@link #build()} from the final
+   * {@link Random}, so the order of builder calls does not matter (GEN-8).
+   */
+  public static final class Builder {
+    private final Grammar grammar;
+    private final List<TerminalGenerator> generators = new ArrayList<>();
+    private final List<Vocabulary> vocabularies = new ArrayList<>();
+    private Predicates predicates = Predicates.standard();
+    private Random random = new Random();
+    private Policy policy = Policy.DEFAULT;
+    private Limits limits = Limits.DEFAULT;
+
+    private Builder(final Grammar grammar) {
+      this.grammar = Objects.requireNonNull(grammar);
+    }
+
+    public Builder vocabulary(final Vocabulary vocabulary) {
+      vocabularies.add(Objects.requireNonNull(vocabulary));
+      return this;
+    }
+
+    public Builder terminal(final TerminalGenerator generator) {
+      generators.add(Objects.requireNonNull(generator));
+      return this;
+    }
+
+    public Builder random(final Random random) {
+      this.random = Objects.requireNonNull(random);
+      return this;
+    }
+
+    public Builder predicates(final Predicates predicates) {
+      this.predicates = Objects.requireNonNull(predicates);
+      return this;
+    }
+
+    public Builder policy(final Policy policy) {
+      this.policy = Objects.requireNonNull(policy);
+      return this;
+    }
+
+    /** The limits of the parse that verifies each generated sentence (S-N1). */
+    public Builder limits(final Limits limits) {
+      this.limits = Objects.requireNonNull(limits);
+      return this;
+    }
+
+    /** Shorthand for a policy with a different depth. */
+    public Builder maxDepth(final int depth) {
+      this.policy = policy.depth(depth);
+      return this;
+    }
+
+    /** Compiles the grammar and creates the generator. */
+    public Result<GrammarGenerator, ErrorDetails> build() {
+      final var all = new ArrayList<TerminalGenerator>();
+      vocabularies.forEach(
+          vocabulary -> all.add(new VocabularyGenerator(vocabulary, random, false)));
+      all.addAll(generators);
+      all.add(new LiteralTerminalGenerator());
+      final TerminalGenerator combined =
+          all.size() == 1 ? all.getFirst() : new CompositeTerminalGenerator(all);
+      return Compiler.compile(grammar, predicates)
+          .map(
+              compiled ->
+                  new GrammarGenerator(grammar, compiled, combined, random, policy, limits));
+    }
+  }
+
+  /**
    * One attempt: a fresh variable counter, a step budget and the repetition counts on the current
    * path.
    */
   private final class Search {
+    private final Map<String, Integer> active = new HashMap<>();
     private int fresh;
     private int steps;
 
@@ -189,8 +334,6 @@ public final class GrammarGenerator {
 
     /** Whether some expansion was abandoned for exceeding {@link Policy#length()}. */
     private boolean exceeded;
-
-    private final Map<String, Integer> active = new HashMap<>();
 
     /**
      * Expands a symbol whose written features (already renamed for its scope) are {@code
@@ -400,171 +543,6 @@ public final class GrammarGenerator {
         return Optional.of(category.substring(1, category.length() - 1));
       }
       return terminals.generate(category, Structure.EMPTY, context);
-    }
-  }
-
-  /**
-   * True if the production's required constraints hold (S-N2). Lexical and positional predicates
-   * need a lexical state or a span, so expressions that call them are left to the final parse.
-   */
-  private boolean holds(
-      final Production production,
-      final Map<String, Value> variables,
-      final Map<String, Value> labels,
-      final Binding self) {
-    if (production.plan().required().isEmpty()) {
-      return true;
-    }
-    final var environment =
-        Environment.of(compiled.predicates())
-            .with(variables)
-            .with(labels)
-            .with(production.symbol(), self);
-    for (final var expression : production.plan().required()) {
-      if (!calls(expression, deferred) && !Evaluator.truth(expression, environment)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /** True if {@code expression} calls any predicate in {@code names}. */
-  private static boolean calls(final Expression expression, final Set<String> names) {
-    return switch (expression) {
-      case Expression.Call call -> names.contains(call.name());
-      case Expression.And and -> and.terms().stream().anyMatch(term -> calls(term, names));
-      case Expression.Or or -> or.terms().stream().anyMatch(term -> calls(term, names));
-      case Expression.Not not -> calls(not.term(), names);
-      case Expression.Weighted weighted -> calls(weighted.term(), names);
-      case Expression.Literal literal -> false;
-    };
-  }
-
-  /**
-   * The minimum derivation height of every symbol, by fixed point; used to stay within the depth.
-   */
-  private void heights() {
-    lexical.keySet().forEach(symbol -> heights.put(symbol, 1));
-    var changed = true;
-    while (changed) {
-      changed = false;
-      for (final var production : compiled.productions()) {
-        final var height = height(production);
-        if (height < heights.getOrDefault(production.symbol(), UNREACHABLE)) {
-          heights.put(production.symbol(), height);
-          changed = true;
-        }
-      }
-    }
-  }
-
-  private int height(final Production production) {
-    var tallest = 0;
-    for (final var element : production.rhs()) {
-      if (element instanceof Element.Symbol symbol) {
-        tallest = Math.max(tallest, heights.getOrDefault(symbol.name(), UNREACHABLE));
-      }
-    }
-    return tallest >= UNREACHABLE ? UNREACHABLE : tallest + 1;
-  }
-
-  private static Structure substitute(final Structure structure, final Bindings bindings) {
-    return Unifier.unify(structure, Structure.EMPTY, bindings)
-        .map(Unification::value)
-        .orElse(structure);
-  }
-
-  /**
-   * The variables of the production use renamed with {@code suffix}, under their source names and
-   * with their bindings substituted, for constraint arguments.
-   */
-  private static Map<String, Value> variables(final Bindings bindings, final String suffix) {
-    final var values = new HashMap<String, Value>();
-    bindings
-        .values()
-        .forEach(
-            (name, value) -> {
-              if (name.endsWith(suffix)) {
-                values.put(
-                    name.substring(0, name.length() - suffix.length()),
-                    Unifier.substitute(value, bindings));
-              }
-            });
-    return values;
-  }
-
-  /** Appends {@code suffix} to every variable, so each production use has its own (S-F5). */
-  private static Structure rename(final Structure structure, final String suffix) {
-    return (Structure) Values.rename(structure, variable -> new Variable(variable.name() + suffix));
-  }
-
-  /**
-   * Builds a generator. The vocabulary generator is created in {@link #build()} from the final
-   * {@link Random}, so the order of builder calls does not matter (GEN-8).
-   */
-  public static final class Builder {
-    private final Grammar grammar;
-    private final List<TerminalGenerator> generators = new ArrayList<>();
-    private final List<Vocabulary> vocabularies = new ArrayList<>();
-    private Predicates predicates = Predicates.standard();
-    private Random random = new Random();
-    private Policy policy = Policy.DEFAULT;
-    private Limits limits = Limits.DEFAULT;
-
-    private Builder(final Grammar grammar) {
-      this.grammar = Objects.requireNonNull(grammar);
-    }
-
-    public Builder vocabulary(final Vocabulary vocabulary) {
-      vocabularies.add(Objects.requireNonNull(vocabulary));
-      return this;
-    }
-
-    public Builder terminal(final TerminalGenerator generator) {
-      generators.add(Objects.requireNonNull(generator));
-      return this;
-    }
-
-    public Builder random(final Random random) {
-      this.random = Objects.requireNonNull(random);
-      return this;
-    }
-
-    public Builder predicates(final Predicates predicates) {
-      this.predicates = Objects.requireNonNull(predicates);
-      return this;
-    }
-
-    public Builder policy(final Policy policy) {
-      this.policy = Objects.requireNonNull(policy);
-      return this;
-    }
-
-    /** The limits of the parse that verifies each generated sentence (S-N1). */
-    public Builder limits(final Limits limits) {
-      this.limits = Objects.requireNonNull(limits);
-      return this;
-    }
-
-    /** Shorthand for a policy with a different depth. */
-    public Builder maxDepth(final int depth) {
-      this.policy = policy.depth(depth);
-      return this;
-    }
-
-    /** Compiles the grammar and creates the generator. */
-    public Result<GrammarGenerator, ErrorDetails> build() {
-      final var all = new ArrayList<TerminalGenerator>();
-      vocabularies.forEach(
-          vocabulary -> all.add(new VocabularyGenerator(vocabulary, random, false)));
-      all.addAll(generators);
-      all.add(new LiteralTerminalGenerator());
-      final TerminalGenerator combined =
-          all.size() == 1 ? all.getFirst() : new CompositeTerminalGenerator(all);
-      return Compiler.compile(grammar, predicates)
-          .map(
-              compiled ->
-                  new GrammarGenerator(grammar, compiled, combined, random, policy, limits));
     }
   }
 }

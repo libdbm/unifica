@@ -2,13 +2,7 @@ package com.libdbm.ugf.constraints;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.libdbm.ugf.features.Binding;
-import com.libdbm.ugf.features.FeaturePath;
-import com.libdbm.ugf.features.NumericConstant;
-import com.libdbm.ugf.features.StringConstant;
-import com.libdbm.ugf.features.Structure;
-import com.libdbm.ugf.features.Value;
-import com.libdbm.ugf.features.Variable;
+import com.libdbm.ugf.features.*;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,18 +20,6 @@ class BuiltinsTests {
 
   private Bindings context;
 
-  /** Accumulates bindings into the environment the next {@link #eval} uses. */
-  private static final class Bindings {
-    private Environment environment = Environment.of(REGISTRY);
-
-    Bindings withBinding(final String name, final Value value) {
-      environment = environment.with(name, value);
-      return this;
-    }
-  }
-
-  private record Outcome(boolean passed) {}
-
   @BeforeEach
   void setup() {
     context = new Bindings();
@@ -50,6 +32,18 @@ class BuiltinsTests {
     }
     return new Outcome(context.environment.test(new Expression.Call(name, List.of(args))));
   }
+
+  /** Accumulates bindings into the environment the next {@link #eval} uses. */
+  private static final class Bindings {
+    private Environment environment = Environment.of(REGISTRY);
+
+    Bindings withBinding(final String name, final Value value) {
+      environment = environment.with(name, value);
+      return this;
+    }
+  }
+
+  private record Outcome(boolean passed) {}
 
   @Nested
   @DisplayName("all()")

@@ -24,12 +24,6 @@ public record GrammarRule(
     long cost,
     String transition) {
 
-  /** Whether a production matches one atomic token or a sequence of constituents (S-G1). */
-  public enum Kind {
-    LEXICAL,
-    SYNTACTIC
-  }
-
   public GrammarRule {
     Objects.requireNonNull(lhs, "lhs must not be null");
     Objects.requireNonNull(rhs, "rhs must not be null");
@@ -56,6 +50,15 @@ public record GrammarRule(
   public GrammarRule(
       final LHS lhs, final List<RuleElement> rhs, final List<Expression> constraints) {
     this(lhs, rhs, constraints, classify(rhs, false), 0);
+  }
+
+  public GrammarRule(final String lhs, final List<RuleElement> rhs) {
+    this(new LHS(lhs), rhs, List.of());
+  }
+
+  public GrammarRule(
+      final String lhs, final List<RuleElement> rhs, final List<Expression> constraints) {
+    this(new LHS(lhs), rhs, constraints);
   }
 
   /**
@@ -102,13 +105,10 @@ public record GrammarRule(
     };
   }
 
-  public GrammarRule(final String lhs, final List<RuleElement> rhs) {
-    this(new LHS(lhs), rhs, List.of());
-  }
-
-  public GrammarRule(
-      final String lhs, final List<RuleElement> rhs, final List<Expression> constraints) {
-    this(new LHS(lhs), rhs, constraints);
+  /** Whether a production matches one atomic token or a sequence of constituents (S-G1). */
+  public enum Kind {
+    LEXICAL,
+    SYNTACTIC
   }
 
   /** Left-hand side of a rule with optional features. */

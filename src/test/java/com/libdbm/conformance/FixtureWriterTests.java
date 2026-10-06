@@ -7,23 +7,13 @@ import com.libdbm.ugf.grammar.Grammar;
 import com.libdbm.ugf.grammar.GrammarLinter;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
 import com.libdbm.ugf.lexer.Graph;
-import com.libdbm.ugf.parser.Limits;
-import com.libdbm.ugf.parser.Options;
-import com.libdbm.ugf.parser.ParseDiagnostics;
+import com.libdbm.ugf.parser.*;
 import com.libdbm.ugf.parser.ParseDiagnostics.Span;
-import com.libdbm.ugf.parser.ParseObserver;
-import com.libdbm.ugf.parser.Parser;
-import com.libdbm.ugf.parser.ParserFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
@@ -51,22 +41,6 @@ final class FixtureWriterTests {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FixtureWriterTests.class);
 
-  @Test
-  void testWrite() throws IOException {
-    final var cases = Path.of(System.getProperty("fixtures.cases"));
-    final var out = Path.of(System.getProperty("fixtures.out"));
-    Files.createDirectories(out);
-    try (final Stream<Path> stream = Files.list(cases)) {
-      final var directories = stream.filter(Files::isDirectory).sorted().toList();
-      for (final var directory : directories) {
-        final var name = directory.getFileName().toString();
-        final var fixture = fixture(directory);
-        Files.writeString(out.resolve(name + ".json"), CanonicalJson.write(fixture));
-        LOGGER.info("Wrote fixture {}", name);
-      }
-    }
-  }
-
   private static Map<String, Object> fixture(final Path directory) throws IOException {
     final var source = Files.readString(directory.resolve("grammar.ug"), StandardCharsets.UTF_8);
     final var inputs = Fixtures.inputs(directory.resolve("inputs.txt"));
@@ -82,8 +56,6 @@ final class FixtureWriterTests {
     result.put("inputs", parses);
     return result;
   }
-
-  private record Loaded(Parser parser, Map<String, Object> summary) {}
 
   private static Loaded load(final String source) {
     final var summary = new LinkedHashMap<String, Object>();
@@ -228,4 +200,22 @@ final class FixtureWriterTests {
         .map(entry -> (Object) entry)
         .toList();
   }
+
+  @Test
+  void testWrite() throws IOException {
+    final var cases = Path.of(System.getProperty("fixtures.cases"));
+    final var out = Path.of(System.getProperty("fixtures.out"));
+    Files.createDirectories(out);
+    try (final Stream<Path> stream = Files.list(cases)) {
+      final var directories = stream.filter(Files::isDirectory).sorted().toList();
+      for (final var directory : directories) {
+        final var name = directory.getFileName().toString();
+        final var fixture = fixture(directory);
+        Files.writeString(out.resolve(name + ".json"), CanonicalJson.write(fixture));
+        LOGGER.info("Wrote fixture {}", name);
+      }
+    }
+  }
+
+  private record Loaded(Parser parser, Map<String, Object> summary) {}
 }

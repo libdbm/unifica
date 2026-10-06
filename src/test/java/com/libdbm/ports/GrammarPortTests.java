@@ -1,8 +1,6 @@
 package com.libdbm.ports;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.libdbm.ugf.compiler.Compiler;
 import com.libdbm.ugf.constraints.Predicates;
@@ -34,16 +32,6 @@ final class GrammarPortTests {
 
   private static final Path ROOT = Path.of("src/test/resources/grammars");
   private static final Duration TIMEOUT = Duration.ofSeconds(60);
-
-  @TestFactory
-  Stream<DynamicNode> testPorts() throws IOException {
-    final var containers = new ArrayList<DynamicNode>();
-    for (final var directory : directories(ROOT)) {
-      containers.add(
-          DynamicContainer.dynamicContainer(directory.getFileName().toString(), tests(directory)));
-    }
-    return containers.stream();
-  }
 
   private static List<DynamicNode> tests(final Path directory) throws IOException {
     final var tests = new ArrayList<DynamicNode>();
@@ -89,5 +77,15 @@ final class GrammarPortTests {
     try (final Stream<Path> stream = Files.list(folder)) {
       return stream.filter(Files::isRegularFile).sorted().toList();
     }
+  }
+
+  @TestFactory
+  Stream<DynamicNode> testPorts() throws IOException {
+    final var containers = new ArrayList<DynamicNode>();
+    for (final var directory : directories(ROOT)) {
+      containers.add(
+          DynamicContainer.dynamicContainer(directory.getFileName().toString(), tests(directory)));
+    }
+    return containers.stream();
   }
 }

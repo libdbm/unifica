@@ -31,6 +31,58 @@ class IdentityTests {
         .orElseThrow();
   }
 
+  private static List<Input> inputs() throws IOException {
+    final var inputs = new ArrayList<Input>();
+    try (final Stream<Path> cases = Files.list(CONFORMANCE)) {
+      for (final var directory : cases.filter(Files::isDirectory).sorted().toList()) {
+        // Cycle cases do not terminate with raw keys; they are covered by the tests above.
+        if (directory.getFileName().toString().startsWith("feature-nullable")) {
+          continue;
+        }
+        for (final var line : Files.readString(directory.resolve("inputs.txt")).split("\n")) {
+          inputs.add(new Input(directory.resolve("grammar.ug"), unescape(line)));
+        }
+      }
+    }
+    try (final Stream<Path> ports = Files.list(PORTS)) {
+      for (final var directory : ports.filter(Files::isDirectory).sorted().toList()) {
+        for (final var folder : List.of("valid", "invalid")) {
+          try (final Stream<Path> files = Files.list(directory.resolve(folder))) {
+            for (final var file : files.sorted().toList()) {
+              inputs.add(
+                  new Input(
+                      directory.resolve("grammar.ug"),
+                      Files.readString(file, StandardCharsets.UTF_8)));
+            }
+          }
+        }
+      }
+    }
+    return inputs;
+  }
+
+  /** The corpus escapes: {@code \\n}, {@code \\r}, {@code \\t} and {@code \\\\}. */
+  private static String unescape(final String line) {
+    final var builder = new StringBuilder();
+    for (var index = 0; index < line.length(); index++) {
+      final var character = line.charAt(index);
+      if (character == '\\' && index + 1 < line.length()) {
+        final var next = line.charAt(++index);
+        builder.append(
+            switch (next) {
+              case 'n' -> "\n";
+              case 'r' -> "\r";
+              case 't' -> "\t";
+              case '\\' -> "\\";
+              default -> "\\" + next;
+            });
+      } else {
+        builder.append(character);
+      }
+    }
+    return builder.toString();
+  }
+
   /** Review H1: a nullable cycle through unresolved features terminates. */
   @Test
   void testNullableFeatureCycleTerminates() {
@@ -86,56 +138,4 @@ class IdentityTests {
   }
 
   private record Input(Path grammar, String text) {}
-
-  private static List<Input> inputs() throws IOException {
-    final var inputs = new ArrayList<Input>();
-    try (final Stream<Path> cases = Files.list(CONFORMANCE)) {
-      for (final var directory : cases.filter(Files::isDirectory).sorted().toList()) {
-        // Cycle cases do not terminate with raw keys; they are covered by the tests above.
-        if (directory.getFileName().toString().startsWith("feature-nullable")) {
-          continue;
-        }
-        for (final var line : Files.readString(directory.resolve("inputs.txt")).split("\n")) {
-          inputs.add(new Input(directory.resolve("grammar.ug"), unescape(line)));
-        }
-      }
-    }
-    try (final Stream<Path> ports = Files.list(PORTS)) {
-      for (final var directory : ports.filter(Files::isDirectory).sorted().toList()) {
-        for (final var folder : List.of("valid", "invalid")) {
-          try (final Stream<Path> files = Files.list(directory.resolve(folder))) {
-            for (final var file : files.sorted().toList()) {
-              inputs.add(
-                  new Input(
-                      directory.resolve("grammar.ug"),
-                      Files.readString(file, StandardCharsets.UTF_8)));
-            }
-          }
-        }
-      }
-    }
-    return inputs;
-  }
-
-  /** The corpus escapes: {@code \\n}, {@code \\r}, {@code \\t} and {@code \\\\}. */
-  private static String unescape(final String line) {
-    final var builder = new StringBuilder();
-    for (var index = 0; index < line.length(); index++) {
-      final var character = line.charAt(index);
-      if (character == '\\' && index + 1 < line.length()) {
-        final var next = line.charAt(++index);
-        builder.append(
-            switch (next) {
-              case 'n' -> "\n";
-              case 'r' -> "\r";
-              case 't' -> "\t";
-              case '\\' -> "\\";
-              default -> "\\" + next;
-            });
-      } else {
-        builder.append(character);
-      }
-    }
-    return builder.toString();
-  }
 }

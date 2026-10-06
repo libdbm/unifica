@@ -27,6 +27,12 @@ final class Sequence implements Comparable<Sequence> {
     return new Sequence(null, null, value, 1);
   }
 
+  private static void push(final ArrayDeque<Sequence> stack, final Sequence sequence) {
+    if (sequence.size > 0) {
+      stack.push(sequence);
+    }
+  }
+
   int size() {
     return size;
   }
@@ -79,11 +85,5 @@ final class Sequence implements Comparable<Sequence> {
       }
     }
     return Integer.compare(size, other.size);
-  }
-
-  private static void push(final ArrayDeque<Sequence> stack, final Sequence sequence) {
-    if (sequence.size > 0) {
-      stack.push(sequence);
-    }
   }
 }

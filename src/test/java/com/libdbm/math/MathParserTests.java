@@ -2,7 +2,8 @@ package com.libdbm.math;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.libdbm.math.MathExpr.*;
+import com.libdbm.math.MathExpr.BinaryOp;
+import com.libdbm.math.MathExpr.Constant;
 import com.libdbm.ugf.grammar.Grammar;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
 import com.libdbm.ugf.parser.ParseTree;

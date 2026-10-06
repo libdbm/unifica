@@ -1,23 +1,12 @@
 package com.libdbm.conformance;
 
-import com.libdbm.ugf.features.Binding;
-import com.libdbm.ugf.features.BooleanConstant;
-import com.libdbm.ugf.features.FeaturePath;
-import com.libdbm.ugf.features.NumericConstant;
-import com.libdbm.ugf.features.StringConstant;
-import com.libdbm.ugf.features.Structure;
-import com.libdbm.ugf.features.Value;
-import com.libdbm.ugf.features.Variable;
+import com.libdbm.ugf.features.*;
 import com.libdbm.ugf.parser.ParseTree;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 /**
  * Canonical encodings shared by the fixture writer and the conformance runner: parse trees, feature

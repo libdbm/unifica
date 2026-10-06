@@ -4,14 +4,7 @@ import com.libdbm.ugf.compiler.Element;
 import com.libdbm.ugf.compiler.Production;
 import com.libdbm.ugf.features.Structure;
 import com.libdbm.ugf.lexer.Edge;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 
@@ -21,12 +14,6 @@ import java.util.function.BooleanSupplier;
  * thread stack. Not thread-safe; a session creates one per parse.
  */
 final class ForestSelector {
-
-  /** The best derivation of a state: the chosen link and the keys that order derivations (S-P3). */
-  private record Best(State.Link link, Sequence productions, Sequence ends, Sequence edges) {
-    private static final Best EMPTY =
-        new Best(null, Sequence.EMPTY, Sequence.EMPTY, Sequence.EMPTY);
-  }
 
   /** The best derivation of each state resolved so far. */
   private final Map<State, Best> memo = new IdentityHashMap<>();
@@ -44,6 +31,37 @@ final class ForestSelector {
   ForestSelector(final BooleanSupplier halted, final BooleanSupplier grow) {
     this.halted = halted;
     this.grow = grow;
+  }
+
+  /** Pre-order productions first, then constituent ends, then token order (S-P3). */
+  private static int compare(final Best a, final Best b) {
+    var result = a.productions().compareTo(b.productions());
+    if (result == 0) {
+      result = a.ends().compareTo(b.ends());
+    }
+    return result != 0 ? result : a.edges().compareTo(b.edges());
+  }
+
+  /**
+   * A named lexical token is a node with one leaf; an anonymous or caller token is a leaf (S-P8).
+   */
+  private static ParseTree token(final Edge edge, final Element element) {
+    final var leaf =
+        new ParseTree.Leaf(
+            edge.text(),
+            edge.start(),
+            edge.end(),
+            element instanceof Element.Symbol ? Structure.EMPTY : edge.features());
+    if (element instanceof Element.Symbol symbol) {
+      return new ParseTree.Node(
+          edge.category(),
+          symbol.label(),
+          List.of(leaf),
+          edge.features(),
+          edge.start(),
+          edge.end());
+    }
+    return leaf;
   }
 
   /** The tied root whose best derivation comes first (S-P3). */
@@ -141,27 +159,6 @@ final class ForestSelector {
     return memo.get(state);
   }
 
-  /** A state whose best derivation is being chosen: the next link and the best so far. */
-  private static final class Selection {
-    private final State state;
-    private int index;
-    private Best previous;
-    private Best chosen = Best.EMPTY;
-
-    Selection(final State state) {
-      this.state = state;
-    }
-  }
-
-  /** Pre-order productions first, then constituent ends, then token order (S-P3). */
-  private static int compare(final Best a, final Best b) {
-    var result = a.productions().compareTo(b.productions());
-    if (result == 0) {
-      result = a.ends().compareTo(b.ends());
-    }
-    return result != 0 ? result : a.edges().compareTo(b.edges());
-  }
-
   /**
    * True if any state on the chosen derivation has more than one equally cheap derivation (S-P4).
    */
@@ -253,13 +250,6 @@ final class ForestSelector {
     }
   }
 
-  /** Ends selection or tree building when the budget is spent; the session catches it. */
-  static final class Exhausted extends RuntimeException {
-    Exhausted() {
-      super(null, null, false, false);
-    }
-  }
-
   /** The links of a state's chosen derivation, in right-hand-side order. */
   private List<State.Link> path(final State state) {
     final var path = new ArrayList<State.Link>();
@@ -270,6 +260,31 @@ final class ForestSelector {
     }
     Collections.reverse(path);
     return path;
+  }
+
+  /** The best derivation of a state: the chosen link and the keys that order derivations (S-P3). */
+  private record Best(State.Link link, Sequence productions, Sequence ends, Sequence edges) {
+    private static final Best EMPTY =
+        new Best(null, Sequence.EMPTY, Sequence.EMPTY, Sequence.EMPTY);
+  }
+
+  /** A state whose best derivation is being chosen: the next link and the best so far. */
+  private static final class Selection {
+    private final State state;
+    private int index;
+    private Best previous;
+    private Best chosen = Best.EMPTY;
+
+    Selection(final State state) {
+      this.state = state;
+    }
+  }
+
+  /** Ends selection or tree building when the budget is spent; the session catches it. */
+  static final class Exhausted extends RuntimeException {
+    Exhausted() {
+      super(null, null, false, false);
+    }
   }
 
   /** A state whose tree is being built: its chosen links and the children built so far. */
@@ -300,27 +315,5 @@ final class ForestSelector {
               start,
               state.start >= 0 ? state.end.offset() : start));
     }
-  }
-
-  /**
-   * A named lexical token is a node with one leaf; an anonymous or caller token is a leaf (S-P8).
-   */
-  private static ParseTree token(final Edge edge, final Element element) {
-    final var leaf =
-        new ParseTree.Leaf(
-            edge.text(),
-            edge.start(),
-            edge.end(),
-            element instanceof Element.Symbol ? Structure.EMPTY : edge.features());
-    if (element instanceof Element.Symbol symbol) {
-      return new ParseTree.Node(
-          edge.category(),
-          symbol.label(),
-          List.of(leaf),
-          edge.features(),
-          edge.start(),
-          edge.end());
-    }
-    return leaf;
   }
 }

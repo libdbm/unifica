@@ -4,11 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.libdbm.ugf.ErrorDetails;
 import com.libdbm.ugf.Result;
-import com.libdbm.ugf.grammar.Grammar;
-import com.libdbm.ugf.grammar.GrammarRule;
-import com.libdbm.ugf.grammar.ImportDeclaration;
-import com.libdbm.ugf.grammar.ModuleInfo;
-import com.libdbm.ugf.grammar.RuleElement;
+import com.libdbm.ugf.grammar.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -141,10 +137,10 @@ class ModuleResolverTests {
       // Create module file
       final var moduleContent =
           """
-          module imported;
-          export A;
-          A --> 'a';
-          """;
+                            module imported;
+                            export A;
+                            A --> 'a';
+                            """;
       final var moduleFile = tempDir.resolve("imported.ug");
       Files.writeString(moduleFile, moduleContent);
 
@@ -189,12 +185,12 @@ class ModuleResolverTests {
       // Create module with exports
       final var moduleContent =
           """
-          module base;
-          export A, B;
-          A --> 'a';
-          B --> 'b';
-          internal --> 'x';
-          """;
+                            module base;
+                            export A, B;
+                            A --> 'a';
+                            B --> 'b';
+                            internal --> 'x';
+                            """;
       final var moduleFile = tempDir.resolve("base.ug");
       Files.writeString(moduleFile, moduleContent);
 
@@ -226,12 +222,12 @@ class ModuleResolverTests {
       // Create module with exports
       final var moduleContent =
           """
-          module base;
-          export A, B, C;
-          A --> 'a';
-          B --> 'b';
-          C --> 'c';
-          """;
+                            module base;
+                            export A, B, C;
+                            A --> 'a';
+                            B --> 'b';
+                            C --> 'c';
+                            """;
       final var moduleFile = tempDir.resolve("base.ug");
       Files.writeString(moduleFile, moduleContent);
 
@@ -267,10 +263,10 @@ class ModuleResolverTests {
       Files.writeString(
           moduleFile,
           """
-          module syntax.core;
-          export A;
-          A --> 'a';
-          """);
+                            module syntax.core;
+                            export A;
+                            A --> 'a';
+                            """);
 
       // Create grammar with module path import
       final var grammar =
@@ -295,10 +291,10 @@ class ModuleResolverTests {
       Files.writeString(
           baseFile,
           """
-          module base;
-          export X;
-          X --> 'x';
-          """);
+                            module base;
+                            export X;
+                            X --> 'x';
+                            """);
 
       // Create middle module that imports base
       final var middleFile = tempDir.resolve("middle.ug");
@@ -306,12 +302,12 @@ class ModuleResolverTests {
           middleFile,
           String.format(
               """
-          module middle;
-          import "%s";
-          export Y;
-          Y --> X;
-          """,
-              baseFile.toString()));
+                                    module middle;
+                                    import "%s";
+                                    export Y;
+                                    Y --> X;
+                                    """,
+              baseFile));
 
       // Create top grammar that imports middle
       final var grammar =
@@ -340,10 +336,10 @@ class ModuleResolverTests {
       Files.writeString(
           moduleFile,
           """
-          module cached;
-          export A;
-          A --> 'a';
-          """);
+                            module cached;
+                            export A;
+                            A --> 'a';
+                            """);
 
       // Create two grammars that import same module
       final var g1 =
@@ -377,10 +373,10 @@ class ModuleResolverTests {
       Files.writeString(
           moduleFile,
           """
-          module clearable;
-          export A;
-          A --> 'a';
-          """);
+                            module clearable;
+                            export A;
+                            A --> 'a';
+                            """);
 
       final var grammar =
           Grammar.builder()
@@ -415,23 +411,23 @@ class ModuleResolverTests {
           moduleA,
           String.format(
               """
-          module moduleA;
-          import "%s";
-          export A;
-          A --> 'a';
-          """,
-              moduleB.toString()));
+                                    module moduleA;
+                                    import "%s";
+                                    export A;
+                                    A --> 'a';
+                                    """,
+              moduleB));
 
       Files.writeString(
           moduleB,
           String.format(
               """
-          module moduleB;
-          import "%s";
-          export B;
-          B --> 'b';
-          """,
-              moduleA.toString()));
+                                    module moduleB;
+                                    import "%s";
+                                    export B;
+                                    B --> 'b';
+                                    """,
+              moduleA));
 
       final var grammar =
           Grammar.builder()

@@ -24,6 +24,15 @@ public final class ParseDiagnostics {
   private final List<Ambiguity> ambiguities = new ArrayList<>();
   private ParseLattice lattice;
 
+  private static String describe(final int position, final Span span) {
+    if (span == null) {
+      return "position " + position;
+    }
+    return String.format(
+        "column %d (token #%d, chars %d..%d)",
+        position, span.tokenIndex(), span.charStart(), span.charEnd());
+  }
+
   /** Record a constraint failure without span information. */
   public void recordConstraintFailure(
       final String name,
@@ -278,13 +287,25 @@ public final class ParseDiagnostics {
     return sb.toString();
   }
 
-  private static String describe(final int position, final Span span) {
-    if (span == null) {
-      return "position " + position;
-    }
-    return String.format(
-        "column %d (token #%d, chars %d..%d)",
-        position, span.tokenIndex(), span.charStart(), span.charEnd());
+  /** State of a lattice item at the moment the snapshot was taken. */
+  public enum State {
+    ACTIVE,
+    COMPLETE,
+    REJECTED
+  }
+
+  /** Why a candidate path failed to produce a successful parse. */
+  public enum FailureKind {
+    /** A complete parse exists but its LHS symbol is not the grammar start symbol. */
+    WRONG_START,
+    /** The candidate failed a required constraint during completion or extraction. */
+    CONSTRAINT,
+    /** Feature unification between the waiting and completed items failed. */
+    UNIFICATION,
+    /** A partial parse got stuck waiting for a symbol that never arrived. */
+    DEAD_END,
+    /** A duplicate item was dropped by the chart because a lower-penalty path already existed. */
+    DROPPED
   }
 
   /**
@@ -307,27 +328,6 @@ public final class ParseDiagnostics {
     public Ambiguity(final String symbol, final Span span) {
       this(symbol, span, List.of());
     }
-  }
-
-  /** State of a lattice item at the moment the snapshot was taken. */
-  public enum State {
-    ACTIVE,
-    COMPLETE,
-    REJECTED
-  }
-
-  /** Why a candidate path failed to produce a successful parse. */
-  public enum FailureKind {
-    /** A complete parse exists but its LHS symbol is not the grammar start symbol. */
-    WRONG_START,
-    /** The candidate failed a required constraint during completion or extraction. */
-    CONSTRAINT,
-    /** Feature unification between the waiting and completed items failed. */
-    UNIFICATION,
-    /** A partial parse got stuck waiting for a symbol that never arrived. */
-    DEAD_END,
-    /** A duplicate item was dropped by the chart because a lower-penalty path already existed. */
-    DROPPED
   }
 
   /** A single Earley item captured in a lattice snapshot. */

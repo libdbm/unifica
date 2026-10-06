@@ -12,14 +12,7 @@ import com.libdbm.ugf.features.Variable;
 import com.libdbm.ugf.grammar.Grammar;
 import com.libdbm.ugf.grammar.GrammarRule;
 import com.libdbm.ugf.grammar.RuleElement;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -66,6 +59,81 @@ public final class Compiler {
   public static Result<Compiled, ErrorDetails> compile(
       final Grammar grammar, final Predicates predicates) {
     return new Compiler(grammar, predicates).run();
+  }
+
+  /** Appends {@code regex}, inside a named group when it is labelled. */
+  private static void group(
+      final String label,
+      final String regex,
+      final StringBuilder pattern,
+      final List<String> labels) {
+    if (label == null) {
+      pattern.append(regex);
+      return;
+    }
+    pattern.append("(?<").append(Lexeme.group(labels.size())).append('>').append(regex).append(')');
+    labels.add(label);
+  }
+
+  /**
+   * The features that link an auxiliary production to the production it was lowered from: one
+   * feature per variable the lowered elements use, holding that variable. Written both on the
+   * auxiliary's left-hand side and on its reference, it makes bindings flow in and out exactly as
+   * in the expansion (S-G4, S-F5).
+   */
+  private static Structure link(final RuleElement element) {
+    final var names = new TreeSet<String>();
+    variables(element, names);
+    final var builder = Structure.builder();
+    for (final var name : names) {
+      builder.with("$" + name, new Variable(name));
+    }
+    return builder.build();
+  }
+
+  private static void variables(final RuleElement element, final Set<String> names) {
+    switch (element) {
+      case RuleElement.Nonterminal nonterminal -> variables(nonterminal.features(), names);
+      case RuleElement.Repetition repetition -> variables(repetition.element(), names);
+      case RuleElement.Alternation alternation ->
+          alternation.options().forEach(option -> variables(option, names));
+      case RuleElement.Sequence sequence ->
+          sequence.elements().forEach(inner -> variables(inner, names));
+      default -> {}
+    }
+  }
+
+  // ---------------------------------------------------------------- lexemes
+
+  private static void variables(final Value value, final Set<String> names) {
+    switch (value) {
+      case Variable variable -> names.add(variable.name());
+      case Structure structure ->
+          structure.keys().forEach(key -> variables(structure.get(key), names));
+      default -> {}
+    }
+  }
+
+  private static String base(final RuleElement element) {
+    return switch (element) {
+      case RuleElement.Nonterminal nonterminal -> nonterminal.name();
+      case RuleElement.Terminal terminal -> "term";
+      case RuleElement.Regex regex -> "regex";
+      case RuleElement.Sequence sequence -> "seq";
+      case RuleElement.Alternation alternation -> "alt";
+      default -> "elem";
+    };
+  }
+
+  private static void collect(final Expression expression, final List<Expression.Call> calls) {
+    switch (expression) {
+      case Expression.And and -> and.terms().forEach(term -> collect(term, calls));
+      case Expression.Or or -> or.terms().forEach(term -> collect(term, calls));
+      case Expression.Not not -> collect(not.term(), calls);
+      case Expression.Call call -> calls.add(call);
+      case Expression.Literal literal -> {}
+      case Expression.Weighted weighted -> collect(weighted.term(), calls);
+    }
   }
 
   private Result<Compiled, ErrorDetails> run() {
@@ -135,8 +203,6 @@ public final class Compiler {
       }
     };
   }
-
-  // ---------------------------------------------------------------- lexemes
 
   /** Compiles a lexical production into one atomic lexeme (CMP-2). */
   private void lexeme(final GrammarRule rule, final Plan plan) {
@@ -216,20 +282,6 @@ public final class Compiler {
     }
   }
 
-  /** Appends {@code regex}, inside a named group when it is labelled. */
-  private static void group(
-      final String label,
-      final String regex,
-      final StringBuilder pattern,
-      final List<String> labels) {
-    if (label == null) {
-      pattern.append(regex);
-      return;
-    }
-    pattern.append("(?<").append(Lexeme.group(labels.size())).append('>').append(regex).append(')');
-    labels.add(label);
-  }
-
   /** The shared anonymous lexeme for an inline literal or regex (CMP-3). */
   private String anonymous(final String category, final String regex) {
     if (!anonymous.containsKey(category)) {
@@ -254,8 +306,6 @@ public final class Compiler {
     }
     return category;
   }
-
-  // ---------------------------------------------------------------- productions
 
   private void production(final GrammarRule rule, final Plan plan) {
     final var rhs = new ArrayList<Element>();
@@ -347,8 +397,8 @@ public final class Compiler {
     final var link = link(alternation);
     for (final var option : alternation.options()) {
       final var rhs =
-          option instanceof RuleElement.Sequence sequence
-              ? sequence.elements().stream().map(inner -> element(symbol, inner)).toList()
+          option instanceof RuleElement.Sequence(List<RuleElement> elements)
+              ? elements.stream().map(inner -> element(symbol, inner)).toList()
               : List.of(element(symbol, option));
       add(name, link, rhs, Plan.EMPTY, 0, true);
     }
@@ -373,56 +423,6 @@ public final class Compiler {
         true);
     return name;
   }
-
-  /**
-   * The features that link an auxiliary production to the production it was lowered from: one
-   * feature per variable the lowered elements use, holding that variable. Written both on the
-   * auxiliary's left-hand side and on its reference, it makes bindings flow in and out exactly as
-   * in the expansion (S-G4, S-F5).
-   */
-  private static Structure link(final RuleElement element) {
-    final var names = new TreeSet<String>();
-    variables(element, names);
-    final var builder = Structure.builder();
-    for (final var name : names) {
-      builder.with("$" + name, new Variable(name));
-    }
-    return builder.build();
-  }
-
-  private static void variables(final RuleElement element, final Set<String> names) {
-    switch (element) {
-      case RuleElement.Nonterminal nonterminal -> variables(nonterminal.features(), names);
-      case RuleElement.Repetition repetition -> variables(repetition.element(), names);
-      case RuleElement.Alternation alternation ->
-          alternation.options().forEach(option -> variables(option, names));
-      case RuleElement.Sequence sequence ->
-          sequence.elements().forEach(inner -> variables(inner, names));
-      default -> {}
-    }
-  }
-
-  private static void variables(final Value value, final Set<String> names) {
-    switch (value) {
-      case Variable variable -> names.add(variable.name());
-      case Structure structure ->
-          structure.keys().forEach(key -> variables(structure.get(key), names));
-      default -> {}
-    }
-  }
-
-  private static String base(final RuleElement element) {
-    return switch (element) {
-      case RuleElement.Nonterminal nonterminal -> nonterminal.name();
-      case RuleElement.Terminal terminal -> "term";
-      case RuleElement.Regex regex -> "regex";
-      case RuleElement.Sequence sequence -> "seq";
-      case RuleElement.Alternation alternation -> "alt";
-      default -> "elem";
-    };
-  }
-
-  // ---------------------------------------------------------------- validation and analysis
 
   private void validate(final Map<String, List<Production>> index, final Set<String> categories) {
     for (final var skip : grammar.skips()) {
@@ -479,17 +479,6 @@ public final class Compiler {
           errors.add(symbol + ": invalid regex in matches: " + exception.getDescription());
         }
       }
-    }
-  }
-
-  private static void collect(final Expression expression, final List<Expression.Call> calls) {
-    switch (expression) {
-      case Expression.And and -> and.terms().forEach(term -> collect(term, calls));
-      case Expression.Or or -> or.terms().forEach(term -> collect(term, calls));
-      case Expression.Not not -> collect(not.term(), calls);
-      case Expression.Call call -> calls.add(call);
-      case Expression.Literal literal -> {}
-      case Expression.Weighted weighted -> collect(weighted.term(), calls);
     }
   }
 

@@ -2,20 +2,9 @@ package com.libdbm.ugf.parser;
 
 import com.libdbm.ugf.compiler.Element;
 import com.libdbm.ugf.compiler.Production;
-import com.libdbm.ugf.features.Binding;
-import com.libdbm.ugf.features.Bindings;
-import com.libdbm.ugf.features.Structure;
-import com.libdbm.ugf.features.Unifier;
-import com.libdbm.ugf.features.Value;
-import com.libdbm.ugf.features.Values;
-import com.libdbm.ugf.features.Variable;
+import com.libdbm.ugf.features.*;
 import com.libdbm.ugf.lexer.Node;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 
 /**
  * A chart state: a production with a dot, spanning {@code origin} to {@code end}.
@@ -30,21 +19,6 @@ import java.util.TreeSet;
  */
 final class State implements Child {
 
-  /** Identity for merging, within one end node. */
-  record Key(
-      int production,
-      int dot,
-      int origin,
-      Map<String, Value> bindings,
-      Map<String, Value> labels) {}
-
-  /**
-   * One derivation of this state: {@code previous} is the state with the dot one place earlier, and
-   * {@code child} is the token or completed state it was advanced over. A predicted state has no
-   * links.
-   */
-  record Link(State previous, Child child) {}
-
   final Production production;
   final int dot;
   final Node origin;
@@ -53,16 +27,18 @@ final class State implements Child {
   /** Variable bindings of this use of the production (S-F5). */
   final Bindings bindings;
 
+  final Map<String, Value> labels;
+
+  /** Offset of the first token consumed, or -1 while none has been. */
+  final int start;
+
+  final List<Link> links = new ArrayList<>();
+
   /**
    * For a complete state, the constituent's features: left-hand features under the bindings,
    * renamed apart.
    */
   Structure features;
-
-  final Map<String, Value> labels;
-
-  /** Offset of the first token consumed, or -1 while none has been. */
-  final int start;
 
   /** Total penalty: children, tokens, and for a complete state its own constraints and cost. */
   long penalty;
@@ -70,7 +46,6 @@ final class State implements Child {
   /** For a complete state, the penalty of its own constraints plus its production cost. */
   long own;
 
-  final List<Link> links = new ArrayList<>();
   boolean superseded;
 
   State(
@@ -90,6 +65,26 @@ final class State implements Child {
     this.labels = Map.copyOf(labels);
     this.start = start;
     this.penalty = penalty;
+  }
+
+  private static boolean variable(final Value value) {
+    return switch (value) {
+      case Variable variable -> true;
+      case Structure structure ->
+          structure.keys().stream().anyMatch(key -> variable(structure.get(key)));
+      case Binding binding -> variable(binding.features());
+      case null, default -> false;
+    };
+  }
+
+  /** {@code value} with renamed-apart variables numbered by first occurrence in {@code names}. */
+  private static Value rename(final Value value, final Map<String, String> names) {
+    return Values.rename(
+        value,
+        variable ->
+            variable.name().indexOf('\'') >= 0
+                ? new Variable(names.computeIfAbsent(variable.name(), key -> "'" + names.size()))
+                : variable);
   }
 
   /**
@@ -134,26 +129,6 @@ final class State implements Child {
     return true;
   }
 
-  private static boolean variable(final Value value) {
-    return switch (value) {
-      case Variable variable -> true;
-      case Structure structure ->
-          structure.keys().stream().anyMatch(key -> variable(structure.get(key)));
-      case Binding binding -> variable(binding.features());
-      case null, default -> false;
-    };
-  }
-
-  /** {@code value} with renamed-apart variables numbered by first occurrence in {@code names}. */
-  private static Value rename(final Value value, final Map<String, String> names) {
-    return Values.rename(
-        value,
-        variable ->
-            variable.name().indexOf('\'') >= 0
-                ? new Variable(names.computeIfAbsent(variable.name(), key -> "'" + names.size()))
-                : variable);
-  }
-
   boolean complete() {
     return dot == production.rhs().size();
   }
@@ -165,4 +140,19 @@ final class State implements Child {
   String symbol() {
     return production.symbol();
   }
+
+  /** Identity for merging, within one end node. */
+  record Key(
+      int production,
+      int dot,
+      int origin,
+      Map<String, Value> bindings,
+      Map<String, Value> labels) {}
+
+  /**
+   * One derivation of this state: {@code previous} is the state with the dot one place earlier, and
+   * {@code child} is the token or completed state it was advanced over. A predicted state has no
+   * links.
+   */
+  record Link(State previous, Child child) {}
 }

@@ -1,11 +1,6 @@
 package com.libdbm.ugf.parser;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.libdbm.ugf.compiler.Compiled;
 import com.libdbm.ugf.compiler.Compiler;
@@ -25,6 +20,8 @@ class OptionsTests {
   private static final String AGREEMENT =
       "start S; S --> N{num: X} V{num: X};"
           + " N{num: sg} --> 'dog'; V{num: sg} --> 'runs'; V{num: pl} --> 'run';";
+  private static final String BRANCHING =
+      "start S; S --> T*; T --> A | B; A --> 'a' ==> X; B --> 'a' ==> Y;";
 
   private static Compiled compile(final String source) {
     return Compiler.compile(
@@ -214,9 +211,6 @@ class OptionsTests {
     assertNull(Parser.of(compile(AGREEMENT)).parse("dog runs").stop());
     assertNull(Parser.of(compile(AGREEMENT)).parse("dog run").stop());
   }
-
-  private static final String BRANCHING =
-      "start S; S --> T*; T --> A | B; A --> 'a' ==> X; B --> 'a' ==> Y;";
 
   /** Options.DEFAULT ships with finite limits (review H3). */
   @Test

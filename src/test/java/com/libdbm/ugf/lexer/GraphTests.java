@@ -1,10 +1,6 @@
 package com.libdbm.ugf.lexer;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.libdbm.ugf.Result;
 import com.libdbm.ugf.features.Structure;
@@ -15,6 +11,8 @@ import org.junit.jupiter.api.Test;
 
 class GraphTests {
 
+  private static final List<String> STATES = List.of("DEFAULT");
+
   private static Token token(final String text, final int start, final String category) {
     return new Token(
         text,
@@ -22,6 +20,10 @@ class GraphTests {
         start,
         start + text.length(),
         category);
+  }
+
+  private static Edge edge(final int id, final Node from, final Node to, final long cost) {
+    return new Edge(id, from, to, from.offset(), "x", "X", Structure.EMPTY, cost);
   }
 
   /** S-L6: a token list is a linear graph. */
@@ -71,12 +73,6 @@ class GraphTests {
   void testTokenCategoryIsExplicit() {
     assertEquals("NN", new Token("x", Structure.EMPTY, 0, 1, "NN").category());
     assertNull(new Token("x", Structure.builder().with("cat", "NN").build(), 0, 1).category());
-  }
-
-  private static final List<String> STATES = List.of("DEFAULT");
-
-  private static Edge edge(final int id, final Node from, final Node to, final long cost) {
-    return new Edge(id, from, to, from.offset(), "x", "X", Structure.EMPTY, cost);
   }
 
   /** S-L1: costs are non-negative, so a caller cannot lower a derivation's penalty. */

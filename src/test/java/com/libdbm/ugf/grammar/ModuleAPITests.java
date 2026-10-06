@@ -30,21 +30,21 @@ class ModuleAPITests {
       Files.writeString(
           module,
           """
-          module common;
-          export *;
-          start s;
-          s --> 'hello';
-          """);
+                            module common;
+                            export *;
+                            start s;
+                            s --> 'hello';
+                            """);
 
       // Create main grammar
       final var main = temp.resolve("main.ug");
       Files.writeString(
           main,
           """
-          import common.*;
-          start doc;
-          doc --> s 'world';
-          """);
+                            import common.*;
+                            start doc;
+                            doc --> s 'world';
+                            """);
 
       final var grammar = UnificationGrammarParserFactory.parseWithImports(main).orElseThrow();
 
@@ -64,20 +64,20 @@ class ModuleAPITests {
       Files.writeString(
           module,
           """
-          module lib;
-          export *;
-          helper --> 'x';
-          """);
+                            module lib;
+                            export *;
+                            helper --> 'x';
+                            """);
 
       // Create main grammar in temp root
       final var main = temp.resolve("main.ug");
       Files.writeString(
           main,
           """
-          import lib.*;
-          start doc;
-          doc --> helper;
-          """);
+                            import lib.*;
+                            start doc;
+                            doc --> helper;
+                            """);
 
       // Without custom search path, should fail to find module
       final var missing = UnificationGrammarParserFactory.parseWithImports(main);
@@ -103,11 +103,11 @@ class ModuleAPITests {
       Files.writeString(
           file,
           """
-          module test;
-          export *;
-          s --> 'a';
-          t --> 'b';
-          """);
+                            module test;
+                            export *;
+                            s --> 'a';
+                            t --> 'b';
+                            """);
 
       final var grammar = UnificationGrammarParserFactory.parse(file).orElseThrow();
 
@@ -123,11 +123,11 @@ class ModuleAPITests {
       Files.writeString(
           file,
           """
-          module test;
-          export s;
-          s --> 'a';
-          t --> 'b';
-          """);
+                            module test;
+                            export s;
+                            s --> 'a';
+                            t --> 'b';
+                            """);
 
       final var grammar = UnificationGrammarParserFactory.parse(file).orElseThrow();
 
@@ -142,10 +142,10 @@ class ModuleAPITests {
       Files.writeString(
           file,
           """
-          module test;
-          s --> 'a';
-          t --> 'b';
-          """);
+                            module test;
+                            s --> 'a';
+                            t --> 'b';
+                            """);
 
       final var grammar = UnificationGrammarParserFactory.parse(file).orElseThrow();
 

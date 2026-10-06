@@ -4,11 +4,7 @@ import com.libdbm.ugf.constraints.Environment;
 import com.libdbm.ugf.constraints.Expression;
 import com.libdbm.ugf.constraints.Predicates;
 import com.libdbm.ugf.features.Value;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Predicate results for one parse, keyed by predicate name and arguments resolved through the
@@ -17,8 +13,6 @@ import java.util.Set;
  * as their arguments, so they are always called.
  */
 final class Memo {
-
-  private record Key(String name, List<Value> args) {}
 
   private final Map<Key, Boolean> results = new HashMap<>();
   private final Set<String> positional;
@@ -58,4 +52,6 @@ final class Memo {
   long hits() {
     return hits;
   }
+
+  private record Key(String name, List<Value> args) {}
 }

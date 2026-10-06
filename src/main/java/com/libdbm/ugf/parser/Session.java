@@ -7,32 +7,12 @@ import com.libdbm.ugf.compiler.Production;
 import com.libdbm.ugf.constraints.Environment;
 import com.libdbm.ugf.constraints.Evaluator;
 import com.libdbm.ugf.constraints.Verdict;
-import com.libdbm.ugf.features.Binding;
-import com.libdbm.ugf.features.Bindings;
-import com.libdbm.ugf.features.BooleanConstant;
-import com.libdbm.ugf.features.NumericConstant;
-import com.libdbm.ugf.features.Structure;
-import com.libdbm.ugf.features.Unification;
-import com.libdbm.ugf.features.Unifier;
-import com.libdbm.ugf.features.Value;
-import com.libdbm.ugf.features.Values;
-import com.libdbm.ugf.features.Variable;
+import com.libdbm.ugf.features.*;
 import com.libdbm.ugf.lexer.Edge;
 import com.libdbm.ugf.lexer.Graph;
 import com.libdbm.ugf.lexer.Node;
 import java.time.Duration;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 /**
  * One parse: the chart, agenda and counters for a single input (PAR-5). Not thread-safe; a {@link
@@ -44,15 +24,6 @@ import java.util.Set;
  * once, when the first state with its key completes (PAR-3).
  */
 final class Session {
-
-  /** The chart for one graph node. */
-  private static final class Chart {
-    private final Map<State.Key, State> states = new LinkedHashMap<>();
-    private final Map<String, List<State>> waiting = new HashMap<>();
-    private final Map<String, Map<Integer, List<State>>> completed = new HashMap<>();
-    private final ArrayDeque<State> agenda = new ArrayDeque<>();
-    private final Set<String> predicted = new HashSet<>();
-  }
 
   private final Parser parser;
   private final Memo memo;
@@ -66,16 +37,15 @@ final class Session {
   private final List<Chart> charts = new ArrayList<>();
   private final ParseObserver observer;
   private final DiagnosticCollector collector;
-  private Stop stop;
-  private long fresh;
   private final Map<Edge, Structure> renamed = new IdentityHashMap<>();
   private final Map<Integer, Structure> following = new HashMap<>();
-
+  private final long deadline;
+  private Stop stop;
+  private long fresh;
   private long states;
   private long linked;
   private long built;
   private long checks;
-  private final long deadline;
   private long processed;
   private long completions;
   private long unifications;
@@ -107,6 +77,68 @@ final class Session {
     for (var i = 0; i < graph.nodes().size(); i++) {
       charts.add(new Chart());
     }
+  }
+
+  /** Whether {@code links} already holds a link to the same parts, compared by identity. */
+  private static boolean contains(final List<State.Link> links, final State.Link link) {
+    for (final var other : links) {
+      if (other.previous() == link.previous() && Child.same(other.child(), link.child())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * The production's variables (S-F5) with their bindings substituted, for constraint arguments.
+   */
+  private static Map<String, Value> variables(final Bindings bindings) {
+    final var values = new HashMap<String, Value>();
+    bindings
+        .values()
+        .forEach((name, value) -> values.put(name, Unifier.substitute(value, bindings)));
+    return values;
+  }
+
+  // ---------------------------------------------------------------- Earley operations
+
+  /** Appends {@code suffix} to the name of every variable in {@code structure}. */
+  private static Structure rename(final Structure structure, final String suffix) {
+    return (Structure) Values.rename(structure, variable -> new Variable(variable.name() + suffix));
+  }
+
+  /** Token texts along a state's first derivation, for graphs without an input string. */
+  private static void leaves(
+      final State state, final List<String> tokens, final Set<State> visited) {
+    final var stack = new ArrayDeque<Child>();
+    stack.push(state);
+    while (!stack.isEmpty()) {
+      switch (stack.pop()) {
+        case Child.Token(var edge) -> tokens.add(edge.text());
+        case State current -> {
+          if (!visited.add(current)) {
+            continue;
+          }
+          // Children are pushed last to first, so they are visited in order.
+          for (var step = current; !step.links.isEmpty(); step = step.links.getFirst().previous()) {
+            stack.push(step.links.getFirst().child());
+          }
+        }
+      }
+    }
+  }
+
+  private static Stop overflow() {
+    return new Stop(Stop.PENALTY, -1, -1, "a penalty sum overflowed 64 bits (S-C10)");
+  }
+
+  /** Whether a token edge can be advanced over as {@code element}. */
+  static boolean matches(final Element element, final Edge edge) {
+    return switch (element) {
+      case Element.Symbol symbol -> symbol.name().equals(edge.category());
+      case Element.Terminal terminal -> terminal.category().equals(edge.category());
+      case Element.Token token -> !Edge.ERROR.equals(edge.category());
+    };
   }
 
   ParseResult run() {
@@ -166,8 +198,6 @@ final class Session {
     }
     return select();
   }
-
-  // ---------------------------------------------------------------- Earley operations
 
   private void process(final State state, final Node node) {
     if (state.complete()) {
@@ -443,16 +473,6 @@ final class Session {
     }
   }
 
-  /** Whether {@code links} already holds a link to the same parts, compared by identity. */
-  private static boolean contains(final List<State.Link> links, final State.Link link) {
-    for (final var other : links) {
-      if (other.previous() == link.previous() && Child.same(other.child(), link.child())) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   /** The categories of the tokens leaving {@code node}, one feature each. */
   private Structure next(final Node node) {
     return following.computeIfAbsent(
@@ -464,17 +484,6 @@ final class Session {
           }
           return builder.build();
         });
-  }
-
-  /**
-   * The production's variables (S-F5) with their bindings substituted, for constraint arguments.
-   */
-  private static Map<String, Value> variables(final Bindings bindings) {
-    final var values = new HashMap<String, Value>();
-    bindings
-        .values()
-        .forEach((name, value) -> values.put(name, Unifier.substitute(value, bindings)));
-    return values;
   }
 
   /**
@@ -544,10 +553,7 @@ final class Session {
     return renamed.computeIfAbsent(edge, key -> rename(key.features(), "'e" + key.id()));
   }
 
-  /** Appends {@code suffix} to the name of every variable in {@code structure}. */
-  private static Structure rename(final Structure structure, final String suffix) {
-    return (Structure) Values.rename(structure, variable -> new Variable(variable.name() + suffix));
-  }
+  // ---------------------------------------------------------------- selection
 
   /**
    * A constituent's text: the input from its first token's start to its last token's end (S-C9).
@@ -568,29 +574,6 @@ final class Session {
       }
     };
   }
-
-  /** Token texts along a state's first derivation, for graphs without an input string. */
-  private static void leaves(
-      final State state, final List<String> tokens, final Set<State> visited) {
-    final var stack = new ArrayDeque<Child>();
-    stack.push(state);
-    while (!stack.isEmpty()) {
-      switch (stack.pop()) {
-        case Child.Token(var edge) -> tokens.add(edge.text());
-        case State current -> {
-          if (!visited.add(current)) {
-            continue;
-          }
-          // Children are pushed last to first, so they are visited in order.
-          for (var step = current; !step.links.isEmpty(); step = step.links.getFirst().previous()) {
-            stack.push(step.links.getFirst().child());
-          }
-        }
-      }
-    }
-  }
-
-  // ---------------------------------------------------------------- selection
 
   private ParseResult select() {
     final var roots = new ArrayList<State>();
@@ -663,16 +646,12 @@ final class Session {
     return result;
   }
 
-  private static Stop overflow() {
-    return new Stop(Stop.PENALTY, -1, -1, "a penalty sum overflowed 64 bits (S-C10)");
-  }
-
-  /** Whether a token edge can be advanced over as {@code element}. */
-  static boolean matches(final Element element, final Edge edge) {
-    return switch (element) {
-      case Element.Symbol symbol -> symbol.name().equals(edge.category());
-      case Element.Terminal terminal -> terminal.category().equals(edge.category());
-      case Element.Token token -> !Edge.ERROR.equals(edge.category());
-    };
+  /** The chart for one graph node. */
+  private static final class Chart {
+    private final Map<State.Key, State> states = new LinkedHashMap<>();
+    private final Map<String, List<State>> waiting = new HashMap<>();
+    private final Map<String, Map<Integer, List<State>>> completed = new HashMap<>();
+    private final ArrayDeque<State> agenda = new ArrayDeque<>();
+    private final Set<String> predicted = new HashSet<>();
   }
 }

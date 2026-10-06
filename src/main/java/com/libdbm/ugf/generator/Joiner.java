@@ -6,8 +6,6 @@ import java.util.List;
 @FunctionalInterface
 public interface Joiner {
 
-  String join(List<String> tokens);
-
   /**
    * Single spaces between tokens, except: none after an opening bracket (<code>&lt; ( [ &#123;
    * </code>), none before a closing bracket or {@code / > ! =}, and none next to punctuation
@@ -41,4 +39,6 @@ public interface Joiner {
   /** A single space between every pair of tokens. */
   Joiner SPACE =
       tokens -> String.join(" ", tokens.stream().filter(token -> !token.isEmpty()).toList());
+
+  String join(List<String> tokens);
 }

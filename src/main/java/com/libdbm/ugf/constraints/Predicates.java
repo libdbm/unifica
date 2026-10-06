@@ -1,11 +1,7 @@
 package com.libdbm.ugf.constraints;
 
 import com.libdbm.ugf.features.Value;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -17,53 +13,6 @@ import java.util.stream.Collectors;
  * and wrong arities (S-C8); at runtime every call therefore finds its entry.
  */
 public final class Predicates {
-
-  /** When a predicate can be evaluated. */
-  public enum Phase {
-    /** Only during lexing: needs the lexical state stack or character position (S-C7). */
-    LEXICAL,
-    /** Whenever bindings are available: during parsing, or during lexing for literals. */
-    SYNTACTIC,
-    /**
-     * During parsing, reading the constituent's position ({@link Environment#POSITION}, {@link
-     * Environment#END}, {@link Environment#NEXT}) as well as the arguments. Results are never
-     * reused between constituents.
-     */
-    POSITIONAL
-  }
-
-  /**
-   * A predicate implementation: deterministic, and true or false (S-C8). Apart from {@link
-   * Phase#LEXICAL} and {@link Phase#POSITIONAL} predicates, the result depends only on the
-   * arguments.
-   */
-  @FunctionalInterface
-  public interface Check {
-    boolean test(Environment environment, List<Value> args);
-  }
-
-  /**
-   * A registered predicate.
-   *
-   * @param minimum the fewest arguments accepted
-   * @param maximum the most arguments accepted, {@link Integer#MAX_VALUE} for no limit
-   */
-  public record Entry(String name, int minimum, int maximum, Phase phase, Check check) {
-    public Entry {
-      Objects.requireNonNull(name, "name");
-      Objects.requireNonNull(phase, "phase");
-      Objects.requireNonNull(check, "check");
-      if (minimum < 0 || maximum < minimum) {
-        throw new IllegalArgumentException(
-            "invalid arity " + minimum + ".." + maximum + " for " + name);
-      }
-    }
-
-    /** True if a call with {@code count} arguments is valid. */
-    public boolean accepts(final int count) {
-      return count >= minimum && count <= maximum;
-    }
-  }
 
   private final Map<String, Entry> entries;
 
@@ -103,6 +52,57 @@ public final class Predicates {
       throw new IllegalStateException("Unregistered predicate: " + call.name());
     }
     return entry.check().test(environment, call.args());
+  }
+
+  /** When a predicate can be evaluated. */
+  public enum Phase {
+    /** Only during lexing: needs the lexical state stack or character position (S-C7). */
+    LEXICAL,
+    /** Whenever bindings are available: during parsing, or during lexing for literals. */
+    SYNTACTIC,
+    /**
+     * During parsing, reading the constituent's position ({@link Environment#POSITION}, {@link
+     * Environment#END}, {@link Environment#NEXT}) as well as the arguments. Results are never
+     * reused between constituents.
+     */
+    POSITIONAL
+  }
+
+  /**
+   * A predicate implementation: deterministic, and true or false (S-C8). Apart from {@link
+   * Phase#LEXICAL} and {@link Phase#POSITIONAL} predicates, the result depends only on the
+   * arguments.
+   *
+   * <p>A grammar's predicates are trusted and run without isolation (S-T1): a check returns false
+   * for arguments it rejects, and an exception it throws is not caught, so it propagates out of
+   * {@code Parser.parse} or {@code Lexer.tokenize}.
+   */
+  @FunctionalInterface
+  public interface Check {
+    boolean test(Environment environment, List<Value> args);
+  }
+
+  /**
+   * A registered predicate.
+   *
+   * @param minimum the fewest arguments accepted
+   * @param maximum the most arguments accepted, {@link Integer#MAX_VALUE} for no limit
+   */
+  public record Entry(String name, int minimum, int maximum, Phase phase, Check check) {
+    public Entry {
+      Objects.requireNonNull(name, "name");
+      Objects.requireNonNull(phase, "phase");
+      Objects.requireNonNull(check, "check");
+      if (minimum < 0 || maximum < minimum) {
+        throw new IllegalArgumentException(
+            "invalid arity " + minimum + ".." + maximum + " for " + name);
+      }
+    }
+
+    /** True if a call with {@code count} arguments is valid. */
+    public boolean accepts(final int count) {
+      return count >= minimum && count <= maximum;
+    }
   }
 
   /** Builds a registry. A later registration of the same name replaces the earlier one. */

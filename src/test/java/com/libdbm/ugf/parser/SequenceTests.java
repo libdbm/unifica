@@ -9,8 +9,6 @@ import org.junit.jupiter.api.Test;
 
 class SequenceTests {
 
-  private record Pair(Sequence sequence, List<Long> list) {}
-
   private static int signum(final int value) {
     return Integer.signum(value);
   }
@@ -76,4 +74,6 @@ class SequenceTests {
     assertEquals(0, left.compareTo(left.then(Sequence.EMPTY)));
     assertEquals(1, signum(right.compareTo(left)));
   }
+
+  private record Pair(Sequence sequence, List<Long> list) {}
 }

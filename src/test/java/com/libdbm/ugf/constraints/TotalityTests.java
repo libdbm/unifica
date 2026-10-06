@@ -1,16 +1,8 @@
 package com.libdbm.ugf.constraints;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-import com.libdbm.ugf.features.Binding;
-import com.libdbm.ugf.features.BooleanConstant;
-import com.libdbm.ugf.features.NumericConstant;
-import com.libdbm.ugf.features.StringConstant;
-import com.libdbm.ugf.features.Structure;
-import com.libdbm.ugf.features.Value;
-import com.libdbm.ugf.features.Variable;
+import com.libdbm.ugf.features.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

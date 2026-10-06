@@ -1,11 +1,6 @@
 package com.libdbm.ugf.features;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Represents an immutable feature structure - a map from feature names to feature values. Feature

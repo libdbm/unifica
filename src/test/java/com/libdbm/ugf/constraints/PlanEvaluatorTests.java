@@ -1,17 +1,9 @@
 package com.libdbm.ugf.constraints;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-import com.libdbm.ugf.constraints.Expression.And;
-import com.libdbm.ugf.constraints.Expression.Call;
-import com.libdbm.ugf.constraints.Expression.Literal;
-import com.libdbm.ugf.constraints.Expression.Not;
-import com.libdbm.ugf.constraints.Expression.Or;
+import com.libdbm.ugf.constraints.Expression.*;
 import com.libdbm.ugf.features.StringConstant;
-import com.libdbm.ugf.features.Value;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
@@ -104,9 +96,9 @@ class PlanEvaluatorTests {
   /** S-C7: a lexical predicate is replaced by its truth value; nothing is deleted. */
   @Test
   void testResidualPreservesTruth() {
-    final var state = new Call("in_state", List.<Value>of(new StringConstant("DEFAULT")));
+    final var state = new Call("in_state", List.of(new StringConstant("DEFAULT")));
     final var equals =
-        new Call("equals", List.<Value>of(new StringConstant("a"), new StringConstant("b")));
+        new Call("equals", List.of(new StringConstant("a"), new StringConstant("b")));
     final var lexical = Set.of("in_state");
 
     assertEquals(Literal.TRUE, Evaluator.residual(new Or(List.of(state, equals)), ORACLE, lexical));
@@ -117,8 +109,7 @@ class PlanEvaluatorTests {
 
   @Test
   void testResidualKeepsUnevaluatedStructure() {
-    final var other =
-        new Call("equals", List.<Value>of(new StringConstant("a"), new StringConstant("a")));
+    final var other = new Call("equals", List.of(new StringConstant("a"), new StringConstant("a")));
     final var expression = new Or(List.of(other, new And(List.of(other, other))));
 
     assertEquals(expression, Evaluator.residual(expression, ORACLE, Set.of("in_state")));

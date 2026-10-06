@@ -9,12 +9,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +47,20 @@ public final class ModuleResolver {
         searchPaths.add(path);
       }
     }
+  }
+
+  /** True if every recorded file still has the modification time and size it had when cached. */
+  private static boolean fresh(final Map<String, Stamp> stamps) {
+    for (final var entry : stamps.entrySet()) {
+      try {
+        if (!Stamp.of(Path.of(entry.getKey())).equals(entry.getValue())) {
+          return false;
+        }
+      } catch (final IOException exception) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public void addSearchPath(final Path path) {
@@ -224,20 +233,6 @@ public final class ModuleResolver {
               cache.put(filePath, new Cached(grammar, stamp));
               return new LoadedModule(grammar, filePath, file, stamp);
             });
-  }
-
-  /** True if every recorded file still has the modification time and size it had when cached. */
-  private static boolean fresh(final Map<String, Stamp> stamps) {
-    for (final var entry : stamps.entrySet()) {
-      try {
-        if (!Stamp.of(Path.of(entry.getKey())).equals(entry.getValue())) {
-          return false;
-        }
-      } catch (final IOException exception) {
-        return false;
-      }
-    }
-    return true;
   }
 
   /**

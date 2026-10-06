@@ -678,12 +678,12 @@ class ParserScenarioTests {
 
     private static final String NESTED =
         """
-        start s;
-        s --> y 'z';
-        y --> x x;
-        x --> 'a';
-        x --> 'a' 'a';
-        """;
+                        start s;
+                        s --> y 'z';
+                        y --> x x;
+                        x --> 'a';
+                        x --> 'a' 'a';
+                        """;
 
     private ParseResult parse(final String grammar, final String input) {
       return parser(UnificationGrammarParserFactory.parse(grammar).orElseThrow()).parse(input);
@@ -695,11 +695,11 @@ class ParserScenarioTests {
       final var result =
           parse(
               """
-              start s;
-              s --> x x;
-              x --> 'a';
-              x --> 'a' 'a';
-              """,
+                                    start s;
+                                    s --> x x;
+                                    x --> 'a';
+                                    x --> 'a' 'a';
+                                    """,
               "a a a");
 
       assertTrue(result.success());
@@ -735,11 +735,11 @@ class ParserScenarioTests {
       final var result =
           parse(
               """
-              start s;
-              s --> y;
-              x --> 'a';
-              y --> 'a';
-              """,
+                                    start s;
+                                    s --> y;
+                                    x --> 'a';
+                                    y --> 'a';
+                                    """,
               "a");
 
       assertTrue(result.success());
@@ -752,13 +752,13 @@ class ParserScenarioTests {
       final var result =
           parse(
               """
-              start s;
-              s --> x y;
-              x --> 'a';
-              x --> 'a' 'a' where equals("p", "q"):50;
-              y --> 'a';
-              y --> 'a' 'a';
-              """,
+                                    start s;
+                                    s --> x y;
+                                    x --> 'a';
+                                    x --> 'a' 'a' where equals("p", "q"):50;
+                                    y --> 'a';
+                                    y --> 'a' 'a';
+                                    """,
               "a a a");
 
       assertTrue(result.success());
@@ -798,10 +798,10 @@ class ParserScenarioTests {
       final var result =
           parse(
               """
-              start s;
-              s --> x 'b';
-              x --> 'a';
-              """,
+                                    start s;
+                                    s --> x 'b';
+                                    x --> 'a';
+                                    """,
               "a b");
 
       assertTrue(result.success());
@@ -824,10 +824,10 @@ class ParserScenarioTests {
       final var result =
           parse(
               """
-              start s;
-              s --> x;
-              x --> 'a' 'a' where equals("p", "q"):50;
-              """,
+                                    start s;
+                                    s --> x;
+                                    x --> 'a' 'a' where equals("p", "q"):50;
+                                    """,
               "a a");
 
       assertEquals(50, result.penalty());
@@ -839,11 +839,11 @@ class ParserScenarioTests {
       final var result =
           parse(
               """
-              start s;
-              s --> x;
-              x --> z z where equals("p", "q"):50;
-              z --> 'a';
-              """,
+                                    start s;
+                                    s --> x;
+                                    x --> z z where equals("p", "q"):50;
+                                    z --> 'a';
+                                    """,
               "a a");
 
       assertEquals(50, result.penalty());
@@ -855,9 +855,9 @@ class ParserScenarioTests {
       final var result =
           parse(
               """
-              start s;
-              s --> 'a' where equals("p", "q"):30;
-              """,
+                                    start s;
+                                    s --> 'a' where equals("p", "q"):30;
+                                    """,
               "a");
 
       assertEquals(30, result.penalty());
@@ -869,10 +869,10 @@ class ParserScenarioTests {
       final var result =
           parse(
               """
-              start s;
-              s --> x where equals("p", "q"):30;
-              x --> 'a';
-              """,
+                                    start s;
+                                    s --> x where equals("p", "q"):30;
+                                    x --> 'a';
+                                    """,
               "a");
 
       assertEquals(30, result.penalty());

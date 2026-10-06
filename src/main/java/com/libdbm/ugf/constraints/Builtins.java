@@ -2,22 +2,9 @@ package com.libdbm.ugf.constraints;
 
 import com.libdbm.ugf.ErrorDetails;
 import com.libdbm.ugf.Result;
-import com.libdbm.ugf.features.Binding;
-import com.libdbm.ugf.features.Bindings;
-import com.libdbm.ugf.features.BooleanConstant;
-import com.libdbm.ugf.features.NumericConstant;
-import com.libdbm.ugf.features.StringConstant;
-import com.libdbm.ugf.features.Structure;
-import com.libdbm.ugf.features.Unification;
-import com.libdbm.ugf.features.Unifier;
-import com.libdbm.ugf.features.Value;
-import com.libdbm.ugf.features.Variable;
+import com.libdbm.ugf.features.*;
 import java.math.BigDecimal;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BiPredicate;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
@@ -37,8 +24,6 @@ import java.util.regex.PatternSyntaxException;
  */
 final class Builtins {
 
-  private Builtins() {}
-
   private static final int PATTERNS = 256;
 
   /**
@@ -52,6 +37,8 @@ final class Builtins {
               return size() > PATTERNS;
             }
           });
+
+  private Builtins() {}
 
   /** Registers every builtin: the position predicates are positional, the rest syntactic. */
   static void register(final Predicates.Builder builder) {
@@ -273,11 +260,15 @@ final class Builtins {
   }
 
   private static boolean matches(final String text, final String pattern) {
-    final Pattern compiled;
-    try {
-      compiled = CACHE.computeIfAbsent(pattern, Pattern::compile);
-    } catch (final PatternSyntaxException exception) {
-      return false;
+    var compiled = CACHE.get(pattern);
+    if (compiled == null) {
+      // Compiled outside the cache's lock, so other threads only wait for map operations.
+      try {
+        compiled = Pattern.compile(pattern);
+      } catch (final PatternSyntaxException exception) {
+        return false;
+      }
+      CACHE.putIfAbsent(pattern, compiled);
     }
     return compiled.matcher(text).matches();
   }

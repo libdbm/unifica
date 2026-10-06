@@ -269,6 +269,8 @@ CLAUDE.md
 tool/
 GEMINI.md
 AGENTS.md
+tasks/
+
 
 ### SCALA ###
 *.worksheet.sc

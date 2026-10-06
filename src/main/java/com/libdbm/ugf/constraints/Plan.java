@@ -22,10 +22,6 @@ public record Plan(List<Expression> required, List<Soft> soft) {
     soft = List.copyOf(soft);
   }
 
-  public boolean isEmpty() {
-    return required.isEmpty() && soft.isEmpty();
-  }
-
   /**
    * Builds a plan from the top-level constraint expressions of a production (CON-2). Unweighted
    * conjunctions at the top are flattened; each remaining unweighted conjunct is required and each
@@ -93,5 +89,9 @@ public record Plan(List<Expression> required, List<Soft> soft) {
 
   private static String display(final Expression expression) {
     return expression instanceof Expression.Call call ? call.name() + "(...)" : "a group";
+  }
+
+  public boolean isEmpty() {
+    return required.isEmpty() && soft.isEmpty();
   }
 }

@@ -16,85 +16,85 @@ There are no compatibility shims: every removed API below has to be replaced.
 `com.libdbm.ugf.ErrorDetails` holds a code, a message and a list of individual problems. Use `orElseThrow()` where a
 failure is a programming error, or switch over the two cases.
 
-| 1.x | 2.0.0 |
-|---|---|
-| `UnificationGrammarParserFactory.parse(Path)`, `parse(String)`, `parseWithImports(...)`, `unvalidated(...)` returning `Grammar` and throwing `IOException`, `GrammarSyntaxException` or `GrammarValidationException` | The same methods returning `Result<Grammar, ErrorDetails>`, with codes `grammar.io`, `grammar.syntax` and `grammar.validation` (`IO`, `SYNTAX`, `VALIDATION`). |
-| `GrammarSyntaxException`, `GrammarValidationException` | Removed; see the row above. |
-| `com.libdbm.ugf.parser.ModuleResolver`, whose `resolve(Grammar)` threw `IOException` | `com.libdbm.ugf.grammar.loader.ModuleResolver`; `resolve(Grammar)` and `resolve(Grammar, Path)` return `Result`, with codes `import.missing` and `import.unexported`. A resolver is not thread-safe. |
+| 1.x                                                                                                                                                                                                                  | 2.0.0                                                                                                                                                                                                |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `UnificationGrammarParserFactory.parse(Path)`, `parse(String)`, `parseWithImports(...)`, `unvalidated(...)` returning `Grammar` and throwing `IOException`, `GrammarSyntaxException` or `GrammarValidationException` | The same methods returning `Result<Grammar, ErrorDetails>`, with codes `grammar.io`, `grammar.syntax` and `grammar.validation` (`IO`, `SYNTAX`, `VALIDATION`).                                       |
+| `GrammarSyntaxException`, `GrammarValidationException`                                                                                                                                                               | Removed; see the row above.                                                                                                                                                                          |
+| `com.libdbm.ugf.parser.ModuleResolver`, whose `resolve(Grammar)` threw `IOException`                                                                                                                                 | `com.libdbm.ugf.grammar.loader.ModuleResolver`; `resolve(Grammar)` and `resolve(Grammar, Path)` return `Result`, with codes `import.missing` and `import.unexported`. A resolver is not thread-safe. |
 
 ### Parsing
 
-| 1.x | 2.0.0 |
-|---|---|
-| `ParserFactory.create(grammar)`, `create(grammar, observer)` returning `ParserFactory` | `ParserFactory.create(grammar)`, `create(grammar, predicates, options)` and `create(path)`, each returning `Result<Parser, ErrorDetails>`. |
-| `ParserFactory.parse(text)` | `parser.parse(text)` on the `Parser` from `create`. |
-| `ParserFactory.tokenize(text)`, `lexer()` | `parser.tokenize(text)`, which returns the token graph as `Result<Graph, ErrorDetails>`. |
-| `ParserFactory.parser()`, `grammar()`, `enhancer()` | `Parser.compiled()`; the enhancer is part of `Options`. |
-| `ChartParser`, `new ChartParser(grammar)`, `new ChartParser(context, grammar)` | `Compiler.compile(grammar, predicates)` then `Parser.of(compiled)` or `Parser.of(compiled, options)`. |
-| `LexicalAnalyzer`, `LexicalAnalyzer.build(grammar, skip)`, `LexicalRule`, `LexicalContext`, `TerminalExtractor` | `com.libdbm.ugf.lexer.Lexer`, built from a `Compiled` grammar. `Parser.tokenize` uses it. |
-| `TokenStream`, `List<List<Token>>` lattices | `com.libdbm.ugf.lexer.Graph`, a token graph. `TokenSource.of(tokens)` and `TokenSource.alternatives(cells)` build one from caller tokens, and `parser.parse(graph)` parses it. |
-| `TokenEnhancer.enhance(List<Token>)` | `TokenEnhancer.enhance(Graph)`, set through `Options`. |
-| `TokenTransducer`, `parser.Utilities` | Removed; they had no remaining use. |
-| `GrammarNormalizer`, `GrammarLinter.normalize(grammar)` | Removed. The compiler lowers groups, alternation and repetition. |
-| `Item` | Removed; it was internal. |
-| `Token.string(key)` | `token.string(key, null)`. |
-| `Token(text, features, start, end)` with the category taken from the `cat` feature | `Token(text, features, start, end, category)`. The four-argument constructor now gives no category, and `cat` is an ordinary feature. |
+| 1.x                                                                                                             | 2.0.0                                                                                                                                                                          |
+|-----------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `ParserFactory.create(grammar)`, `create(grammar, observer)` returning `ParserFactory`                          | `ParserFactory.create(grammar)`, `create(grammar, predicates, options)` and `create(path)`, each returning `Result<Parser, ErrorDetails>`.                                     |
+| `ParserFactory.parse(text)`                                                                                     | `parser.parse(text)` on the `Parser` from `create`.                                                                                                                            |
+| `ParserFactory.tokenize(text)`, `lexer()`                                                                       | `parser.tokenize(text)`, which returns the token graph as `Result<Graph, ErrorDetails>`.                                                                                       |
+| `ParserFactory.parser()`, `grammar()`, `enhancer()`                                                             | `Parser.compiled()`; the enhancer is part of `Options`.                                                                                                                        |
+| `ChartParser`, `new ChartParser(grammar)`, `new ChartParser(context, grammar)`                                  | `Compiler.compile(grammar, predicates)` then `Parser.of(compiled)` or `Parser.of(compiled, options)`.                                                                          |
+| `LexicalAnalyzer`, `LexicalAnalyzer.build(grammar, skip)`, `LexicalRule`, `LexicalContext`, `TerminalExtractor` | `com.libdbm.ugf.lexer.Lexer`, built from a `Compiled` grammar. `Parser.tokenize` uses it.                                                                                      |
+| `TokenStream`, `List<List<Token>>` lattices                                                                     | `com.libdbm.ugf.lexer.Graph`, a token graph. `TokenSource.of(tokens)` and `TokenSource.alternatives(cells)` build one from caller tokens, and `parser.parse(graph)` parses it. |
+| `TokenEnhancer.enhance(List<Token>)`                                                                            | `TokenEnhancer.enhance(Graph)`, set through `Options`.                                                                                                                         |
+| `TokenTransducer`, `parser.Utilities`                                                                           | Removed; they had no remaining use.                                                                                                                                            |
+| `GrammarNormalizer`, `GrammarLinter.normalize(grammar)`                                                         | Removed. The compiler lowers groups, alternation and repetition.                                                                                                               |
+| `Item`                                                                                                          | Removed; it was internal.                                                                                                                                                      |
+| `Token.string(key)`                                                                                             | `token.string(key, null)`.                                                                                                                                                     |
+| `Token(text, features, start, end)` with the category taken from the `cat` feature                              | `Token(text, features, start, end, category)`. The four-argument constructor now gives no category, and `cat` is an ordinary feature.                                          |
 
 ### Results and trees
 
-| 1.x | 2.0.0 |
-|---|---|
+| 1.x                                                                                   | 2.0.0                                                                                                                                                                              |
+|---------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `ParseResult(tree, int penalty, diagnostics, ambiguous)`, success when `tree != null` | `ParseResult(outcome, tree, long penalty, ambiguous, diagnostics, statistics)`. `outcome()` is `ACCEPTED`, `REJECTED`, `LIMIT` or `CANCELLED`; `success()` is true for `ACCEPTED`. |
-| `new ParseResult(tree, penalty)`, `new ParseResult(tree, penalty, diagnostics)` | Removed. Results come from the parser. |
-| `ParseTree.Node(symbol, label, children, features)` | `Node` also records `start` and `end`, so an empty constituent keeps its position. The four-argument constructor remains for trees without positions. |
-| `ParseDiagnostics.ConstraintFailure.constraint()` | `expression()`, the rendered expression. Predicates return true or false, so failure reasons name the predicate instead of carrying a message. |
-| Diagnostics always collected | Off by default. Enable them with `new Options(limits, observer, true)`. |
+| `new ParseResult(tree, penalty)`, `new ParseResult(tree, penalty, diagnostics)`       | Removed. Results come from the parser.                                                                                                                                             |
+| `ParseTree.Node(symbol, label, children, features)`                                   | `Node` also records `start` and `end`, so an empty constituent keeps its position. The four-argument constructor remains for trees without positions.                              |
+| `ParseDiagnostics.ConstraintFailure.constraint()`                                     | `expression()`, the rendered expression. Predicates return true or false, so failure reasons name the predicate instead of carrying a message.                                     |
+| Diagnostics always collected                                                          | Off by default. Enable them with `new Options(limits, observer, true)`.                                                                                                            |
 
 ### Observers
 
 `ParseEvents` records carry public data only, and none is created when the observer is `ParseObserver.NOOP`.
 
-| 1.x | 2.0.0 |
-|---|---|
-| `Start(lattice, grammar, start)` | `Start(graph, start)` |
-| `Predict(...)` with the rule and item | `Predict(position, symbol, production)` |
-| `Scan(...)` with the token and item | `Scan(position, category, text)` |
-| `Complete(...)` with the item and children | `Complete(origin, position, symbol, production, penalty)` |
+| 1.x                                                                | 2.0.0                                                           |
+|--------------------------------------------------------------------|-----------------------------------------------------------------|
+| `Start(lattice, grammar, start)`                                   | `Start(graph, start)`                                           |
+| `Predict(...)` with the rule and item                              | `Predict(position, symbol, production)`                         |
+| `Scan(...)` with the token and item                                | `Scan(position, category, text)`                                |
+| `Complete(...)` with the item and children                         | `Complete(origin, position, symbol, production, penalty)`       |
 | `ConstraintEval(...)` with the rule, constraint result and `Phase` | `ConstraintEval(position, symbol, expression, passed, penalty)` |
-| `Position(position, items, complete, incomplete)` | `Position(position, states)` |
+| `Position(position, items, complete, incomplete)`                  | `Position(position, states)`                                    |
 
 `Unification`, `End` and `Unexpected` keep their meaning. Pass the observer in `Options`.
 
 ### Constraints and predicates
 
-| 1.x | 2.0.0 |
-|---|---|
-| `Constraint` (`And`, `Or`, `Not`), `Predicate`, `Strength`, `priority` | `Expression` (`And`, `Or`, `Not`, `Call`, `Literal`, `Weighted`). `Plan.of(expressions)` splits a production's constraints into required expressions and `Soft` groups. |
-| `constraints.Result(passed, reason, penalty)` | `Verdict`: `Accepted(penalty)`, `Rejected(failed)` or `Overflow`. |
-| `Evaluator.eval(context, constraint)` | `Evaluator.evaluate(plan, environment)` and `Evaluator.truth(expression, environment)`. |
-| `Context`, `withPredicate(...)`, `withBinding(...)` | `Predicates.builder().lexical().builtins().add(name, minimum, maximum, phase, check).build()`, passed to `Compiler.compile` or `ParserFactory.create`. A check is `(environment, args) -> boolean`. `Environment` is immutable; `environment.resolve(value)` resolves variables, labels and feature paths. |
-| `Builtins.all()` | `Predicates.standard()`. `Builtins` is no longer public. |
-| `GrammarRule(lhs, rhs, List<Constraint>)` | `GrammarRule(lhs, rhs, constraints, kind, cost, transition)` with `List<Expression>` constraints, plus the shorter constructors. |
-| `GrammarRule.of(lhs, rhs, constraints)`, `GrammarRule.LHS.fromMap(symbol, map)`, `RuleElement.Nonterminal.fromMap(name, label, map)` | `new GrammarRule(lhs, rhs, constraints)`, and `new LHS(symbol, features)` or `new Nonterminal(name, label, features)` with a `Structure` (`Utilities.fromMap(map)` converts a string map). |
-| `RuleElement.Terminal(text, label, transition)`, `Regex(..., transition)`, `.transition(state)` | `Terminal(text, label)` and `Regex(pattern, label, compiled)`. The transition belongs to the production: `GrammarRule.transition()`. |
+| 1.x                                                                                                                                  | 2.0.0                                                                                                                                                                                                                                                                                                      |
+|--------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Constraint` (`And`, `Or`, `Not`), `Predicate`, `Strength`, `priority`                                                               | `Expression` (`And`, `Or`, `Not`, `Call`, `Literal`, `Weighted`). `Plan.of(expressions)` splits a production's constraints into required expressions and `Soft` groups.                                                                                                                                    |
+| `constraints.Result(passed, reason, penalty)`                                                                                        | `Verdict`: `Accepted(penalty)`, `Rejected(failed)` or `Overflow`.                                                                                                                                                                                                                                          |
+| `Evaluator.eval(context, constraint)`                                                                                                | `Evaluator.evaluate(plan, environment)` and `Evaluator.truth(expression, environment)`.                                                                                                                                                                                                                    |
+| `Context`, `withPredicate(...)`, `withBinding(...)`                                                                                  | `Predicates.builder().lexical().builtins().add(name, minimum, maximum, phase, check).build()`, passed to `Compiler.compile` or `ParserFactory.create`. A check is `(environment, args) -> boolean`. `Environment` is immutable; `environment.resolve(value)` resolves variables, labels and feature paths. |
+| `Builtins.all()`                                                                                                                     | `Predicates.standard()`. `Builtins` is no longer public.                                                                                                                                                                                                                                                   |
+| `GrammarRule(lhs, rhs, List<Constraint>)`                                                                                            | `GrammarRule(lhs, rhs, constraints, kind, cost, transition)` with `List<Expression>` constraints, plus the shorter constructors.                                                                                                                                                                           |
+| `GrammarRule.of(lhs, rhs, constraints)`, `GrammarRule.LHS.fromMap(symbol, map)`, `RuleElement.Nonterminal.fromMap(name, label, map)` | `new GrammarRule(lhs, rhs, constraints)`, and `new LHS(symbol, features)` or `new Nonterminal(name, label, features)` with a `Structure` (`Utilities.fromMap(map)` converts a string map).                                                                                                                 |
+| `RuleElement.Terminal(text, label, transition)`, `Regex(..., transition)`, `.transition(state)`                                      | `Terminal(text, label)` and `Regex(pattern, label, compiled)`. The transition belongs to the production: `GrammarRule.transition()`.                                                                                                                                                                       |
 
 ### Features
 
-| 1.x | 2.0.0 |
-|---|---|
-| `new Structure()`, `new Structure(map)`, `set(feature, value)`, `copy()` | `Structure` is immutable. Use `Structure.EMPTY`, `Structure.builder()`, `Structure.builder(base)` and `with(feature, value)`, which returns a new structure. |
-| `Unifier.unify(...)` returning `Optional`, `unifyWithReason(...)`, `UnifyResult`, `UnificationResult` | `Unifier.unify(left, right, bindings)` returning `Result<Unification<T>, ErrorDetails>`, where `Unification` holds the unified value and the `Bindings`. |
-| `Unifier.substitute(structure, map)` | `Unifier.substitute(value, bindings)`. |
-| `NumericConstant(number, floating)` | `NumericConstant` compares by mathematical value, so `1` equals `1.0`. |
+| 1.x                                                                                                   | 2.0.0                                                                                                                                                        |
+|-------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `new Structure()`, `new Structure(map)`, `set(feature, value)`, `copy()`                              | `Structure` is immutable. Use `Structure.EMPTY`, `Structure.builder()`, `Structure.builder(base)` and `with(feature, value)`, which returns a new structure. |
+| `Unifier.unify(...)` returning `Optional`, `unifyWithReason(...)`, `UnifyResult`, `UnificationResult` | `Unifier.unify(left, right, bindings)` returning `Result<Unification<T>, ErrorDetails>`, where `Unification` holds the unified value and the `Bindings`.     |
+| `Unifier.substitute(structure, map)`                                                                  | `Unifier.substitute(value, bindings)`.                                                                                                                       |
+| `NumericConstant(number, floating)`                                                                   | `NumericConstant` compares by mathematical value, so `1` equals `1.0`.                                                                                       |
 
 ### Generation
 
-| 1.x | 2.0.0 |
-|---|---|
-| `new GrammarGenerator(grammar, terminals)` | `GrammarGenerator.builder(grammar)...build()`, returning `Result<GrammarGenerator, ErrorDetails>`. |
-| `generate(start, features, count)` returning `List<String>` | Returns `Result<List<String>, ErrorDetails>`; a failure explains why nothing could be generated. |
-| `generateOne(start, features)` returning `Optional<String>` | Returns `Result<String, ErrorDetails>`. |
-| Fixed depth, attempts and spacing | `Policy` (depth, attempts, repetitions, length, steps, `Joiner`), set with `builder.policy(...)`. |
+| 1.x                                                         | 2.0.0                                                                                              |
+|-------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| `new GrammarGenerator(grammar, terminals)`                  | `GrammarGenerator.builder(grammar)...build()`, returning `Result<GrammarGenerator, ErrorDetails>`. |
+| `generate(start, features, count)` returning `List<String>` | Returns `Result<List<String>, ErrorDetails>`; a failure explains why nothing could be generated.   |
+| `generateOne(start, features)` returning `Optional<String>` | Returns `Result<String, ErrorDetails>`.                                                            |
+| Fixed depth, attempts and spacing                           | `Policy` (depth, attempts, repetitions, length, steps, `Joiner`), set with `builder.policy(...)`.  |
 
 Every generated sentence is now parsed back before it is returned, so sentences that 1.x produced in violation of
 agreement or constraints are no longer produced.
@@ -209,4 +209,5 @@ replaces the top of the state stack, is new.
 - Top-level `|` (`A --> B | C;`), empty alternatives (`A --> B | ;`) and groups holding sequences (`(B C | D)`).
 - Regex `{n,m}` quantifiers, lazy and possessive quantifiers, lookbehind, and character classes inside groups.
 - `@N` production costs and the `==> ^S` transition.
-- The builtins `at_end()` (the constituent ends at the end of the input) and `before(C, ...)` (a token of category `C` follows), which express ANTLR's `EOF` and one-token lookahead inside rules.
+- The builtins `at_end()` (the constituent ends at the end of the input) and `before(C, ...)` (a token of category `C`
+  follows), which express ANTLR's `EOF` and one-token lookahead inside rules.

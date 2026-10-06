@@ -1,9 +1,6 @@
 package com.libdbm.ugf.compiler;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.libdbm.ugf.ErrorDetails;
 import com.libdbm.ugf.Result;
@@ -271,7 +268,7 @@ class CompilerTests {
         }
         final var source = UnificationGrammarParserFactory.unvalidated(file).orElseThrow();
         final var result = Compiler.compile(source, STANDARD);
-        assertTrue(result instanceof Result.Success<Compiled, ErrorDetails>, file + ": " + result);
+        assertInstanceOf(Result.Success.class, result, file + ": " + result);
       }
     }
   }

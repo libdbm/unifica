@@ -1,12 +1,6 @@
 package com.libdbm.ugf.grammar;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * An immutable unification grammar with rules, imports, and metadata.
@@ -94,9 +88,9 @@ public record Grammar(
 
     private final Map<String, List<GrammarRule>> rules = new LinkedHashMap<>();
     private final List<ImportDeclaration> imports = new ArrayList<>();
+    private final Set<String> skips = new LinkedHashSet<>();
     private ModuleInfo module = ModuleInfo.anonymous();
     private String start = null;
-    private final Set<String> skips = new LinkedHashSet<>();
     private String whitespace = null;
 
     /**

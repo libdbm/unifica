@@ -2,12 +2,7 @@ package com.libdbm.ugf.features;
 
 import com.libdbm.ugf.ErrorDetails;
 import com.libdbm.ugf.Result;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Implements unification for feature values. Unification finds the most general value that both
@@ -116,9 +111,6 @@ public final class Unifier {
     return Result.success(new Unification<>(result, new Bindings(working)));
   }
 
-  /** A pair of values still to be unified, and the feature path that led to it (for messages). */
-  private record Pair(Value left, Value right, String path) {}
-
   /**
    * First pass: unifies {@code left} with {@code right}, adding variable bindings to {@code
    * bindings}. Returns {@code null} on success, or the reason for failure.
@@ -183,32 +175,6 @@ public final class Unifier {
 
   private static ErrorDetails failure(final String code, final String path, final String message) {
     return ErrorDetails.of(code, path.isEmpty() ? message : "Feature '" + path + "': " + message);
-  }
-
-  /** A structure under construction in the second pass. */
-  private static final class Frame {
-    private final Structure left;
-    private final Structure right;
-    private final String text;
-    private final List<String> keys;
-    private final Structure.Builder builder = Structure.builder();
-    private int index;
-
-    private Frame(final Structure left, final Structure right, final String text) {
-      this.left = left;
-      this.right = right;
-      this.text = text;
-      final var union = new LinkedHashSet<>(left.keys());
-      if (right != null) {
-        union.addAll(right.keys());
-      }
-      this.keys = new ArrayList<>(union);
-    }
-
-    private Value finish() {
-      final var structure = builder.build();
-      return text == null ? structure : new Binding(text, structure);
-    }
   }
 
   /**
@@ -314,5 +280,34 @@ public final class Unifier {
       }
     }
     return false;
+  }
+
+  /** A pair of values still to be unified, and the feature path that led to it (for messages). */
+  private record Pair(Value left, Value right, String path) {}
+
+  /** A structure under construction in the second pass. */
+  private static final class Frame {
+    private final Structure left;
+    private final Structure right;
+    private final String text;
+    private final List<String> keys;
+    private final Structure.Builder builder = Structure.builder();
+    private int index;
+
+    private Frame(final Structure left, final Structure right, final String text) {
+      this.left = left;
+      this.right = right;
+      this.text = text;
+      final var union = new LinkedHashSet<>(left.keys());
+      if (right != null) {
+        union.addAll(right.keys());
+      }
+      this.keys = new ArrayList<>(union);
+    }
+
+    private Value finish() {
+      final var structure = builder.build();
+      return text == null ? structure : new Binding(text, structure);
+    }
   }
 }

@@ -1,20 +1,13 @@
 package com.libdbm.ugf.parser;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.libdbm.ugf.compiler.Compiler;
 import com.libdbm.ugf.constraints.Predicates;
 import com.libdbm.ugf.features.Structure;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
 import com.libdbm.ugf.lexer.TokenSource;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -422,9 +415,7 @@ class ParserTests {
         root(list.parse("a, b, c")).children().stream()
             .map(
                 child ->
-                    child instanceof ParseTree.Node node
-                        ? node.symbol()
-                        : "'" + ((ParseTree.Leaf) child).text() + "'")
+                    child instanceof ParseTree.Node node ? node.symbol() : "'" + child.text() + "'")
             .toList());
     assertTrue(accepts(choice, "a x"));
     assertTrue(accepts(choice, "a y b"));

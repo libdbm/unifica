@@ -1,10 +1,6 @@
 package com.libdbm.ugf.constraints;
 
-import com.libdbm.ugf.features.Binding;
-import com.libdbm.ugf.features.FeaturePath;
-import com.libdbm.ugf.features.Structure;
-import com.libdbm.ugf.features.Value;
-import com.libdbm.ugf.features.Variable;
+import com.libdbm.ugf.features.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,8 +13,22 @@ import java.util.Objects;
  */
 public final class Environment {
 
-  private static final List<String> INITIAL = List.of("DEFAULT");
+  /**
+   * The binding holding the token graph node where the constituent being checked starts. No grammar
+   * identifier can name it.
+   */
+  public static final String POSITION = "@position";
 
+  /** The binding that is true when the constituent being checked ends at the end of the input. */
+  public static final String END = "@end";
+
+  /**
+   * The binding holding the categories of the tokens that follow the constituent being checked, as
+   * a structure with one feature per category.
+   */
+  public static final String NEXT = "@next";
+
+  private static final List<String> INITIAL = List.of("DEFAULT");
   private final Predicates predicates;
   private final Map<String, Value> bindings;
   private final List<String> states;
@@ -68,21 +78,6 @@ public final class Environment {
   public Predicates predicates() {
     return predicates;
   }
-
-  /**
-   * The binding holding the token graph node where the constituent being checked starts. No grammar
-   * identifier can name it.
-   */
-  public static final String POSITION = "@position";
-
-  /** The binding that is true when the constituent being checked ends at the end of the input. */
-  public static final String END = "@end";
-
-  /**
-   * The binding holding the categories of the tokens that follow the constituent being checked, as
-   * a structure with one feature per category.
-   */
-  public static final String NEXT = "@next";
 
   /** The value bound to {@code name}, or {@code null}. */
   public Value get(final String name) {

@@ -40,7 +40,7 @@ final class CanonicalJson {
     if (Double.isNaN(number) || Double.isInfinite(number)) {
       string(builder, Double.toString(number));
     } else {
-      builder.append(Double.toString(number));
+      builder.append(number);
     }
   }
 

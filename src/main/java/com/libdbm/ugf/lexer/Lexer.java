@@ -9,13 +9,7 @@ import com.libdbm.ugf.constraints.Evaluator;
 import com.libdbm.ugf.constraints.Verdict;
 import com.libdbm.ugf.features.Binding;
 import com.libdbm.ugf.features.Structure;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,8 +34,19 @@ public final class Lexer implements TokenSource {
   /** The penalty of a token's constraints overflowed 64 bits (S-C10). */
   public static final String OVERFLOW = "limit.overflow";
 
-  private static final Pattern LITERAL = Pattern.compile("\\\\Q(.+?)\\\\E");
+  /** Failure code: the token graph would exceed the node limit. */
+  public static final String NODES = "limit.nodes";
 
+  /** Failure code: a lexical state stack would exceed the depth limit. */
+  public static final String DEPTH = "limit.depth";
+
+  /** Failure code: lexing passed its deadline. */
+  public static final String DEADLINE = "limit.deadline";
+
+  /** Failure code: the lexing thread was interrupted. */
+  public static final String INTERRUPT = "limit.interrupt";
+
+  private static final Pattern LITERAL = Pattern.compile("\\\\Q(.+?)\\\\E");
   private final Compiled compiled;
   private final Map<Character, List<Lexeme>> literals = new HashMap<>();
   private final List<Lexeme> general = new ArrayList<>();
@@ -64,24 +69,105 @@ public final class Lexer implements TokenSource {
     }
   }
 
-  private record Key(int offset, List<String> states) {}
+  private static void discover(
+      final Key key,
+      final TreeMap<Integer, List<Key>> frontier,
+      final Map<Key, Boolean> discovered) {
+    if (discovered.putIfAbsent(key, Boolean.TRUE) == null) {
+      frontier.computeIfAbsent(key.offset(), offset -> new ArrayList<>()).add(key);
+    }
+  }
 
-  private record Pending(
-      Key from, Key to, int start, String text, String category, Structure features, long cost) {}
+  /**
+   * A matcher for {@code input} from {@code position}. Bounds are transparent, so lookbehind and
+   * lookahead see the whole input, and not anchoring, so {@code ^} and {@code $} mean the input's
+   * start and end.
+   */
+  private static Matcher region(final Pattern pattern, final String input, final int position) {
+    return pattern
+        .matcher(input)
+        .region(position, input.length())
+        .useTransparentBounds(true)
+        .useAnchoringBounds(false);
+  }
 
-  private record Match(Lexeme lexeme, int length, long cost) {}
+  /** Binds the lexeme's symbol to the whole token and each label to its part. */
+  private static Environment bind(
+      final Environment environment,
+      final Lexeme lexeme,
+      final Matcher matcher,
+      final String text) {
+    if (lexeme.plan().isEmpty()) {
+      return environment;
+    }
+    var bound = environment.with(lexeme.category(), Binding.of(text, lexeme.features()));
+    for (var i = 0; i < lexeme.labels().size(); i++) {
+      final var part = matcher.group(Lexeme.group(i));
+      if (part != null) {
+        bound = bound.with(lexeme.labels().get(i), Binding.of(part));
+      }
+    }
+    return bound;
+  }
 
-  /** Failure code: the token graph would exceed the node limit. */
-  public static final String NODES = "limit.nodes";
+  /**
+   * Applies a transition: push {@code S}, pop {@code _} (never the bottom), reset {@code !S}, or
+   * replace the top with {@code ^S}.
+   */
+  private static List<String> apply(final List<String> states, final String transition) {
+    if (transition == null) {
+      return states;
+    }
+    if (transition.equals("_")) {
+      return states.size() > 1 ? states.subList(0, states.size() - 1) : states;
+    }
+    if (transition.startsWith("!")) {
+      return List.of(transition.substring(1));
+    }
+    if (transition.startsWith("^")) {
+      final var replaced = new ArrayList<>(states.subList(0, states.size() - 1));
+      replaced.add(transition.substring(1));
+      return replaced;
+    }
+    final var pushed = new ArrayList<>(states);
+    pushed.add(transition);
+    return pushed;
+  }
 
-  /** Failure code: a lexical state stack would exceed the depth limit. */
-  public static final String DEPTH = "limit.depth";
-
-  /** Failure code: lexing passed its deadline. */
-  public static final String DEADLINE = "limit.deadline";
-
-  /** Failure code: the lexing thread was interrupted. */
-  public static final String INTERRUPT = "limit.interrupt";
+  /** Assigns ids in offset order (a topological order, since every edge moves forward). */
+  private static Graph build(
+      final Iterable<Key> keys, final List<Pending> pending, final List<Key> finals) {
+    final var sorted = new ArrayList<Key>();
+    keys.forEach(sorted::add);
+    sorted.sort((a, b) -> Integer.compare(a.offset(), b.offset()));
+    final var nodes = new LinkedHashMap<Key, Node>();
+    for (final var key : sorted) {
+      nodes.put(key, new Node(nodes.size(), key.offset(), key.states()));
+    }
+    final var outgoing = new ArrayList<List<Edge>>();
+    nodes.values().forEach(node -> outgoing.add(new ArrayList<>()));
+    final var ordered = new ArrayList<>(pending);
+    ordered.sort((a, b) -> Integer.compare(nodes.get(a.from()).id(), nodes.get(b.from()).id()));
+    var id = 0;
+    for (final var edge : ordered) {
+      final var from = nodes.get(edge.from());
+      outgoing
+          .get(from.id())
+          .add(
+              new Edge(
+                  id++,
+                  from,
+                  nodes.get(edge.to()),
+                  edge.start(),
+                  edge.text(),
+                  edge.category(),
+                  edge.features(),
+                  edge.cost()));
+    }
+    final var ids = new HashSet<Integer>();
+    finals.forEach(key -> ids.add(nodes.get(key).id()));
+    return new Graph(List.copyOf(nodes.values()), outgoing, ids);
+  }
 
   @Override
   public Result<Graph, ErrorDetails> tokenize(final String input) {
@@ -169,15 +255,6 @@ public final class Lexer implements TokenSource {
     return Result.success(build(discovered.keySet(), pending, finals));
   }
 
-  private static void discover(
-      final Key key,
-      final TreeMap<Integer, List<Key>> frontier,
-      final Map<Key, Boolean> discovered) {
-    if (discovered.putIfAbsent(key, Boolean.TRUE) == null) {
-      frontier.computeIfAbsent(key.offset(), offset -> new ArrayList<>()).add(key);
-    }
-  }
-
   /** The offset after any whitespace and skip-category matches at {@code offset} (S-L4). */
   private int skip(final String input, final int offset, final List<String> states) {
     final var state = states.getLast();
@@ -260,19 +337,6 @@ public final class Lexer implements TokenSource {
     return accepted;
   }
 
-  /**
-   * A matcher for {@code input} from {@code position}. Bounds are transparent, so lookbehind and
-   * lookahead see the whole input, and not anchoring, so {@code ^} and {@code $} mean the input's
-   * start and end.
-   */
-  private static Matcher region(final Pattern pattern, final String input, final int position) {
-    return pattern
-        .matcher(input)
-        .region(position, input.length())
-        .useTransparentBounds(true)
-        .useAnchoringBounds(false);
-  }
-
   /** True if a skip lexeme's required constraints hold for this match (S-L4). */
   private boolean allowed(
       final Lexeme lexeme,
@@ -288,81 +352,10 @@ public final class Lexer implements TokenSource {
     return Evaluator.evaluate(lexeme.plan(), bound) instanceof Verdict.Accepted;
   }
 
-  /** Binds the lexeme's symbol to the whole token and each label to its part. */
-  private static Environment bind(
-      final Environment environment,
-      final Lexeme lexeme,
-      final Matcher matcher,
-      final String text) {
-    if (lexeme.plan().isEmpty()) {
-      return environment;
-    }
-    var bound = environment.with(lexeme.category(), Binding.of(text, lexeme.features()));
-    for (var i = 0; i < lexeme.labels().size(); i++) {
-      final var part = matcher.group(Lexeme.group(i));
-      if (part != null) {
-        bound = bound.with(lexeme.labels().get(i), Binding.of(part));
-      }
-    }
-    return bound;
-  }
+  private record Key(int offset, List<String> states) {}
 
-  /**
-   * Applies a transition: push {@code S}, pop {@code _} (never the bottom), reset {@code !S}, or
-   * replace the top with {@code ^S}.
-   */
-  private static List<String> apply(final List<String> states, final String transition) {
-    if (transition == null) {
-      return states;
-    }
-    if (transition.equals("_")) {
-      return states.size() > 1 ? states.subList(0, states.size() - 1) : states;
-    }
-    if (transition.startsWith("!")) {
-      return List.of(transition.substring(1));
-    }
-    if (transition.startsWith("^")) {
-      final var replaced = new ArrayList<>(states.subList(0, states.size() - 1));
-      replaced.add(transition.substring(1));
-      return replaced;
-    }
-    final var pushed = new ArrayList<>(states);
-    pushed.add(transition);
-    return pushed;
-  }
+  private record Pending(
+      Key from, Key to, int start, String text, String category, Structure features, long cost) {}
 
-  /** Assigns ids in offset order (a topological order, since every edge moves forward). */
-  private static Graph build(
-      final Iterable<Key> keys, final List<Pending> pending, final List<Key> finals) {
-    final var sorted = new ArrayList<Key>();
-    keys.forEach(sorted::add);
-    sorted.sort((a, b) -> Integer.compare(a.offset(), b.offset()));
-    final var nodes = new LinkedHashMap<Key, Node>();
-    for (final var key : sorted) {
-      nodes.put(key, new Node(nodes.size(), key.offset(), key.states()));
-    }
-    final var outgoing = new ArrayList<List<Edge>>();
-    nodes.values().forEach(node -> outgoing.add(new ArrayList<>()));
-    final var ordered = new ArrayList<>(pending);
-    ordered.sort((a, b) -> Integer.compare(nodes.get(a.from()).id(), nodes.get(b.from()).id()));
-    var id = 0;
-    for (final var edge : ordered) {
-      final var from = nodes.get(edge.from());
-      outgoing
-          .get(from.id())
-          .add(
-              new Edge(
-                  id++,
-                  from,
-                  nodes.get(edge.to()),
-                  edge.start(),
-                  edge.text(),
-                  edge.category(),
-                  edge.features(),
-                  edge.cost()));
-    }
-    final var ids = new HashSet<Integer>();
-    finals.forEach(key -> ids.add(nodes.get(key).id()));
-    return new Graph(List.copyOf(nodes.values()), outgoing, ids);
-  }
+  private record Match(Lexeme lexeme, int length, long cost) {}
 }

@@ -1,8 +1,6 @@
 package com.libdbm.ugf.grammar;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.libdbm.ugf.ErrorDetails;
 import com.libdbm.ugf.Result;
@@ -151,9 +149,9 @@ class DefeasibleConstraintTests {
       final var plan =
           plan(
               """
-          clause --> np:S vp:V
-              where equals(S.num, V.num), verb_allows(V.lemma, S.type):10;
-          """,
+                                    clause --> np:S vp:V
+                                        where equals(S.num, V.num), verb_allows(V.lemma, S.type):10;
+                                    """,
               "clause");
 
       assertEquals(List.of("equals"), required(plan));
@@ -165,9 +163,9 @@ class DefeasibleConstraintTests {
       final var plan =
           plan(
               """
-          np --> det noun:N
-              where animate(N.text):5, concrete(N.text):3;
-          """,
+                                    np --> det noun:N
+                                        where animate(N.text):5, concrete(N.text):3;
+                                    """,
               "np");
 
       assertEquals(List.of("animate:5", "concrete:3"), soft(plan));

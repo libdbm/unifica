@@ -1,7 +1,10 @@
 package com.libdbm.xml;
 
 import com.libdbm.ugf.parser.ParseTree;
-import com.libdbm.xml.XMLNode.*;
+import com.libdbm.xml.XMLNode.Content;
+import com.libdbm.xml.XMLNode.ContentItem;
+import com.libdbm.xml.XMLNode.Element;
+import com.libdbm.xml.XMLNode.EmptyElement;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;

@@ -1,11 +1,7 @@
 package com.libdbm.ugf.generator;
 
 import com.libdbm.ugf.features.Structure;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Random;
+import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;

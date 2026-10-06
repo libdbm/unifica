@@ -28,6 +28,46 @@ public final class UnificationGrammarVisitorImpl extends UnificationGrammarBaseV
     return visitor.builder.build();
   }
 
+  /** The production cost from an optional {@code @N} clause, 0 if absent (S-P7). */
+  private static long cost(final UnificationGrammarParser.CostClauseContext context) {
+    return context == null ? 0 : Long.parseLong(context.NUMBER().getText());
+  }
+
+  /** One element stands alone; anything else is a sequence (S-G4). */
+  private static RuleElement group(final List<RuleElement> elements) {
+    return elements.size() == 1 ? elements.getFirst() : new RuleElement.Sequence(elements);
+  }
+
+  /**
+   * Resolves backslash escapes: n, t, r, u plus four hex digits; any other escaped character stands
+   * for itself.
+   */
+  private static String unescape(final String text) {
+    if (text.indexOf('\\') < 0) {
+      return text;
+    }
+    final var builder = new StringBuilder();
+    for (var i = 0; i < text.length(); i++) {
+      final var c = text.charAt(i);
+      if (c != '\\' || i + 1 == text.length()) {
+        builder.append(c);
+        continue;
+      }
+      final var next = text.charAt(++i);
+      switch (next) {
+        case 'n' -> builder.append('\n');
+        case 't' -> builder.append('\t');
+        case 'r' -> builder.append('\r');
+        case 'u' -> {
+          builder.append((char) Integer.parseInt(text.substring(i + 1, i + 5), 16));
+          i += 4;
+        }
+        default -> builder.append(next);
+      }
+    }
+    return builder.toString();
+  }
+
   @Override
   public Object visitModuleStmt(final UnificationGrammarParser.ModuleStmtContext context) {
     moduleName = buildModuleName(context.moduleName());
@@ -155,11 +195,6 @@ public final class UnificationGrammarVisitorImpl extends UnificationGrammarBaseV
     return null;
   }
 
-  /** The production cost from an optional {@code @N} clause, 0 if absent (S-P7). */
-  private static long cost(final UnificationGrammarParser.CostClauseContext context) {
-    return context == null ? 0 : Long.parseLong(context.NUMBER().getText());
-  }
-
   @Override
   public Object visitGrammarRule(final UnificationGrammarParser.GrammarRuleContext context) {
     final var lhsSymbol = context.lhs().IDENTIFIER().getText();
@@ -269,11 +304,6 @@ public final class UnificationGrammarVisitorImpl extends UnificationGrammarBaseV
       options.add(group(elements));
     }
     return options.size() == 1 ? options.getFirst() : new RuleElement.Alternation(options);
-  }
-
-  /** One element stands alone; anything else is a sequence (S-G4). */
-  private static RuleElement group(final List<RuleElement> elements) {
-    return elements.size() == 1 ? elements.getFirst() : new RuleElement.Sequence(elements);
   }
 
   private RuleElement buildElement(final UnificationGrammarParser.ElementContext context) {
@@ -515,35 +545,5 @@ public final class UnificationGrammarVisitorImpl extends UnificationGrammarBaseV
       }
     }
     return s;
-  }
-
-  /**
-   * Resolves backslash escapes: n, t, r, u plus four hex digits; any other escaped character stands
-   * for itself.
-   */
-  private static String unescape(final String text) {
-    if (text.indexOf('\\') < 0) {
-      return text;
-    }
-    final var builder = new StringBuilder();
-    for (var i = 0; i < text.length(); i++) {
-      final var c = text.charAt(i);
-      if (c != '\\' || i + 1 == text.length()) {
-        builder.append(c);
-        continue;
-      }
-      final var next = text.charAt(++i);
-      switch (next) {
-        case 'n' -> builder.append('\n');
-        case 't' -> builder.append('\t');
-        case 'r' -> builder.append('\r');
-        case 'u' -> {
-          builder.append((char) Integer.parseInt(text.substring(i + 1, i + 5), 16));
-          i += 4;
-        }
-        default -> builder.append(next);
-      }
-    }
-    return builder.toString();
   }
 }

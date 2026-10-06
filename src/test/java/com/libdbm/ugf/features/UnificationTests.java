@@ -41,6 +41,15 @@ class UnificationTests {
   @Nested
   class SingleOperation {
 
+    /** A structure nested {@code depth} levels deep: {@code {next: {next: ... {leaf: x}}}}. */
+    private static Structure deep(final int depth, final Value leaf) {
+      var structure = Structure.builder().with("leaf", leaf).build();
+      for (var i = 0; i < depth; i++) {
+        structure = Structure.builder().with("next", structure).build();
+      }
+      return structure;
+    }
+
     @Test
     void testThreeWaySubstitutes() {
       final var item = Structure.builder().with("other", new Variable("x")).build();
@@ -117,15 +126,6 @@ class UnificationTests {
 
       assertEquals(a, b);
       assertEquals(a.hashCode(), b.hashCode());
-    }
-
-    /** A structure nested {@code depth} levels deep: {@code {next: {next: ... {leaf: x}}}}. */
-    private static Structure deep(final int depth, final Value leaf) {
-      var structure = Structure.builder().with("leaf", leaf).build();
-      for (var i = 0; i < depth; i++) {
-        structure = Structure.builder().with("next", structure).build();
-      }
-      return structure;
     }
 
     @Test

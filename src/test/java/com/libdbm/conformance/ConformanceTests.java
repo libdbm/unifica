@@ -16,14 +16,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Random;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -63,52 +56,6 @@ final class ConformanceTests {
 
   private static final Path ROOT = Path.of("src/test/resources/conformance");
   private static final Path SEMANTICS = Path.of("docs/SEMANTICS.md");
-
-  @TestFactory
-  Stream<DynamicTest> testCorpus() throws IOException {
-    final var pending = pending();
-    return cases().stream()
-        .map(
-            directory -> {
-              final var name = directory.getFileName().toString();
-              return DynamicTest.dynamicTest(name, () -> run(directory, pending.get(name)));
-            });
-  }
-
-  @Test
-  void testPendingEntriesNameExistingCases() throws IOException {
-    final var names =
-        cases().stream().map(directory -> directory.getFileName().toString()).toList();
-    for (final var name : pending().keySet()) {
-      assertTrue(names.contains(name), "pending.txt names unknown case: " + name);
-    }
-  }
-
-  /** Every rule in docs/SEMANTICS.md is exercised by a case or exempted with a reason (SEM-4). */
-  @Test
-  void testEveryRuleCovered() throws IOException {
-    final var rules = new TreeSet<String>();
-    final var matcher =
-        Pattern.compile("^- \\*\\*(S-[A-Z][0-9]+a?)\\.\\*\\*", Pattern.MULTILINE)
-            .matcher(Files.readString(SEMANTICS));
-    while (matcher.find()) {
-      rules.add(matcher.group(1));
-    }
-    final var covered = new TreeSet<String>(exempt().keySet());
-    for (final var directory : cases()) {
-      final var settings =
-          (Map<?, ?>) CanonicalJson.read(Files.readString(directory.resolve("case.json")));
-      for (final var rule : (List<?>) settings.get("rules")) {
-        covered.add((String) rule);
-      }
-    }
-    final var missing = new TreeSet<>(rules);
-    missing.removeAll(covered);
-    final var unknown = new TreeSet<>(covered);
-    unknown.removeAll(rules);
-    assertTrue(missing.isEmpty(), "Rules without a case or exemption: " + missing);
-    assertTrue(unknown.isEmpty(), "Cases or exemptions name unknown rules: " + unknown);
-  }
 
   private static void run(final Path directory, final String owner) throws IOException {
     final var mismatches = check(directory);
@@ -306,5 +253,51 @@ final class ConformanceTests {
       entries.put(parts[0], parts.length > 1 ? parts[1] : "unassigned");
     }
     return entries;
+  }
+
+  @TestFactory
+  Stream<DynamicTest> testCorpus() throws IOException {
+    final var pending = pending();
+    return cases().stream()
+        .map(
+            directory -> {
+              final var name = directory.getFileName().toString();
+              return DynamicTest.dynamicTest(name, () -> run(directory, pending.get(name)));
+            });
+  }
+
+  @Test
+  void testPendingEntriesNameExistingCases() throws IOException {
+    final var names =
+        cases().stream().map(directory -> directory.getFileName().toString()).toList();
+    for (final var name : pending().keySet()) {
+      assertTrue(names.contains(name), "pending.txt names unknown case: " + name);
+    }
+  }
+
+  /** Every rule in docs/SEMANTICS.md is exercised by a case or exempted with a reason (SEM-4). */
+  @Test
+  void testEveryRuleCovered() throws IOException {
+    final var rules = new TreeSet<String>();
+    final var matcher =
+        Pattern.compile("^- \\*\\*(S-[A-Z][0-9]+a?)\\.\\*\\*", Pattern.MULTILINE)
+            .matcher(Files.readString(SEMANTICS));
+    while (matcher.find()) {
+      rules.add(matcher.group(1));
+    }
+    final var covered = new TreeSet<String>(exempt().keySet());
+    for (final var directory : cases()) {
+      final var settings =
+          (Map<?, ?>) CanonicalJson.read(Files.readString(directory.resolve("case.json")));
+      for (final var rule : (List<?>) settings.get("rules")) {
+        covered.add((String) rule);
+      }
+    }
+    final var missing = new TreeSet<>(rules);
+    missing.removeAll(covered);
+    final var unknown = new TreeSet<>(covered);
+    unknown.removeAll(rules);
+    assertTrue(missing.isEmpty(), "Rules without a case or exemption: " + missing);
+    assertTrue(unknown.isEmpty(), "Cases or exemptions name unknown rules: " + unknown);
   }
 }

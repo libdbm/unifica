@@ -33,6 +33,84 @@ class GrammarGeneratorTests {
     return builder.build();
   }
 
+  private static GrammarGenerator generator(
+      final String source, final Policy policy, final long seed) {
+    return GrammarGenerator.builder(UnificationGrammarParserFactory.parse(source).orElseThrow())
+        .random(new Random(seed))
+        .policy(policy)
+        .build()
+        .orElseThrow();
+  }
+
+  /** Review: a partial result says how many sentences were requested and why the rest failed. */
+  @Test
+  void testBatchReportsCounts() {
+    final var generator =
+        generator(
+            "start S; S --> A | B; A --> 'a'; B --> C; C --> D; D --> 'd';",
+            new Policy(20, 1, 3, 100, 3, Joiner.SPACED),
+            7);
+
+    final var batch = generator.batch("S", Structure.EMPTY, 20);
+
+    assertEquals(20, batch.requested());
+    assertFalse(batch.sentences().isEmpty());
+    assertFalse(batch.failures().isEmpty());
+    assertEquals(
+        20,
+        batch.sentences().size()
+            + batch.failures().values().stream().mapToInt(Integer::intValue).sum());
+  }
+
+  /** The validation parse uses the generator's limits and reports when it stops. */
+  @Test
+  void testValidationLimitReported() {
+    final var generator =
+        GrammarGenerator.builder(
+                UnificationGrammarParserFactory.parse("start S; S --> 'a' 'b' 'c';").orElseThrow())
+            .limits(Limits.NONE.states(1))
+            .build()
+            .orElseThrow();
+
+    final var result = generator.generateOne("S", Structure.EMPTY);
+
+    final var failure = assertInstanceOf(Result.Failure.class, result);
+    assertTrue(
+        ((ErrorDetails) failure.error()).message().contains("states"),
+        ((ErrorDetails) failure.error()).message());
+  }
+
+  /** The length policy stops an expansion as soon as its tokens are too long. */
+  @Test
+  void testLengthCheckedWhileBuilding() {
+    final var generator =
+        generator(
+            "start S; S --> 'x' S | 'x';",
+            new Policy(10_000, 1, 3, 10, 1_000_000, Joiner.SPACED),
+            3);
+
+    for (var index = 0; index < 20; index++) {
+      if (generator.generateOne("S", Structure.EMPTY)
+          instanceof Result.Success<String, ErrorDetails>(var sentence)) {
+        assertTrue(sentence.length() <= 10, sentence);
+      }
+    }
+  }
+
+  /** An expansion abandoned for length is reported as such, not as a missing derivation. */
+  @Test
+  void testLengthFailureReported() {
+    final var generator =
+        generator("start S; S --> 'x' 'x' 'x';", new Policy(10, 1, 3, 2, 1_000, Joiner.SPACED), 1);
+
+    final var result = generator.generateOne("S", Structure.EMPTY);
+
+    final var failure = assertInstanceOf(Result.Failure.class, result);
+    assertTrue(
+        ((ErrorDetails) failure.error()).message().contains("exceed"),
+        ((ErrorDetails) failure.error()).message());
+  }
+
   @Nested
   @DisplayName("Builder")
   class BuilderTests {
@@ -226,14 +304,14 @@ class GrammarGeneratorTests {
   @DisplayName("2.0 generation (tasks 36 to 38)")
   class Guarantees {
 
+    private static final String AGREEMENT =
+        "start S; S --> N{num: X} V{num: X};"
+            + " N{num: sg} --> 'dog'; N{num: pl} --> 'dogs'; V{num: sg} --> 'runs'; V{num: pl} --> 'run';";
+
     private GrammarGenerator generator(final String source, final long seed) {
       final var grammar = UnificationGrammarParserFactory.unvalidated(source).orElseThrow();
       return GrammarGenerator.builder(grammar).random(new Random(seed)).build().orElseThrow();
     }
-
-    private static final String AGREEMENT =
-        "start S; S --> N{num: X} V{num: X};"
-            + " N{num: sg} --> 'dog'; N{num: pl} --> 'dogs'; V{num: sg} --> 'runs'; V{num: pl} --> 'run';";
 
     /** Review 2: bindings flow between siblings, so no output mixes numbers. */
     @Test
@@ -369,83 +447,5 @@ class GrammarGeneratorTests {
       }
       assertTrue(generated > 100, "generated " + generated);
     }
-  }
-
-  private static GrammarGenerator generator(
-      final String source, final Policy policy, final long seed) {
-    return GrammarGenerator.builder(UnificationGrammarParserFactory.parse(source).orElseThrow())
-        .random(new Random(seed))
-        .policy(policy)
-        .build()
-        .orElseThrow();
-  }
-
-  /** Review: a partial result says how many sentences were requested and why the rest failed. */
-  @Test
-  void testBatchReportsCounts() {
-    final var generator =
-        generator(
-            "start S; S --> A | B; A --> 'a'; B --> C; C --> D; D --> 'd';",
-            new Policy(20, 1, 3, 100, 3, Joiner.SPACED),
-            7);
-
-    final var batch = generator.batch("S", Structure.EMPTY, 20);
-
-    assertEquals(20, batch.requested());
-    assertFalse(batch.sentences().isEmpty());
-    assertFalse(batch.failures().isEmpty());
-    assertEquals(
-        20,
-        batch.sentences().size()
-            + batch.failures().values().stream().mapToInt(Integer::intValue).sum());
-  }
-
-  /** The validation parse uses the generator's limits and reports when it stops. */
-  @Test
-  void testValidationLimitReported() {
-    final var generator =
-        GrammarGenerator.builder(
-                UnificationGrammarParserFactory.parse("start S; S --> 'a' 'b' 'c';").orElseThrow())
-            .limits(Limits.NONE.states(1))
-            .build()
-            .orElseThrow();
-
-    final var result = generator.generateOne("S", Structure.EMPTY);
-
-    final var failure = assertInstanceOf(Result.Failure.class, result);
-    assertTrue(
-        ((ErrorDetails) failure.error()).message().contains("states"),
-        ((ErrorDetails) failure.error()).message());
-  }
-
-  /** The length policy stops an expansion as soon as its tokens are too long. */
-  @Test
-  void testLengthCheckedWhileBuilding() {
-    final var generator =
-        generator(
-            "start S; S --> 'x' S | 'x';",
-            new Policy(10_000, 1, 3, 10, 1_000_000, Joiner.SPACED),
-            3);
-
-    for (var index = 0; index < 20; index++) {
-      if (generator.generateOne("S", Structure.EMPTY)
-          instanceof Result.Success<String, ErrorDetails>(var sentence)) {
-        assertTrue(sentence.length() <= 10, sentence);
-      }
-    }
-  }
-
-  /** An expansion abandoned for length is reported as such, not as a missing derivation. */
-  @Test
-  void testLengthFailureReported() {
-    final var generator =
-        generator("start S; S --> 'x' 'x' 'x';", new Policy(10, 1, 3, 2, 1_000, Joiner.SPACED), 1);
-
-    final var result = generator.generateOne("S", Structure.EMPTY);
-
-    final var failure = assertInstanceOf(Result.Failure.class, result);
-    assertTrue(
-        ((ErrorDetails) failure.error()).message().contains("exceed"),
-        ((ErrorDetails) failure.error()).message());
   }
 }

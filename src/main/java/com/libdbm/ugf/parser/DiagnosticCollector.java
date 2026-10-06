@@ -9,12 +9,7 @@ import com.libdbm.ugf.features.Structure;
 import com.libdbm.ugf.lexer.Edge;
 import com.libdbm.ugf.lexer.Graph;
 import com.libdbm.ugf.lexer.Node;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.IntFunction;
 
 /**
@@ -33,8 +28,8 @@ final class DiagnosticCollector {
   private final ParseDiagnostics diagnostics;
 
   private final int cap;
-  private long records;
   private final Map<Integer, List<ParseDiagnostics.PathFailure>> rejections = new HashMap<>();
+  private long records;
 
   /**
    * @param root the auxiliary root production, left out of the lattice
@@ -55,6 +50,55 @@ final class DiagnosticCollector {
     this.states = states;
     this.diagnostics = enabled ? new ParseDiagnostics() : null;
     this.cap = cap;
+  }
+
+  /** A readable rendering of a plan: required expressions, then weighted soft groups. */
+  static String display(final Plan plan) {
+    final var parts = new ArrayList<String>();
+    plan.required().forEach(expression -> parts.add(display(expression)));
+    plan.soft()
+        .forEach(group -> parts.add("(" + display(group.expression()) + "):" + group.weight()));
+    return String.join(", ", parts);
+  }
+
+  /** A readable rendering of a constraint expression for diagnostics. */
+  static String display(final Expression expression) {
+    return switch (expression) {
+      case Expression.And and ->
+          String.join(", ", and.terms().stream().map(DiagnosticCollector::display).toList());
+      case Expression.Or or ->
+          "("
+              + String.join(" | ", or.terms().stream().map(DiagnosticCollector::display).toList())
+              + ")";
+      case Expression.Not not -> "!" + display(not.term());
+      case Expression.Call call ->
+          call.name()
+              + "("
+              + String.join(", ", call.args().stream().map(arg -> arg.display()).toList())
+              + ")";
+      case Expression.Literal literal -> String.valueOf(literal.value());
+      case Expression.Weighted weighted ->
+          "(" + display(weighted.term()) + "):" + weighted.weight();
+    };
+  }
+
+  private static ParseDiagnostics.Span span(final State state, final Node end) {
+    return new ParseDiagnostics.Span(
+        state.origin.id(), state.start >= 0 ? state.start : state.origin.offset(), end.offset());
+  }
+
+  static String describe(final Production production) {
+    final var builder = new StringBuilder(production.symbol()).append(" -->");
+    production.rhs().forEach(element -> builder.append(' ').append(describe(element)));
+    return builder.toString();
+  }
+
+  static String describe(final Element element) {
+    return switch (element) {
+      case Element.Symbol symbol -> symbol.name();
+      case Element.Terminal terminal -> terminal.category();
+      case Element.Token token -> "{TOKEN}";
+    };
   }
 
   /** The diagnostics collected, or null when they are disabled. */
@@ -144,36 +188,6 @@ final class DiagnosticCollector {
     }
   }
 
-  /** A readable rendering of a plan: required expressions, then weighted soft groups. */
-  static String display(final Plan plan) {
-    final var parts = new ArrayList<String>();
-    plan.required().forEach(expression -> parts.add(display(expression)));
-    plan.soft()
-        .forEach(group -> parts.add("(" + display(group.expression()) + "):" + group.weight()));
-    return String.join(", ", parts);
-  }
-
-  /** A readable rendering of a constraint expression for diagnostics. */
-  static String display(final Expression expression) {
-    return switch (expression) {
-      case Expression.And and ->
-          String.join(", ", and.terms().stream().map(DiagnosticCollector::display).toList());
-      case Expression.Or or ->
-          "("
-              + String.join(" | ", or.terms().stream().map(DiagnosticCollector::display).toList())
-              + ")";
-      case Expression.Not not -> "!" + display(not.term());
-      case Expression.Call call ->
-          call.name()
-              + "("
-              + String.join(", ", call.args().stream().map(arg -> arg.display()).toList())
-              + ")";
-      case Expression.Literal literal -> String.valueOf(literal.value());
-      case Expression.Weighted weighted ->
-          "(" + display(weighted.term()) + "):" + weighted.weight();
-    };
-  }
-
   /** True if diagnostics are enabled and below their cap (PAR-8); counts the record. */
   private boolean record() {
     if (diagnostics == null) {
@@ -184,11 +198,6 @@ final class DiagnosticCollector {
     }
     records++;
     return true;
-  }
-
-  private static ParseDiagnostics.Span span(final State state, final Node end) {
-    return new ParseDiagnostics.Span(
-        state.origin.id(), state.start >= 0 ? state.start : state.origin.offset(), end.offset());
   }
 
   /**
@@ -262,20 +271,6 @@ final class DiagnosticCollector {
         furthest.id(),
         new ParseDiagnostics.Span(furthest.id(), furthest.offset(), furthest.offset()),
         truncated);
-  }
-
-  static String describe(final Production production) {
-    final var builder = new StringBuilder(production.symbol()).append(" -->");
-    production.rhs().forEach(element -> builder.append(' ').append(describe(element)));
-    return builder.toString();
-  }
-
-  static String describe(final Element element) {
-    return switch (element) {
-      case Element.Symbol symbol -> symbol.name();
-      case Element.Terminal terminal -> terminal.category();
-      case Element.Token token -> "{TOKEN}";
-    };
   }
 
   /** The furthest node any state reached. */

@@ -25,6 +25,14 @@ final class GrammarLinterTests {
     return builder.build();
   }
 
+  private static List<GrammarLinter.LintIssue> issues(
+      final GrammarLinter linter, final String source, final String title) {
+    final var grammar = UnificationGrammarParserFactory.unvalidated(source).orElseThrow();
+    return linter.lint(grammar).issues().stream()
+        .filter(issue -> issue.title().equals(title))
+        .toList();
+  }
+
   @Test
   void test_no_issues_with_valid_grammar() {
     final Grammar grammar =
@@ -536,6 +544,8 @@ final class GrammarLinterTests {
     assertFalse(report.hasErrors());
   }
 
+  // ========== State Validation Tests ==========
+
   @Test
   void test_nonterminal_name_is_implicitly_bound() {
     final Grammar grammar =
@@ -569,8 +579,6 @@ final class GrammarLinterTests {
 
     assertFalse(report.hasErrors());
   }
-
-  // ========== State Validation Tests ==========
 
   @Test
   void test_detects_state_transition_on_non_lexical_rule() {
@@ -822,14 +830,6 @@ final class GrammarLinterTests {
     assertTrue(
         report.errors().stream()
             .anyMatch(e -> e.title().contains("State transition on non-lexical")));
-  }
-
-  private static List<GrammarLinter.LintIssue> issues(
-      final GrammarLinter linter, final String source, final String title) {
-    final var grammar = UnificationGrammarParserFactory.unvalidated(source).orElseThrow();
-    return linter.lint(grammar).issues().stream()
-        .filter(issue -> issue.title().equals(title))
-        .toList();
   }
 
   /** CON-12: CLEAN*'s never-true soft group gets a production cost hint. */

@@ -6,11 +6,7 @@ import com.libdbm.ugf.features.Bindings;
 import com.libdbm.ugf.features.Structure;
 import com.libdbm.ugf.features.Unification;
 import com.libdbm.ugf.features.Unifier;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
@@ -64,11 +60,6 @@ public final class Vocabulary {
             });
   }
 
-  /** The number of cached patterns, for tests. */
-  int cached() {
-    return cache.size();
-  }
-
   /** Create an empty vocabulary. */
   public static Vocabulary empty() {
     return new Vocabulary(List.of());
@@ -77,6 +68,11 @@ public final class Vocabulary {
   /** Create a builder for constructing vocabularies. */
   public static Builder builder() {
     return new Builder();
+  }
+
+  /** The number of cached patterns, for tests. */
+  int cached() {
+    return cache.size();
   }
 
   /**
@@ -97,13 +93,13 @@ public final class Vocabulary {
    * @return list of matching words (text only)
    */
   public List<String> byPattern(final String regex, final Structure target) {
-    final var candidates =
-        cache.computeIfAbsent(
-            regex,
-            key -> {
-              final var pattern = Pattern.compile(key);
-              return entries.stream().filter(e -> pattern.matcher(e.text()).matches()).toList();
-            });
+    var candidates = cache.get(regex);
+    if (candidates == null) {
+      // Filtered outside the cache's lock, so other threads only wait for map operations.
+      final var pattern = Pattern.compile(regex);
+      candidates = entries.stream().filter(e -> pattern.matcher(e.text()).matches()).toList();
+      cache.putIfAbsent(regex, candidates);
+    }
     return filter(candidates, target);
   }
 

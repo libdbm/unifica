@@ -12,11 +12,7 @@ import com.libdbm.ugf.features.Structure;
 import com.libdbm.ugf.features.Variable;
 import com.libdbm.ugf.lexer.Graph;
 import com.libdbm.ugf.lexer.Lexer;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * An Earley parser over the token graph of a {@link Compiled} grammar (S-P1 to S-P8).
@@ -30,11 +26,12 @@ public final class Parser {
   final Compiled compiled;
   final Options options;
   final Production root;
-  private final Lexer lexer;
-  private final Map<Integer, Set<String>> referenced;
 
   /** Whether chart states are identified up to renamed variables (S-P9); false only in tests. */
   final boolean canonical;
+
+  private final Lexer lexer;
+  private final Map<Integer, Set<String>> referenced;
 
   private Parser(final Compiled compiled, final Options options, final boolean canonical) {
     this.compiled = compiled;
@@ -69,6 +66,44 @@ public final class Parser {
 
   public static Parser of(final Compiled compiled) {
     return of(compiled, Options.DEFAULT);
+  }
+
+  private static ParseResult stopped(final Outcome outcome, final Stop stop, final long started) {
+    final var statistics = new Statistics(0, 0, 0, 0, 0, 0, 0, 0, 0, System.nanoTime() - started);
+    return new ParseResult(outcome, null, 0, false, null, statistics, stop);
+  }
+
+  private static Set<String> referenced(final Production production) {
+    final var names = new HashSet<String>();
+    production.plan().required().forEach(expression -> names(expression, names));
+    production.plan().soft().forEach(group -> names(group.expression(), names));
+    final var labels = new HashSet<String>();
+    for (final var element : production.rhs()) {
+      if (element.label() != null && names.contains(element.label())) {
+        labels.add(element.label());
+      }
+    }
+    return Set.copyOf(labels);
+  }
+
+  private static void names(final Expression expression, final Set<String> names) {
+    switch (expression) {
+      case Expression.And and -> and.terms().forEach(term -> names(term, names));
+      case Expression.Or or -> or.terms().forEach(term -> names(term, names));
+      case Expression.Not not -> names(not.term(), names);
+      case Expression.Call call ->
+          call.args()
+              .forEach(
+                  arg -> {
+                    switch (arg) {
+                      case FeaturePath path -> names.add(path.root());
+                      case Variable variable -> names.add(variable.name());
+                      default -> {}
+                    }
+                  });
+      case Expression.Literal literal -> {}
+      case Expression.Weighted weighted -> names(weighted.term(), names);
+    }
   }
 
   public Compiled compiled() {
@@ -167,46 +202,8 @@ public final class Parser {
     };
   }
 
-  private static ParseResult stopped(final Outcome outcome, final Stop stop, final long started) {
-    final var statistics = new Statistics(0, 0, 0, 0, 0, 0, 0, 0, 0, System.nanoTime() - started);
-    return new ParseResult(outcome, null, 0, false, null, statistics, stop);
-  }
-
   /** The labels whose bindings the production's constraints read; only these enter state keys. */
   Set<String> referenced(final int production) {
     return referenced.getOrDefault(production, Set.of());
-  }
-
-  private static Set<String> referenced(final Production production) {
-    final var names = new HashSet<String>();
-    production.plan().required().forEach(expression -> names(expression, names));
-    production.plan().soft().forEach(group -> names(group.expression(), names));
-    final var labels = new HashSet<String>();
-    for (final var element : production.rhs()) {
-      if (element.label() != null && names.contains(element.label())) {
-        labels.add(element.label());
-      }
-    }
-    return Set.copyOf(labels);
-  }
-
-  private static void names(final Expression expression, final Set<String> names) {
-    switch (expression) {
-      case Expression.And and -> and.terms().forEach(term -> names(term, names));
-      case Expression.Or or -> or.terms().forEach(term -> names(term, names));
-      case Expression.Not not -> names(not.term(), names);
-      case Expression.Call call ->
-          call.args()
-              .forEach(
-                  arg -> {
-                    switch (arg) {
-                      case FeaturePath path -> names.add(path.root());
-                      case Variable variable -> names.add(variable.name());
-                      default -> {}
-                    }
-                  });
-      case Expression.Literal literal -> {}
-      case Expression.Weighted weighted -> names(weighted.term(), names);
-    }
   }
 }

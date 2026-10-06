@@ -1,9 +1,6 @@
 package com.libdbm.ugf.parser;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.libdbm.ugf.compiler.Compiled;
 import com.libdbm.ugf.compiler.Compiler;
@@ -29,11 +26,6 @@ class LoggingObserverTests {
 
   private LoggingObserver observer;
 
-  @BeforeEach
-  void setup() {
-    observer = LoggingObserver.quiet(); // Quiet mode to avoid log noise in tests
-  }
-
   private static Compiled compile(final String source) {
     return Compiler.compile(
             UnificationGrammarParserFactory.unvalidated(source).orElseThrow(),
@@ -44,6 +36,23 @@ class LoggingObserverTests {
   private static ParseEvents.Start start() {
     return new ParseEvents.Start(
         Parser.of(compile(AGREEMENT)).tokenize("dog runs").orElseThrow(), "S");
+  }
+
+  @BeforeEach
+  void setup() {
+    observer = LoggingObserver.quiet(); // Quiet mode to avoid log noise in tests
+  }
+
+  /** Review: collected events are bounded even when nothing is logged. */
+  @Test
+  void testCapacityBoundsEvents() {
+    final var bounded = new LoggingObserver(EnumSet.allOf(LoggingObserver.Type.class), false, 10);
+    for (var index = 0; index < 25; index++) {
+      bounded.onPosition(new ParseEvents.Position(index, 0));
+    }
+
+    assertEquals(10, bounded.events().size());
+    assertEquals(15, bounded.dropped());
   }
 
   @Nested
@@ -259,17 +268,5 @@ class LoggingObserverTests {
         assertEquals(0, observer.count(type));
       }
     }
-  }
-
-  /** Review: collected events are bounded even when nothing is logged. */
-  @Test
-  void testCapacityBoundsEvents() {
-    final var bounded = new LoggingObserver(EnumSet.allOf(LoggingObserver.Type.class), false, 10);
-    for (var index = 0; index < 25; index++) {
-      bounded.onPosition(new ParseEvents.Position(index, 0));
-    }
-
-    assertEquals(10, bounded.events().size());
-    assertEquals(15, bounded.dropped());
   }
 }

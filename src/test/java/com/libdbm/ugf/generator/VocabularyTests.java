@@ -47,6 +47,55 @@ class VocabularyTests {
             .build();
   }
 
+  @Test
+  void testByPatternIsThreadSafe() throws Exception {
+    final var builder = Vocabulary.builder();
+    for (var i = 0; i < 200; i++) {
+      builder.add("w" + i, Structure.EMPTY);
+    }
+    final var vocabulary = builder.build();
+    final var executor = Executors.newFixedThreadPool(8);
+    try {
+      final var futures = new ArrayList<Future<Integer>>();
+      for (var thread = 0; thread < 8; thread++) {
+        final var digit = thread;
+        futures.add(
+            executor.submit(
+                () -> vocabulary.byPattern("w" + digit + "[0-9]*", Structure.EMPTY).size()));
+      }
+      for (var thread = 0; thread < 8; thread++) {
+        assertEquals(
+            vocabulary.byPattern("w" + thread + "[0-9]*", Structure.EMPTY).size(),
+            futures.get(thread).get());
+      }
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
+  /** GEN-9: a pattern equivalent to a registered one, written differently, uses that generator. */
+  @Test
+  void testRegexGeneratorMatchesEquivalentPattern() {
+    final var generator = RegexTerminalGenerator.forNumbers(new Random(1));
+
+    final var token = generator.generate("[0-9][0-9]*", Structure.EMPTY).orElseThrow();
+
+    assertTrue(token.matches("[0-9]+"), token);
+    assertEquals("[a-z]+", generator.generate("[a-z]+", Structure.EMPTY).orElseThrow());
+  }
+
+  /** Review: the pattern cache is bounded, like the builtin regex cache. */
+  @Test
+  void testPatternCacheBounded() {
+    final var vocabulary = Vocabulary.builder().add("dog", Structure.EMPTY).build();
+    for (var index = 0; index < 1_000; index++) {
+      vocabulary.byPattern("d[o]g|x" + index, Structure.EMPTY);
+    }
+
+    assertTrue(vocabulary.cached() <= Vocabulary.PATTERNS, "cached: " + vocabulary.cached());
+    assertEquals(List.of("dog"), vocabulary.byPattern("d[o]g|x1", Structure.EMPTY));
+  }
+
   @Nested
   @DisplayName("Empty vocabulary")
   class EmptyVocabulary {
@@ -273,54 +322,5 @@ class VocabularyTests {
       assertEquals(1, result.size());
       assertTrue(result.contains("runs"));
     }
-  }
-
-  @Test
-  void testByPatternIsThreadSafe() throws Exception {
-    final var builder = Vocabulary.builder();
-    for (var i = 0; i < 200; i++) {
-      builder.add("w" + i, Structure.EMPTY);
-    }
-    final var vocabulary = builder.build();
-    final var executor = Executors.newFixedThreadPool(8);
-    try {
-      final var futures = new ArrayList<Future<Integer>>();
-      for (var thread = 0; thread < 8; thread++) {
-        final var digit = thread;
-        futures.add(
-            executor.submit(
-                () -> vocabulary.byPattern("w" + digit + "[0-9]*", Structure.EMPTY).size()));
-      }
-      for (var thread = 0; thread < 8; thread++) {
-        assertEquals(
-            vocabulary.byPattern("w" + thread + "[0-9]*", Structure.EMPTY).size(),
-            futures.get(thread).get());
-      }
-    } finally {
-      executor.shutdownNow();
-    }
-  }
-
-  /** GEN-9: a pattern equivalent to a registered one, written differently, uses that generator. */
-  @Test
-  void testRegexGeneratorMatchesEquivalentPattern() {
-    final var generator = RegexTerminalGenerator.forNumbers(new Random(1));
-
-    final var token = generator.generate("[0-9][0-9]*", Structure.EMPTY).orElseThrow();
-
-    assertTrue(token.matches("[0-9]+"), token);
-    assertEquals("[a-z]+", generator.generate("[a-z]+", Structure.EMPTY).orElseThrow());
-  }
-
-  /** Review: the pattern cache is bounded, like the builtin regex cache. */
-  @Test
-  void testPatternCacheBounded() {
-    final var vocabulary = Vocabulary.builder().add("dog", Structure.EMPTY).build();
-    for (var index = 0; index < 1_000; index++) {
-      vocabulary.byPattern("d[o]g|x" + index, Structure.EMPTY);
-    }
-
-    assertTrue(vocabulary.cached() <= Vocabulary.PATTERNS, "cached: " + vocabulary.cached());
-    assertEquals(List.of("dog"), vocabulary.byPattern("d[o]g|x1", Structure.EMPTY));
   }
 }

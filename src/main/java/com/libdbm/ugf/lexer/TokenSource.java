@@ -14,8 +14,6 @@ import java.util.Set;
 @FunctionalInterface
 public interface TokenSource {
 
-  Result<Graph, ErrorDetails> tokenize(String input);
-
   /** The error code for caller tokens that do not form a token graph. */
   String TOKENS = "graph.tokens";
 
@@ -93,4 +91,6 @@ public interface TokenSource {
     outgoing.add(List.of());
     return Result.success(new Graph(nodes, outgoing, Set.of(nodes.size() - 1)));
   }
+
+  Result<Graph, ErrorDetails> tokenize(String input);
 }

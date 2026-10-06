@@ -1,8 +1,6 @@
 package com.libdbm.ugf.constraints;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.libdbm.ugf.ErrorDetails;
 import com.libdbm.ugf.Result;
@@ -34,6 +32,13 @@ class PlanConversionTests {
             .orElseThrow();
     final var result = Plan.of(grammar.rulesFor("S").getFirst().constraints());
     return (ErrorDetails) assertInstanceOf(Result.Failure.class, result).error();
+  }
+
+  /** Conformance grammars that are deliberately invalid say so in their expected results. */
+  private static boolean invalid(final Path grammar) throws IOException {
+    final var expected = grammar.resolveSibling("expected.json");
+    return Files.exists(expected)
+        && Files.readString(expected).replaceAll("\\s", "").contains("\"ok\":false");
   }
 
   @Test
@@ -122,19 +127,10 @@ class PlanConversionTests {
         final var grammar = UnificationGrammarParserFactory.unvalidated(file).orElseThrow();
         for (final var rules : grammar.rules().values()) {
           for (final var rule : rules) {
-            assertTrue(
-                Plan.of(rule.constraints()) instanceof Result.Success<Plan, ErrorDetails>,
-                file + ": " + rule);
+            assertInstanceOf(Result.Success.class, Plan.of(rule.constraints()), file + ": " + rule);
           }
         }
       }
     }
-  }
-
-  /** Conformance grammars that are deliberately invalid say so in their expected results. */
-  private static boolean invalid(final Path grammar) throws IOException {
-    final var expected = grammar.resolveSibling("expected.json");
-    return Files.exists(expected)
-        && Files.readString(expected).replaceAll("\\s", "").contains("\"ok\":false");
   }
 }

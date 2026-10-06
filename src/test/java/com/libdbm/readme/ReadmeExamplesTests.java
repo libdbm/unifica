@@ -1,9 +1,6 @@
 package com.libdbm.readme;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.libdbm.ugf.ErrorDetails;
 import com.libdbm.ugf.Result;
@@ -17,26 +14,11 @@ import com.libdbm.ugf.generator.Policy;
 import com.libdbm.ugf.grammar.Grammar;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
 import com.libdbm.ugf.lexer.TokenSource;
-import com.libdbm.ugf.parser.Limits;
-import com.libdbm.ugf.parser.Options;
-import com.libdbm.ugf.parser.Outcome;
-import com.libdbm.ugf.parser.ParseDiagnostics;
-import com.libdbm.ugf.parser.ParseObserver;
-import com.libdbm.ugf.parser.ParseTree;
-import com.libdbm.ugf.parser.Parser;
-import com.libdbm.ugf.parser.ParserFactory;
-import com.libdbm.ugf.parser.Token;
+import com.libdbm.ugf.parser.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -65,6 +47,31 @@ class ReadmeExamplesTests {
   private final List<Object> reported = new ArrayList<>();
   private int retries;
 
+  private static Grammar load(final String name) {
+    return UnificationGrammarParserFactory.parse(FIXTURES.resolve(name)).orElseThrow();
+  }
+
+  private static Parser parser(final String name) {
+    return ParserFactory.create(load(name)).orElseThrow();
+  }
+
+  /** Each Java region, with its indentation removed and a trailing newline, keyed by name. */
+  private static Map<String, String> regions(final String source) {
+    final var regions = new TreeMap<String, String>();
+    final var matcher = REGION.matcher(source);
+    while (matcher.find()) {
+      final var indent = matcher.group(1).length();
+      final var lines =
+          matcher
+              .group(3)
+              .lines()
+              .map(line -> line.length() >= indent ? line.substring(indent) : line.strip())
+              .toList();
+      regions.put(matcher.group(2), String.join("\n", lines) + "\n");
+    }
+    return regions;
+  }
+
   @BeforeEach
   void setup() {
     rendered.clear();
@@ -84,19 +91,11 @@ class ReadmeExamplesTests {
     reported.add(error);
   }
 
+  // Java examples
+
   private void retry() {
     retries++;
   }
-
-  private static Grammar load(final String name) {
-    return UnificationGrammarParserFactory.parse(FIXTURES.resolve(name)).orElseThrow();
-  }
-
-  private static Parser parser(final String name) {
-    return ParserFactory.create(load(name)).orElseThrow();
-  }
-
-  // Java examples
 
   @Test
   void testQuickStart() {
@@ -192,6 +191,8 @@ class ReadmeExamplesTests {
     assertFalse(result.ambiguous());
   }
 
+  // Grammar examples
+
   @Test
   void testGeneration() {
     final var grammar = load("agreement.ug");
@@ -217,8 +218,6 @@ class ReadmeExamplesTests {
           sentence);
     }
   }
-
-  // Grammar examples
 
   @Test
   void testArithmetic() {
@@ -249,6 +248,8 @@ class ReadmeExamplesTests {
     assertEquals(Outcome.REJECTED, parser.parse("hello, anna").outcome());
   }
 
+  // Synchronization
+
   @Test
   void testStates() {
     final var parser = parser("states.ug");
@@ -258,8 +259,6 @@ class ReadmeExamplesTests {
     assertEquals(Outcome.REJECTED, parser.parse("see `x + 1 here").outcome());
     assertEquals(Outcome.REJECTED, parser.parse("see + here").outcome());
   }
-
-  // Synchronization
 
   @Test
   void testReadmeInSync() throws IOException {
@@ -298,22 +297,5 @@ class ReadmeExamplesTests {
     }
 
     assertEquals(registered, listed);
-  }
-
-  /** Each Java region, with its indentation removed and a trailing newline, keyed by name. */
-  private static Map<String, String> regions(final String source) {
-    final var regions = new TreeMap<String, String>();
-    final var matcher = REGION.matcher(source);
-    while (matcher.find()) {
-      final var indent = matcher.group(1).length();
-      final var lines =
-          matcher
-              .group(3)
-              .lines()
-              .map(line -> line.length() >= indent ? line.substring(indent) : line.strip())
-              .toList();
-      regions.put(matcher.group(2), String.join("\n", lines) + "\n");
-    }
-    return regions;
   }
 }

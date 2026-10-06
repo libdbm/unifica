@@ -9,11 +9,7 @@ import com.libdbm.ugf.parser.ParseTree;
 import com.libdbm.ugf.parser.Parser;
 import com.libdbm.ugf.parser.ParserFactory;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -39,6 +35,39 @@ class XMLParserTests {
     } catch (final Exception e) {
       throw new RuntimeException("Failed to load XML grammar", e);
     }
+  }
+
+  /**
+   * The categories offered at each step of {@link #tokens}: every edge sharing that step's span.
+   */
+  private static List<Set<String>> categories(final String input) {
+    final var graph = parser.tokenize(input).orElseThrow();
+    final var steps = new ArrayList<Set<String>>();
+    var node = graph.start();
+    while (!graph.edges(node).isEmpty()) {
+      final var first = graph.edges(node).getFirst();
+      final var set = new TreeSet<String>();
+      for (final var edge : graph.edges(node)) {
+        if (edge.to().offset() == first.to().offset()) {
+          set.add(edge.category());
+        }
+      }
+      steps.add(set);
+      node = first.to();
+    }
+    return steps;
+  }
+
+  private static List<Edge> tokens(final String input) {
+    final var graph = parser.tokenize(input).orElseThrow();
+    final var path = new ArrayList<Edge>();
+    var node = graph.start();
+    while (!graph.edges(node).isEmpty()) {
+      final var edge = graph.edges(node).getFirst();
+      path.add(edge);
+      node = edge.to();
+    }
+    return path;
   }
 
   @Test
@@ -439,6 +468,13 @@ class XMLParserTests {
     assertEquals(" a-b-c ", comment.value());
   }
 
+  // ---------------------------------------------------------------------
+  // Tokenization tests (grouped)
+  // ---------------------------------------------------------------------
+  /**
+   * One path through the token graph: from each node, the first edge (lowest lexeme id, that is
+   * declaration order). This stands in for the 1.x single-path tokenizer.
+   */
   @Test
   void testEmptyComment() {
     final var input = "<div><!----></div>";
@@ -470,46 +506,6 @@ class XMLParserTests {
     assertInstanceOf(XMLNode.ContentItem.Text.class, mixed.items().get(0));
     assertInstanceOf(XMLNode.ContentItem.Comment.class, mixed.items().get(1));
     assertInstanceOf(XMLNode.ContentItem.Text.class, mixed.items().get(2));
-  }
-
-  // ---------------------------------------------------------------------
-  // Tokenization tests (grouped)
-  // ---------------------------------------------------------------------
-  /**
-   * One path through the token graph: from each node, the first edge (lowest lexeme id, that is
-   * declaration order). This stands in for the 1.x single-path tokenizer.
-   */
-  /**
-   * The categories offered at each step of {@link #tokens}: every edge sharing that step's span.
-   */
-  private static List<Set<String>> categories(final String input) {
-    final var graph = parser.tokenize(input).orElseThrow();
-    final var steps = new ArrayList<Set<String>>();
-    var node = graph.start();
-    while (!graph.edges(node).isEmpty()) {
-      final var first = graph.edges(node).getFirst();
-      final var set = new TreeSet<String>();
-      for (final var edge : graph.edges(node)) {
-        if (edge.to().offset() == first.to().offset()) {
-          set.add(edge.category());
-        }
-      }
-      steps.add(set);
-      node = first.to();
-    }
-    return steps;
-  }
-
-  private static List<Edge> tokens(final String input) {
-    final var graph = parser.tokenize(input).orElseThrow();
-    final var path = new ArrayList<Edge>();
-    var node = graph.start();
-    while (!graph.edges(node).isEmpty()) {
-      final var edge = graph.edges(node).getFirst();
-      path.add(edge);
-      node = edge.to();
-    }
-    return path;
   }
 
   @Nested

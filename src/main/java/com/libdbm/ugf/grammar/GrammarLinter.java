@@ -29,6 +29,17 @@ public final class GrammarLinter {
     this.lexical = predicates.names(Predicates.Phase.LEXICAL);
   }
 
+  private static boolean nested(final Expression expression, final boolean inside) {
+    return switch (expression) {
+      case Expression.Weighted weighted -> inside || nested(weighted.term(), true);
+      case Expression.And and -> and.terms().stream().anyMatch(term -> nested(term, inside));
+      case Expression.Or or -> or.terms().stream().anyMatch(term -> nested(term, inside));
+      case Expression.Not not -> nested(not.term(), inside);
+      case Expression.Call call -> false;
+      case Expression.Literal literal -> false;
+    };
+  }
+
   /** Lint a grammar and return all detected issues. */
   public LintReport lint(final Grammar grammar) {
     final var issues = new ArrayList<LintIssue>();
@@ -275,6 +286,8 @@ public final class GrammarLinter {
     return elems.stream().anyMatch(this::containsStateAnnotation);
   }
 
+  // Helper methods
+
   private boolean containsStateAnnotation(final RuleElement elem) {
     return switch (elem) {
       case RuleElement.StateAnnotation sa -> true;
@@ -284,8 +297,6 @@ public final class GrammarLinter {
       default -> false;
     };
   }
-
-  // Helper methods
 
   private void collectNonterminals(
       final RuleElement elem, final Set<String> reachable, final Queue<String> queue) {
@@ -467,17 +478,6 @@ public final class GrammarLinter {
       }
     }
     return issues;
-  }
-
-  private static boolean nested(final Expression expression, final boolean inside) {
-    return switch (expression) {
-      case Expression.Weighted weighted -> inside || nested(weighted.term(), true);
-      case Expression.And and -> and.terms().stream().anyMatch(term -> nested(term, inside));
-      case Expression.Or or -> or.terms().stream().anyMatch(term -> nested(term, inside));
-      case Expression.Not not -> nested(not.term(), inside);
-      case Expression.Call call -> false;
-      case Expression.Literal literal -> false;
-    };
   }
 
   /** Report containing all linting issues found. */

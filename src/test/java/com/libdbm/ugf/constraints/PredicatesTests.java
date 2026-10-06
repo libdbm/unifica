@@ -1,20 +1,10 @@
 package com.libdbm.ugf.constraints;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.libdbm.ugf.constraints.Expression.Call;
 import com.libdbm.ugf.constraints.Expression.Or;
-import com.libdbm.ugf.features.Binding;
-import com.libdbm.ugf.features.FeaturePath;
-import com.libdbm.ugf.features.NumericConstant;
-import com.libdbm.ugf.features.StringConstant;
-import com.libdbm.ugf.features.Structure;
-import com.libdbm.ugf.features.Value;
-import com.libdbm.ugf.features.Variable;
+import com.libdbm.ugf.features.*;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -23,6 +13,7 @@ import org.junit.jupiter.api.Test;
 class PredicatesTests {
 
   private static final Predicates LEXICAL = Predicates.builder().lexical().build();
+  private static final Predicates STANDARD = Predicates.standard();
 
   private static Call call(final String name, final String... args) {
     return new Call(
@@ -31,6 +22,15 @@ class PredicatesTests {
 
   private static Environment lexing(final int position, final String... states) {
     return Environment.of(LEXICAL).lexical(List.of(states), position);
+  }
+
+  private static boolean test(
+      final Environment environment, final String name, final Value... args) {
+    return environment.test(new Call(name, List.of(args)));
+  }
+
+  private static StringConstant string(final String text) {
+    return new StringConstant(text);
   }
 
   @Test
@@ -88,7 +88,7 @@ class PredicatesTests {
     builder.add("later", 0, 0, Predicates.Phase.SYNTACTIC, (environment, args) -> true);
 
     assertNull(built.entry("later"));
-    assertTrue(builder.build().entry("later") != null);
+    assertNotNull(builder.build().entry("later"));
   }
 
   @Test
@@ -137,17 +137,6 @@ class PredicatesTests {
     assertEquals(
         Expression.Literal.TRUE,
         Evaluator.residual(expression, environment, LEXICAL.names(Predicates.Phase.LEXICAL)));
-  }
-
-  private static final Predicates STANDARD = Predicates.standard();
-
-  private static boolean test(
-      final Environment environment, final String name, final Value... args) {
-    return environment.test(new Call(name, List.of(args)));
-  }
-
-  private static StringConstant string(final String text) {
-    return new StringConstant(text);
   }
 
   @Test

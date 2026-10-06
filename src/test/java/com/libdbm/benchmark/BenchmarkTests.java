@@ -4,11 +4,7 @@ import com.libdbm.ugf.compiler.Compiler;
 import com.libdbm.ugf.constraints.Predicates;
 import com.libdbm.ugf.grammar.Grammar;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
-import com.libdbm.ugf.parser.Limits;
-import com.libdbm.ugf.parser.Options;
-import com.libdbm.ugf.parser.ParseObserver;
-import com.libdbm.ugf.parser.ParseResult;
-import com.libdbm.ugf.parser.Parser;
+import com.libdbm.ugf.parser.*;
 import com.sun.management.ThreadMXBean;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -49,6 +45,14 @@ final class BenchmarkTests {
   private static final long TIMEOUT = 30;
 
   private final List<String> rows = new ArrayList<>();
+
+  private static Grammar load(final String source) {
+    return UnificationGrammarParserFactory.parse(source).orElseThrow();
+  }
+
+  private static Parser parser(final Grammar grammar, final Predicates predicates) {
+    return Parser.of(Compiler.compile(grammar, predicates).orElseThrow());
+  }
 
   @Test
   void testBenchmark() throws IOException {
@@ -290,13 +294,5 @@ final class BenchmarkTests {
     } finally {
       executor.shutdownNow();
     }
-  }
-
-  private static Grammar load(final String source) {
-    return UnificationGrammarParserFactory.parse(source).orElseThrow();
-  }
-
-  private static Parser parser(final Grammar grammar, final Predicates predicates) {
-    return Parser.of(Compiler.compile(grammar, predicates).orElseThrow());
   }
 }

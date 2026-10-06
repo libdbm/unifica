@@ -112,8 +112,8 @@ public final class Evaluator {
       }
       case Expression.Not not -> {
         final var reduced = residual(not.term(), calls, names);
-        yield reduced instanceof Expression.Literal literal
-            ? Expression.Literal.of(!literal.value())
+        yield reduced instanceof Expression.Literal(boolean value)
+            ? Expression.Literal.of(!value)
             : new Expression.Not(reduced);
       }
       case Expression.Call call ->

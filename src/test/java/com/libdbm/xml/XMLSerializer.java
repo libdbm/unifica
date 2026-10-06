@@ -1,6 +1,9 @@
 package com.libdbm.xml;
 
-import com.libdbm.xml.XMLNode.*;
+import com.libdbm.xml.XMLNode.Content;
+import com.libdbm.xml.XMLNode.ContentItem;
+import com.libdbm.xml.XMLNode.Element;
+import com.libdbm.xml.XMLNode.EmptyElement;
 import java.util.Map;
 
 /** Serializes XML AST nodes back to XML text */
