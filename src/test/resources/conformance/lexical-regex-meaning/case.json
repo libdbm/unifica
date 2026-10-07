@@ -2,5 +2,5 @@
   "rules": [
     "S-L7"
   ],
-  "description": "$ is the end of the input, not before a final newline, and (?i) folds Unicode case."
+  "description": "$ is the end of the input, not before a final newline, and a leading (?s) lets . match a newline."
 }

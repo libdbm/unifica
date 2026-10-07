@@ -48,6 +48,9 @@ public final class GrammarLinter {
     // Check for duplicate lexical entries
     issues.addAll(findDuplicateLexicalEntries(grammar));
 
+    // Check for lexical rules whose ties only declaration order can break
+    issues.addAll(findLexicalTies(grammar));
+
     // Check for unbound labels in constraints
     issues.addAll(findUnboundLabels(grammar));
 
@@ -145,6 +148,74 @@ public final class GrammarLinter {
     }
 
     return issues;
+  }
+
+  /**
+   * Find pairs of lexical rules for the same symbol with the same pattern text and transition,
+   * overlapping states and different features. Their tokens tie on everything but declaration
+   * order, which then decides the tree (S-P3). Patterns that overlap without being written the same
+   * are not detected.
+   */
+  private List<LintIssue> findLexicalTies(final Grammar grammar) {
+    final var issues = new ArrayList<LintIssue>();
+    for (final var entry : grammar.rules().entrySet()) {
+      final var symbol = entry.getKey();
+      final var rules = entry.getValue();
+      for (var i = 0; i < rules.size(); i++) {
+        for (var j = i + 1; j < rules.size(); j++) {
+          final var first = rules.get(i);
+          final var second = rules.get(j);
+          if (isLexicalRule(first)
+              && isLexicalRule(second)
+              && pattern(first).equals(pattern(second))
+              && Objects.equals(first.transition(), second.transition())
+              && overlap(states(first), states(second))
+              && !first.lhs().features().equals(second.lhs().features())) {
+            issues.add(
+                new LintIssue(
+                    LintIssue.Severity.WARNING,
+                    "Lexical tie broken by declaration order",
+                    String.format(
+                        "Lexical rules %d and %d for '%s' match the same text with different features;"
+                            + " declaration order breaks ties between their tokens (S-P3)",
+                        i + 1, j + 1, symbol),
+                    symbol));
+          }
+        }
+      }
+    }
+    return issues;
+  }
+
+  /** The pattern text of a lexical rule, without its state annotations. */
+  private String pattern(final GrammarRule rule) {
+    return rule.rhs().stream()
+        .filter(element -> !(element instanceof RuleElement.StateAnnotation))
+        .map(this::getPatternString)
+        .collect(Collectors.joining(" "));
+  }
+
+  /** The states a lexical rule is annotated with; empty means every state. */
+  private static Set<String> states(final GrammarRule rule) {
+    final var states = new HashSet<String>();
+    rule.rhs().forEach(element -> states(element, states));
+    return states;
+  }
+
+  private static void states(final RuleElement element, final Set<String> states) {
+    switch (element) {
+      case RuleElement.StateAnnotation annotation -> states.add(annotation.state());
+      case RuleElement.Repetition repetition -> states(repetition.element(), states);
+      case RuleElement.Alternation alternation ->
+          alternation.options().forEach(option -> states(option, states));
+      case RuleElement.Sequence sequence ->
+          sequence.elements().forEach(inner -> states(inner, states));
+      default -> {}
+    }
+  }
+
+  private static boolean overlap(final Set<String> first, final Set<String> second) {
+    return first.isEmpty() || second.isEmpty() || !Collections.disjoint(first, second);
   }
 
   /** Find constraints that reference labels not present in the rule. */

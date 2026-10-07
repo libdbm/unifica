@@ -18,8 +18,6 @@ public final class ParseDiagnostics {
   private final List<ConstraintFailure> constraintFailures = new ArrayList<>();
   private final List<TokenizationError> tokenizationErrors = new ArrayList<>();
   private final List<ParsingIssue> parsingIssues = new ArrayList<>();
-  private final List<RegexFailure> regexFailures = new ArrayList<>();
-  private final List<QuantifierLoop> quantifierLoops = new ArrayList<>();
   private final List<UnificationFailure> unificationFailures = new ArrayList<>();
   private final List<Ambiguity> ambiguities = new ArrayList<>();
   private ParseLattice lattice;
@@ -72,31 +70,6 @@ public final class ParseDiagnostics {
 
   public void recordParsingIssue(final String message, final int position, final Span span) {
     parsingIssues.add(new ParsingIssue(message, position, span));
-  }
-
-  /** Record a regex pattern match failure. */
-  public void recordRegexFailure(final String pattern, final String input, final int position) {
-    recordRegexFailure(pattern, input, position, null);
-  }
-
-  public void recordRegexFailure(
-      final String pattern, final String input, final int position, final Span span) {
-    regexFailures.add(new RegexFailure(pattern, input, position, span));
-  }
-
-  /** Record a potential quantifier loop (excessive repetition). */
-  public void recordQuantifierLoop(
-      final String ruleName, final String element, final int iterations, final int position) {
-    recordQuantifierLoop(ruleName, element, iterations, position, null);
-  }
-
-  public void recordQuantifierLoop(
-      final String ruleName,
-      final String element,
-      final int iterations,
-      final int position,
-      final Span span) {
-    quantifierLoops.add(new QuantifierLoop(ruleName, element, iterations, position, span));
   }
 
   /** Record a feature unification failure. */
@@ -157,14 +130,6 @@ public final class ParseDiagnostics {
     return List.copyOf(parsingIssues);
   }
 
-  public List<RegexFailure> regexFailures() {
-    return List.copyOf(regexFailures);
-  }
-
-  public List<QuantifierLoop> quantifierLoops() {
-    return List.copyOf(quantifierLoops);
-  }
-
   public List<UnificationFailure> unificationFailures() {
     return List.copyOf(unificationFailures);
   }
@@ -182,8 +147,6 @@ public final class ParseDiagnostics {
     return !constraintFailures.isEmpty()
         || !tokenizationErrors.isEmpty()
         || !parsingIssues.isEmpty()
-        || !regexFailures.isEmpty()
-        || !quantifierLoops.isEmpty()
         || !unificationFailures.isEmpty()
         || lattice != null;
   }
@@ -222,28 +185,6 @@ public final class ParseDiagnostics {
       sb.append("=== Parsing Issues ===\n");
       for (final var issue : parsingIssues) {
         sb.append(String.format("  %s: %s\n", describe(issue.position, issue.span), issue.message));
-      }
-      sb.append("\n");
-    }
-
-    if (!regexFailures.isEmpty()) {
-      sb.append("=== Regex Pattern Failures ===\n");
-      for (final var failure : regexFailures) {
-        sb.append(
-            String.format(
-                "  %s: Pattern '%s' failed to match input '%s'\n",
-                describe(failure.position, failure.span), failure.pattern, failure.input));
-      }
-      sb.append("\n");
-    }
-
-    if (!quantifierLoops.isEmpty()) {
-      sb.append("=== Quantifier Loops (Excessive Repetition) ===\n");
-      for (final var loop : quantifierLoops) {
-        sb.append(
-            String.format(
-                "  %s: Rule '%s' element '%s' iterated %d times (possible infinite loop)\n",
-                describe(loop.position, loop.span), loop.ruleName, loop.element, loop.iterations));
       }
       sb.append("\n");
     }
@@ -332,7 +273,7 @@ public final class ParseDiagnostics {
 
   /** A single Earley item captured in a lattice snapshot. */
   public record LatticeItem(
-      String rule, int dot, int origin, int penalty, State state, String features) {}
+      String rule, int dot, int origin, long penalty, State state, String features) {}
 
   /** A specific reason a path did not succeed. Associated with a single lattice item and column. */
   public record PathFailure(LatticeItem item, Span span, String reason, FailureKind kind) {}
@@ -471,22 +412,6 @@ public final class ParseDiagnostics {
   public record ParsingIssue(String message, int position, Span span) {
     public ParsingIssue(final String message, final int position) {
       this(message, position, null);
-    }
-  }
-
-  /** A regex pattern that failed to match. */
-  public record RegexFailure(String pattern, String input, int position, Span span) {
-    public RegexFailure(final String pattern, final String input, final int position) {
-      this(pattern, input, position, null);
-    }
-  }
-
-  /** A quantifier that may be looping excessively. */
-  public record QuantifierLoop(
-      String ruleName, String element, int iterations, int position, Span span) {
-    public QuantifierLoop(
-        final String ruleName, final String element, final int iterations, final int position) {
-      this(ruleName, element, iterations, position, null);
     }
   }
 

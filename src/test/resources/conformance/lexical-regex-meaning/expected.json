@@ -14,13 +14,13 @@
       "outcome": "rejected"
     },
     {
-      "input": "ÉÉ!",
+      "input": "a\nb!",
       "outcome": "accepted",
       "penalty": 0,
       "ambiguous": false
     },
     {
-      "input": "EE!",
+      "input": "a\nb?",
       "outcome": "rejected"
     }
   ]

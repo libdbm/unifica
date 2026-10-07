@@ -1,0 +1,4 @@
+start S;
+S --> {TOKEN};
+B{k: b} --> 'a';
+A{k: a} --> 'a';

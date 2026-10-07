@@ -8,6 +8,8 @@ import com.libdbm.ugf.constraints.Plan;
 import com.libdbm.ugf.constraints.Predicates;
 import com.libdbm.ugf.features.Structure;
 import com.libdbm.ugf.grammar.Grammar;
+import com.libdbm.ugf.grammar.GrammarRule;
+import com.libdbm.ugf.grammar.RuleElement;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -264,6 +266,26 @@ class CompilerTests {
       assertTrue(
           failure(source).issues().stream().anyMatch(issue -> issue.contains("S-L7")), source);
     }
+  }
+
+  /** S-L7: only a standalone pattern may start with (?s); a grammar regex element takes no flag. */
+  @Test
+  void testFlagsOnlyInStandalonePatterns() {
+    final var grammar =
+        Grammar.builder()
+            .start("S")
+            .add(
+                new GrammarRule(
+                    new GrammarRule.LHS("S"), List.of(new RuleElement.Nonterminal("A")), List.of()))
+            .add(
+                new GrammarRule(
+                    new GrammarRule.LHS("A"), List.of(new RuleElement.Regex("(?s).")), List.of()))
+            .build();
+    final var result = Compiler.compile(grammar, STANDARD);
+    final var error = (ErrorDetails) assertInstanceOf(Result.Failure.class, result).error();
+
+    assertTrue(error.issues().stream().anyMatch(issue -> issue.contains("S-L7")));
+    compile("start S; S --> W:w where matches(w, '(?s).+'); W --> 'a';");
   }
 
   /** S-L7: $ is the end of the input, also in a lexeme. */

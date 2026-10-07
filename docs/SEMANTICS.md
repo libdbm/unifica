@@ -63,16 +63,22 @@ letter in a feature value is a variable.
   - `\d` (`[0-9]`), `\w` (`[A-Za-z0-9_]`), `\s` (`[ \t\n\x0B\f\r]`), their negations `\D`, `\W`, `\S`, and `\b`,
     `\B` outside classes;
   - `\p{C}` and `\P{C}` for a Unicode general category `C` such as `L`, `Lu` or `Nd`;
-  - classes `[...]` and `[^...]` with ranges and the escapes above, where `[`, and `]` first in a class, are escaped;
+  - classes `[...]` and `[^...]` with ranges and the escapes above, where `[`, and `]` first in a class, are escaped,
+    and an unescaped `-` is first, last, or between two single characters as a range (next to `\w`, `\p{..}` or a
+    range, it is escaped);
   - `.`, any code point except `\n`, `\r`, `\u0085`, `\u2028` and `\u2029`, or any code point after a leading `(?s)`;
   - `^` and `$`, the start and end of the text matched (the whole input when lexing);
   - groups `(...)` and `(?:...)`, lookahead `(?=...)`, `(?!...)` and lookbehind `(?<=...)`, `(?<!...)`;
   - `|`, and the quantifiers `*`, `+`, `?`, `{n}`, `{n,}` and `{n,m}`, each optionally lazy (`?`);
-  - a leading `(?i)`, `(?s)` or `(?is)`. `(?i)` matches with Unicode simple case folding.
+  - a leading `(?s)` in a `whitespace` or `matches` pattern. A grammar regex element is part of a lexeme's pattern
+    and takes no flag.
 
   A literal `{`, `}` or `]` outside a class is escaped. Anything else, such as backreferences, named groups,
   possessive quantifiers, nested classes or other flags, is outside the subset. A grammar that uses it is invalid,
-  and a `matches` pattern computed at runtime that uses it is false.
+  and a `matches` pattern computed at runtime that uses it is false. General categories and the code point model follow
+  the Unicode version of the implementation's platform, which is 15.0 or later. Code points assigned after Unicode 15.0
+  may be classified differently by different implementations, and the conformance corpus does not depend on how they
+  are classified.
 
 ## Constraints
 
@@ -94,13 +100,14 @@ letter in a feature value is a variable.
   the token starts, after skipped whitespace (S-L4), replaced by their truth values, and the remaining expression is
   evaluated later. In a syntactic production they are evaluated with the state stack of the node where the constituent
   starts and the offset where its first token starts, after skipped whitespace. A constituent with no tokens uses the
-  offset of its node. Predicates are never deleted from an expression. Positional
-  predicates (`at_start`, `at_position`, `at_end`, `before`) read the constituent's span. In a syntactic production,
-  `at_start` and `at_position(n)` hold when some path from the initial node to the node where the constituent starts
-  has 0 or `n` tokens, `at_end` holds when it ends at a final node, and `before` reads the categories of the edges
-  leaving its end node. In a lexical production, `at_start` and `at_position(n)` hold when the token starts at offset 0
-  or `n`, after skipped whitespace, `at_end` holds when only skipped text follows the token to the end of the input,
-  as for a final node, and `before` is false. The linter warns about `before` in a lexical production.
+  offset of its node. Predicates are never deleted from an expression. Positional predicates (`at_start`, `at_position`,
+  `at_end`, `before`) read the constituent's span. In a syntactic production, `at_start` and `at_position(n)` hold when
+  some path from the initial node to the node where the constituent starts has 0 or `n` tokens, `at_end` holds when it
+  ends at a final node, and `before` reads the categories of the edges leaving its end node. In a lexical production,
+  `at_start` and `at_position(n)` hold when the token starts at offset 0 or `n`, after skipped whitespace, `at_end`
+  holds when only skipped text follows the token to the end of the input, skipping under the state stack after the
+  token's transition, as for a final node (S-L3, S-L4), and `before` is false. The linter warns about `before` in a
+  lexical production.
 - **S-C8.** A predicate name the grammar uses but that is not registered, or a call with the wrong arity, is a compile
   error. At runtime a predicate is either true or false.
 - **S-C9.** The text of a constituent is the input substring from its first token's start to its last token's end,
@@ -139,7 +146,12 @@ letter in a feature value is a variable.
   costs, production costs, and soft-group weights along the derivation.
 - **S-P3.** Ties are broken deterministically. Compare the two trees' productions in pre-order, and prefer the one whose
   first differing production appears earlier in declaration order. If the productions are identical, prefer the tree
-  whose first differing constituent span ends earlier.
+  whose first differing constituent span ends earlier. If those are identical too, compare the tokens in pre-order and
+  prefer the tree whose first differing token has the category earlier in code point order (a token with no category
+  first), then the state stack it leads to earlier, comparing states from the bottom in code point order with a proper
+  prefix first. If the tokens still tie, prefer the one from the lexical production declared earlier, or for caller
+  tokens the one earlier in the caller's alternatives; an implementation warns when only this last rule chose the tree.
+  Node and edge identifiers never break a tie (S-L1).
 - **S-P4.** `ambiguous` is true when more than one distinct derivation reaches the lowest penalty.
 - **S-P5.** A parse ends with one of four outcomes: `accepted`, `rejected`, `limit` (a configured resource limit or
   penalty overflow), or `cancelled`. Only `accepted` carries a tree.

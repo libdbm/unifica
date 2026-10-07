@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "S-P3",
+    "S-L2"
+  ],
+  "description": "Trees that differ only in which equal-length token fills a span are ordered by token category, not by declaration or edge order: A comes before B."
+}

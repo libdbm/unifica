@@ -161,7 +161,7 @@ final class DiagnosticCollector {
                     describe(production),
                     state.dot,
                     state.origin.id(),
-                    (int) Math.min(Integer.MAX_VALUE, state.penalty),
+                    state.penalty,
                     ParseDiagnostics.State.REJECTED,
                     state.bindings.values().toString()),
                 span,
@@ -239,7 +239,7 @@ final class DiagnosticCollector {
                 describe(state.production),
                 state.dot,
                 state.origin.id(),
-                (int) Math.min(Integer.MAX_VALUE, state.penalty),
+                state.penalty,
                 state.complete() ? ParseDiagnostics.State.COMPLETE : ParseDiagnostics.State.ACTIVE,
                 state.complete() ? state.features.display() : state.bindings.values().toString());
         items.add(item);

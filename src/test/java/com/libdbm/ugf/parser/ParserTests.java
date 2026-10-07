@@ -12,6 +12,8 @@ import com.libdbm.ugf.lexer.Edge;
 import com.libdbm.ugf.lexer.Graph;
 import com.libdbm.ugf.lexer.Node;
 import com.libdbm.ugf.lexer.TokenSource;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -446,6 +448,97 @@ class ParserTests {
               .outcome(),
           index);
     }
+  }
+
+  /**
+   * S-P3: tokens that tie on category are ordered by the state stack they lead to, compared from
+   * the bottom, never by edge id.
+   */
+  @Test
+  void testTieBreakTokenStateStack() {
+    final var start = new Node(0, 0, List.of("DEFAULT"));
+    final var later = new Node(1, 1, List.of("DEFAULT", "B"));
+    final var earlier = new Node(2, 1, List.of("DEFAULT", "A"));
+    final var graph =
+        new Graph(
+            List.of(start, later, earlier),
+            List.of(
+                List.of(
+                    new Edge(0, start, later, 0, "first", "x", Structure.EMPTY, 0),
+                    new Edge(1, start, earlier, 0, "second", "x", Structure.EMPTY, 0)),
+                List.<Edge>of(),
+                List.<Edge>of()),
+            Set.of(1, 2));
+
+    final var result = parser("start S; S --> {TOKEN};").parse(graph);
+
+    assertTrue(result.ambiguous());
+    final var leaf = (ParseTree.Leaf) root(result).children().getFirst();
+    assertEquals("second", leaf.text());
+  }
+
+  /**
+   * S-P3: tokens that tie on category and state stack are ordered by declaration, and a warning is
+   * logged when only that order chose the tree.
+   */
+  @Test
+  void testTieBreakDeclarationOrderWarns() {
+    final var tied = parser("start S; S --> {TOKEN}; W{k: b} --> 'a'; W{k: a} --> 'a';");
+    final var ordered = parser("start S; S --> {TOKEN}; B{k: b} --> 'a'; A{k: a} --> 'a';");
+    final var original = System.err;
+    final var captured = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(captured, true));
+    final ParseResult first;
+    final String warnings;
+    final String quiet;
+    try {
+      first = tied.parse("a");
+      warnings = captured.toString();
+      captured.reset();
+      ordered.parse("a");
+      quiet = captured.toString();
+    } finally {
+      System.setErr(original);
+    }
+
+    final var leaf = (ParseTree.Leaf) root(first).children().getFirst();
+    assertEquals("{k: b}", leaf.features().display());
+    assertTrue(warnings.contains("declaration order"), warnings);
+    assertFalse(quiet.contains("declaration order"), quiet);
+  }
+
+  /**
+   * S-P3 compares whole trees. Under S -> A* B, one A over "aa" gives productions [S, A, B] and two
+   * A's give [S, A, A, B]; the second is smaller because A is declared before B, although inside
+   * the repetition alone [A] is a prefix of [A, A] and so comes first.
+   */
+  @Test
+  void testTieBreakComparesWholeTrees() {
+    final var states = List.of("DEFAULT");
+    final var nodes =
+        List.of(
+            new Node(0, 0, states),
+            new Node(1, 1, states),
+            new Node(2, 2, states),
+            new Node(3, 3, states));
+    final var graph =
+        new Graph(
+            nodes,
+            List.of(
+                List.of(
+                    new Edge(0, nodes.get(0), nodes.get(1), 0, "a", "x", Structure.EMPTY, 0),
+                    new Edge(1, nodes.get(0), nodes.get(2), 0, "aa", "x", Structure.EMPTY, 0)),
+                List.of(new Edge(2, nodes.get(1), nodes.get(2), 1, "a", "x", Structure.EMPTY, 0)),
+                List.of(new Edge(3, nodes.get(2), nodes.get(3), 2, "b", "y", Structure.EMPTY, 0)),
+                List.<Edge>of()),
+            Set.of(3));
+
+    final var result =
+        parser("start S; S --> A* B; A --> x; B --> y; x --> 'x'; y --> 'y';").parse(graph);
+
+    assertTrue(result.ambiguous());
+    assertEquals(
+        List.of("A", "A", "B"), root(result).children().stream().map(ParserTests::symbol).toList());
   }
 
   /** S-C7: in a lexical production at_start and at_position read the token's start offset. */

@@ -733,6 +733,35 @@ final class GrammarLinterTests {
     assertTrue(new GrammarLinter().lint(grammar).issues().isEmpty());
   }
 
+  /** S-P3: lexical rules whose ties only declaration order can break are reported. */
+  @Test
+  void test_warns_lexical_tie_by_declaration_order() {
+    final var linter = new GrammarLinter();
+    final var title = "Lexical tie broken by declaration order";
+    final var start = "start S; S --> {TOKEN}; ";
+
+    for (final var tied :
+        List.of(
+            "W{k: b} --> 'a'; W{k: a} --> 'a';",
+            "W{k: b} --> [a-z]+; W{k: a} --> [a-z]+;",
+            "W{k: b} --> {X} 'a'; W{k: a} --> 'a';",
+            "W{k: b} --> {X} 'a' ==> Y; W{k: a} --> {X} 'a' ==> Y;")) {
+      final var warnings = issues(linter, start + tied, title);
+      assertEquals(1, warnings.size(), tied);
+      assertEquals(GrammarLinter.LintIssue.Severity.WARNING, warnings.getFirst().severity(), tied);
+      assertTrue(warnings.getFirst().message().contains("'W'"), tied);
+    }
+    for (final var separate :
+        List.of(
+            "B{k: b} --> 'a'; A{k: a} --> 'a';",
+            "W{k: a} --> 'a'; W{k: a} --> 'a';",
+            "W{k: b} --> 'a' ==> X; W{k: a} --> 'a' ==> Y;",
+            "W{k: b} --> {X} 'a'; W{k: a} --> {Y} 'a';",
+            "W{k: b} --> 'a'; W{k: a} --> 'b';")) {
+      assertTrue(issues(linter, start + separate, title).isEmpty(), separate);
+    }
+  }
+
   @Test
   void test_warns_before_in_lexical_rule() {
     final var linter = new GrammarLinter();

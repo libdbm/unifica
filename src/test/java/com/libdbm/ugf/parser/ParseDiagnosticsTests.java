@@ -35,8 +35,6 @@ class ParseDiagnosticsTests {
       assertTrue(diagnostics.constraintFailures().isEmpty());
       assertTrue(diagnostics.tokenizationErrors().isEmpty());
       assertTrue(diagnostics.parsingIssues().isEmpty());
-      assertTrue(diagnostics.regexFailures().isEmpty());
-      assertTrue(diagnostics.quantifierLoops().isEmpty());
       assertTrue(diagnostics.unificationFailures().isEmpty());
     }
   }
@@ -109,45 +107,6 @@ class ParseDiagnosticsTests {
       final var issue = diagnostics.parsingIssues().getFirst();
       assertEquals("unexpected end of input", issue.message());
       assertEquals(100, issue.position());
-    }
-  }
-
-  @Nested
-  @DisplayName("Regex failures")
-  class RegexFailures {
-
-    @Test
-    @DisplayName("records regex failure")
-    void records_regex_failure() {
-      diagnostics.recordRegexFailure("[0-9]+", "abc", 20);
-
-      assertTrue(diagnostics.hasFailures());
-      assertEquals(1, diagnostics.regexFailures().size());
-
-      final var failure = diagnostics.regexFailures().getFirst();
-      assertEquals("[0-9]+", failure.pattern());
-      assertEquals("abc", failure.input());
-      assertEquals(20, failure.position());
-    }
-  }
-
-  @Nested
-  @DisplayName("Quantifier loops")
-  class QuantifierLoops {
-
-    @Test
-    @DisplayName("records quantifier loop")
-    void records_quantifier_loop() {
-      diagnostics.recordQuantifierLoop("expr", "term*", 1000, 50);
-
-      assertTrue(diagnostics.hasFailures());
-      assertEquals(1, diagnostics.quantifierLoops().size());
-
-      final var loop = diagnostics.quantifierLoops().getFirst();
-      assertEquals("expr", loop.ruleName());
-      assertEquals("term*", loop.element());
-      assertEquals(1000, loop.iterations());
-      assertEquals(50, loop.position());
     }
   }
 
@@ -255,31 +214,6 @@ class ParseDiagnosticsTests {
     }
 
     @Test
-    @DisplayName("generates report with regex failures")
-    void generates_regex_report() {
-      diagnostics.recordRegexFailure("[a-z]+", "123", 30);
-
-      final var report = diagnostics.generateReport();
-
-      assertTrue(report.contains("Regex Pattern Failures"));
-      assertTrue(report.contains("[a-z]+"));
-      assertTrue(report.contains("123"));
-    }
-
-    @Test
-    @DisplayName("generates report with quantifier loops")
-    void generates_loop_report() {
-      diagnostics.recordQuantifierLoop("list", "item+", 5000, 0);
-
-      final var report = diagnostics.generateReport();
-
-      assertTrue(report.contains("Quantifier Loops"));
-      assertTrue(report.contains("list"));
-      assertTrue(report.contains("item+"));
-      assertTrue(report.contains("5000"));
-    }
-
-    @Test
     @DisplayName("generates report with unification failures")
     void generates_unification_report() {
       final var waiting = Structure.builder().with("num", "sg").build();
@@ -311,8 +245,6 @@ class ParseDiagnosticsTests {
       diagnostics.recordConstraintFailure("r1", constraint, "reason1", 1, true);
       diagnostics.recordTokenizationError(2, "bad", "good");
       diagnostics.recordParsingIssue("issue", 3);
-      diagnostics.recordRegexFailure("pat", "in", 4);
-      diagnostics.recordQuantifierLoop("r2", "e*", 100, 5);
       diagnostics.recordUnificationFailure(
           "S", Structure.EMPTY, Structure.EMPTY, Structure.EMPTY, "feature mismatch", 6);
 
@@ -321,8 +253,6 @@ class ParseDiagnosticsTests {
       assertTrue(report.contains("Constraint Failures"));
       assertTrue(report.contains("Tokenization Errors"));
       assertTrue(report.contains("Parsing Issues"));
-      assertTrue(report.contains("Regex Pattern Failures"));
-      assertTrue(report.contains("Quantifier Loops"));
       assertTrue(report.contains("Feature Unification Failures"));
       assertFalse(report.contains("No failures recorded"));
     }

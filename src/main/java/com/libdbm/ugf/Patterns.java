@@ -7,7 +7,7 @@ import java.util.regex.PatternSyntaxException;
 /**
  * The portable regex subset (S-L7): every grammar regex, {@code whitespace} pattern and {@code
  * matches} pattern is checked against it, then compiled with its portable meaning. In Java that
- * means {@code $} becomes {@code \z} and case-insensitive matching folds Unicode case.
+ * means {@code $} becomes {@code \z}.
  */
 public final class Patterns {
 
@@ -24,8 +24,8 @@ public final class Patterns {
   /** ASCII punctuation, which may be escaped to stand for itself. */
   private static final String PUNCTUATION = "\\^$.|?*+()[]{}/-!\"#%&',:;<=>@_`~";
 
-  /** The flags a pattern may start with. */
-  private static final Pattern FLAGS = Pattern.compile("\\(\\?(?:i|s|is|si)\\)");
+  /** The only flag a standalone pattern may start with. */
+  private static final String FLAG = "(?s)";
 
   private static final Pattern BOUNDS = Pattern.compile("\\{[0-9]+(?:,[0-9]*)?}");
 
@@ -33,27 +33,50 @@ public final class Patterns {
 
   private Patterns() {}
 
-  /** Checks {@code source} against the subset and returns its Java form. */
+  /**
+   * Checks a standalone pattern ({@code whitespace} or {@code matches}) against the subset and
+   * returns its Java form. It may start with {@code (?s)}.
+   */
   public static Result<String, ErrorDetails> portable(final String source) {
+    return scan(source, true);
+  }
+
+  /**
+   * Checks a grammar regex element, part of a lexeme's pattern, against the subset and returns its
+   * Java form. It takes no flag.
+   */
+  public static Result<String, ErrorDetails> fragment(final String source) {
+    return scan(source, false);
+  }
+
+  private static Result<String, ErrorDetails> scan(final String source, final boolean flagged) {
     final var scanner = new Scanner(source);
-    final var java = scanner.scan();
+    final var java = scanner.scan(flagged);
     return scanner.problem == null
         ? Result.success(java)
         : Result.failure(ErrorDetails.of(SUBSET, scanner.problem));
   }
 
-  /** Checks {@code source} against the subset and compiles its Java form. */
+  /** Checks a standalone pattern against the subset and compiles its Java form. */
   public static Result<Pattern, ErrorDetails> compile(final String source) {
     return portable(source)
         .flatMap(
             java -> {
               try {
-                return Result.success(Pattern.compile(java, Pattern.UNICODE_CASE));
+                return Result.success(Pattern.compile(java));
               } catch (final PatternSyntaxException exception) {
                 return Result.failure(
                     ErrorDetails.of(SUBSET, "invalid pattern: " + exception.getDescription()));
               }
             });
+  }
+
+  /** What the previous item in a character class was. */
+  private enum Item {
+    NONE,
+    SINGLE,
+    SET,
+    RANGE
   }
 
   /** One pass over a pattern; {@link #problem} is set at the first construct outside the subset. */
@@ -67,11 +90,10 @@ public final class Patterns {
       this.source = source;
     }
 
-    private String scan() {
-      final var flags = FLAGS.matcher(source);
-      if (flags.lookingAt()) {
-        out.append(flags.group());
-        index = flags.end();
+    private String scan(final boolean flagged) {
+      if (flagged && source.startsWith(FLAG)) {
+        out.append(FLAG);
+        index = FLAG.length();
       }
       while (problem == null && index < source.length()) {
         final var c = source.charAt(index);
@@ -116,7 +138,8 @@ public final class Patterns {
           return;
         }
       }
-      fail("only (?:, lookahead, lookbehind and leading (?i) and (?s) are portable");
+      fail(
+          "only (?:, lookahead, lookbehind and a leading (?s) in a standalone pattern are portable");
     }
 
     private void bounds() {
@@ -151,6 +174,9 @@ public final class Patterns {
         fail("a ] at the start of a class must be escaped");
         return;
       }
+      // What the last item was: none yet, a single character, a set (\\w, \\p{..}) or a range.
+      var last = Item.NONE;
+      var ranging = false;
       while (problem == null && index < source.length()) {
         final var c = source.charAt(index);
         if (c == ']') {
@@ -158,6 +184,18 @@ public final class Patterns {
           index++;
           return;
         }
+        if (c == '-' && last != Item.NONE && !source.startsWith("-]", index)) {
+          // Between two single characters, a - forms a range; anywhere else it must be escaped.
+          if (last != Item.SINGLE || set(index + 1)) {
+            fail("a - in a class must be first, last, escaped or between two single characters");
+            return;
+          }
+          out.append('-');
+          index++;
+          ranging = true;
+          continue;
+        }
+        final var item = set(index) ? Item.SET : Item.SINGLE;
         if (c == '[') {
           fail("a [ inside a class must be escaped");
         } else if (source.startsWith("&&", index)) {
@@ -168,10 +206,22 @@ public final class Patterns {
           out.append(c);
           index++;
         }
+        last = ranging ? Item.RANGE : item;
+        ranging = false;
       }
       if (problem == null) {
         fail("unterminated class");
       }
+    }
+
+    /**
+     * True if a shorthand or property class such as {@code \\w} or {@code \\p{L}} starts at {@code
+     * at}.
+     */
+    private boolean set(final int at) {
+      return at + 1 < source.length()
+          && source.charAt(at) == '\\'
+          && "dDwWsSpP".indexOf(source.charAt(at + 1)) >= 0;
     }
 
     private void escape(final boolean inside) {

@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-L7"
+  ],
+  "description": "(?i) is outside the portable subset, so a matches pattern that uses it makes the grammar invalid."
+}

@@ -200,7 +200,7 @@ public final class Compiler {
    * The Java form of a grammar regex, or {@code null} after reporting it is not portable (S-L7).
    */
   private String portable(final String owner, final String regex) {
-    return switch (Patterns.portable(regex)) {
+    return switch (Patterns.fragment(regex)) {
       case Result.Success<String, ErrorDetails>(var java) -> java;
       case Result.Failure<String, ErrorDetails>(var error) -> {
         errors.add(owner + ": " + error.message());
@@ -241,7 +241,7 @@ public final class Compiler {
           new Lexeme(
               lexemes.size(),
               symbol,
-              Pattern.compile(pattern.toString(), Pattern.UNICODE_CASE),
+              Pattern.compile(pattern.toString()),
               rule.lhs().features(),
               states,
               rule.transition(),
@@ -316,7 +316,7 @@ public final class Compiler {
             new Lexeme(
                 lexemes.size(),
                 category,
-                Pattern.compile(regex, Pattern.UNICODE_CASE),
+                Pattern.compile(regex),
                 Structure.EMPTY,
                 List.of(),
                 null,

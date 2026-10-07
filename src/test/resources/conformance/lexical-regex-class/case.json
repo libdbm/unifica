@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-L7"
+  ],
+  "description": "A - between a class shorthand and a character is outside the portable subset: engines disagree on whether it is literal or an error."
+}

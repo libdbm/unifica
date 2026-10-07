@@ -23,14 +23,19 @@ class PatternsTests {
             "\\d\\D\\w\\W\\s\\S\\bx\\B",
             "\\p{L}\\p{Lu}\\P{Nd}[\\p{M}\\p{N}\\p{Pc}]",
             "[a-z][^\\]\\[\\-][-a]",
+            "[a-]",
+            "[^-a]",
+            "[a-z0-9_-]",
+            "[\\--\\/]",
+            "[\\x41-\\x5A\\u00e0-\\u00ff]",
+            "[a\\-\\w]",
+            "[\\w-]",
             ".",
             "(a)(?:b)(?=c)(?!d)(?<=e)(?<!f)",
             "a|b",
             "a*b+c?d{2}e{2,}f{2,3}",
             "a*?b+?c??d{2}?e{2,}?f{2,3}?",
-            "(?i)abc",
             "(?s).",
-            "(?is).",
             "^a$",
             "[\\u0080-\\uFFFF]")) {
       assertInstanceOf(Result.Success.class, Patterns.compile(source), source);
@@ -51,6 +56,11 @@ class PatternsTests {
             "[a[b]]",
             "[a&&b]",
             "[]a]",
+            "[\\w-a]",
+            "[a-\\w]",
+            "[\\p{L}-z]",
+            "[a-\\p{L}]",
+            "[a-b-c]",
             "\\Qa\\E",
             "\\A",
             "\\z",
@@ -67,7 +77,10 @@ class PatternsTests {
             "\\p{Alpha}",
             "\\p{IsLatin}",
             "\\p{javaLowerCase}",
-            "a(?i)b",
+            "(?i)abc",
+            "(?is).",
+            "(?si).",
+            "a(?s)b",
             "(?i:a)",
             "(?m)a",
             "(?x)a",
@@ -92,10 +105,13 @@ class PatternsTests {
     assertTrue(compile("\\$").matcher("$").matches());
   }
 
+  /** S-L7: a grammar regex element is a fragment of a pattern and takes no flags. */
   @Test
-  void testCaseFoldingIsUnicode() {
-    assertTrue(compile("(?i)é").matcher("É").matches());
-    assertTrue(compile("(?i)abc").matcher("ABC").matches());
+  void testFragmentsTakeNoFlags() {
+    assertEquals("a\\z", Patterns.fragment("a$").orElseThrow());
+    final var error =
+        (ErrorDetails) assertInstanceOf(Result.Failure.class, Patterns.fragment("(?s).")).error();
+    assertEquals(Patterns.SUBSET, error.code());
   }
 
   @Test

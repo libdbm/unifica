@@ -1,0 +1,7 @@
+start S;
+skip Pad;
+S --> A;
+S --> B;
+A --> 'a' where at_end() ==> IN;
+B --> 'a' where at_end();
+Pad --> {IN} '#';

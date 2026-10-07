@@ -13,6 +13,8 @@ import com.libdbm.ugf.lexer.Graph;
 import com.libdbm.ugf.lexer.Node;
 import java.time.Duration;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * One parse: the chart, agenda and counters for a single input (PAR-5). Not thread-safe; a {@link
@@ -24,6 +26,8 @@ import java.util.*;
  * once, when the first state with its key completes (PAR-3).
  */
 final class Session {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(Session.class);
 
   private final Parser parser;
   private final Memo memo;
@@ -359,9 +363,6 @@ final class Session {
             labels,
             state.start >= 0 ? state.start : childStart,
             penalty);
-    if (!linked()) {
-      return;
-    }
     next.links.add(new State.Link(state, child));
     add(next);
   }
@@ -382,9 +383,9 @@ final class Session {
     return true;
   }
 
-  /** Counts a packed link; false (and {@link #stop} set) past the link limit. */
-  private boolean linked() {
-    linked++;
+  /** Counts {@code count} recorded links; false (and {@link #stop} set) past the link limit. */
+  private boolean linked(final int count) {
+    linked += count;
     final var limit = parser.options.limits().links();
     if (limit > 0 && linked > limit) {
       stop =
@@ -450,13 +451,13 @@ final class Session {
       }
     }
     if (existing == null) {
-      if (!created()) {
+      if (!created() || !linked(state.links.size())) {
         return;
       }
       chart.states.put(key, state);
       chart.agenda.add(state);
     } else if (state.penalty < existing.penalty) {
-      if (!created()) {
+      if (!created() || !linked(state.links.size())) {
         return;
       }
       existing.superseded = true;
@@ -465,7 +466,7 @@ final class Session {
     } else if (state.penalty == existing.penalty) {
       for (final var link : state.links) {
         if (!contains(existing.links, link)) {
-          if (!linked()) {
+          if (!linked(1)) {
             return;
           }
           existing.links.add(link);
@@ -626,10 +627,18 @@ final class Session {
     try {
       final var penalty = roots.stream().mapToLong(state -> state.penalty).min().orElseThrow();
       final var tied = roots.stream().filter(state -> state.penalty == penalty).toList();
-      final var selector = new ForestSelector(this::halted, this::grow);
+      final var selector = new ForestSelector(graph, this::halted, this::grow);
       final var chosen = selector.choose(tied);
       final var ambiguous = tied.size() > 1 || selector.ambiguous(chosen);
       final var tree = selector.tree(chosen);
+      if (selector.tied()) {
+        LOGGER.warn(
+            "Ambiguous parse of {} at {}..{}: equal-length tokens of the same category and state"
+                + " were chosen by declaration order, or the caller's order for caller tokens (S-P3)",
+            parser.compiled.start(),
+            tree.start(),
+            tree.end());
+      }
       if (ambiguous && collector.enabled()) {
         if (tied.size() > 1) {
           collector.ambiguity(

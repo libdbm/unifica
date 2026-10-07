@@ -48,6 +48,7 @@ failure is a programming error, or switch over the two cases.
 | `new ParseResult(tree, penalty)`, `new ParseResult(tree, penalty, diagnostics)`       | Removed. Results come from the parser.                                                                                                                                             |
 | `ParseTree.Node(symbol, label, children, features)`                                   | `Node` also records `start` and `end`, so an empty constituent keeps its position. The four-argument constructor remains for trees without positions.                              |
 | `ParseDiagnostics.ConstraintFailure.constraint()`                                     | `expression()`, the rendered expression. Predicates return true or false, so failure reasons name the predicate instead of carrying a message.                                     |
+| `ParseDiagnostics.recordRegexFailure`, `regexFailures()`, `recordQuantifierLoop`, `quantifierLoops()`, `RegexFailure`, `QuantifierLoop` | Removed. The parser never recorded either kind. |
 | Diagnostics always collected                                                          | Off by default. Enable them with `new Options(limits, observer, true)`.                                                                                                            |
 
 ### Observers
@@ -183,8 +184,9 @@ arguments, as in `where equals(N, M)`.
 Grammar regexes, `whitespace` patterns and `matches` patterns must lie in the subset that S-L7 defines, or the grammar
 is invalid; a `matches` pattern computed at runtime outside it is false. Backreferences, named groups, possessive
 quantifiers, atomic groups, nested classes, `\Q...\E`, Java-only escapes and properties (`\h`, `\R`, `\p{Alpha}`),
-and flags other than a leading `(?i)` or `(?s)` are rejected. Two meanings change: `$` is the end of the text only, not
-also the position before a final line terminator, and `(?i)` folds Unicode case rather than only ASCII.
+and flags other than a leading `(?s)` in a `whitespace` or `matches` pattern are rejected; for case-insensitive matching,
+write classes such as `[sS]`. `$` now means the end of the text only, not also the position before a final line
+terminator.
 
 ### Labels work with every builtin (S-C9)
 

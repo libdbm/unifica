@@ -101,10 +101,10 @@ Id --> [a-z_][a-z0-9_]*;   # a regular expression, written without delimiters
 
 Literals use single or double quotes, with backslash escapes. Regular expressions are written inline in a portable
 subset that every Unifica implementation reads the same way ([S-L7](docs/SEMANTICS.md)): character classes, `\p{..}`
-Unicode categories, `(?:...)` groups, lookahead and lookbehind, `.`, `^` and `$`, greedy and lazy quantifiers including
-`{n,m}`, and a leading `(?i)` or `(?s)`. Backreferences, named groups, possessive quantifiers, nested classes and other
-flags make a grammar invalid. An element can be labelled with `:name` so that constraints can refer to it. `{TOKEN}`
-matches any single token.
+Unicode categories, `(?:...)` groups, lookahead and lookbehind, `.`, `^` and `$`, greedy and lazy quantifiers
+including `{n,m}`, and a leading `(?s)` in a `matches` pattern. Backreferences, named groups, possessive quantifiers,
+nested classes, `(?i)` and other flags make a grammar invalid. An element can be labelled with `:name` so that
+constraints can refer to it. `{TOKEN}` matches any single token.
 
 ### Lexical and syntactic productions
 
@@ -425,8 +425,10 @@ by the builder's `terminal` and `vocabulary` methods.
 
 `Options` takes a `ParseObserver`, which receives an event for each prediction, scan, completion, unification and
 constraint evaluation. `LoggingObserver` collects them and logs them through SLF4J. `GrammarLinter` reports
-unreachable and undefined symbols, unbound labels, misplaced state transitions and ignored weights, and suggests a
-production cost where a weight is attached to a predicate that is not registered.
+unreachable and undefined symbols, unbound labels, misplaced state transitions, ignored weights, `before` in a lexical
+production, and lexical rules for one symbol written with the same pattern but different features, whose ties only
+declaration order can break (S-P3), and suggests a production cost where a weight is attached to a predicate that is
+not registered.
 
 ## Building from source
 

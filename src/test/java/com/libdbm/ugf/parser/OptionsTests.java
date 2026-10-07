@@ -47,6 +47,23 @@ class OptionsTests {
     assertTrue(result.statistics().states() <= 501);
   }
 
+  /**
+   * The link limit counts links actually recorded. P and Q are lexical, so "ac" records six: X over
+   * the P token, X over the Q token, S over each X (the second merged into the same state), the
+   * scan of 'c', and the root over S.
+   */
+  @Test
+  void testLinkLimitCountsRecordedLinks() {
+    final var compiled = compile("start S; S --> X 'c'; X --> P; X --> Q; P --> 'a'; Q --> 'a';");
+    final var exact =
+        Parser.of(compiled, new Options(Limits.NONE.links(6), ParseObserver.NOOP, false));
+    final var under =
+        Parser.of(compiled, new Options(Limits.NONE.links(5), ParseObserver.NOOP, false));
+
+    assertEquals(Outcome.ACCEPTED, exact.parse("ac").outcome());
+    assertEquals(Outcome.LIMIT, under.parse("ac").outcome());
+  }
+
   @Test
   void testAgendaLimit() {
     final var parser =
@@ -328,6 +345,22 @@ class OptionsTests {
     assertTrue(items <= 5, "items: " + items);
     assertTrue(lattice.truncated());
     assertTrue(lattice.render().contains("truncated"));
+  }
+
+  /** Lattice penalties are reported exactly, beyond the int range (S-C10). */
+  @Test
+  void testLatticePenaltyNotClamped() {
+    final var result =
+        Parser.of(
+                compile("start S; S --> A B; A --> X @3000000000; X --> 'a'; B --> 'b';"),
+                new Options(Limits.NONE, ParseObserver.NOOP, true))
+            .parse("a");
+
+    assertEquals(Outcome.REJECTED, result.outcome());
+    assertTrue(
+        result.diagnostics().lattice().columns().stream()
+            .flatMap(column -> column.items().stream())
+            .anyMatch(item -> item.penalty() == 3_000_000_000L));
   }
 
   /** A callback's exception is not caught: it ends the parse and reaches the caller. */

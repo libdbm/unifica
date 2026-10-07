@@ -56,6 +56,15 @@ final class Sequence implements Comparable<Sequence> {
   /** Lexicographic order; a proper prefix comes first. */
   @Override
   public int compareTo(final Sequence other) {
+    final var result = differ(other);
+    return result != 0 ? result : Integer.compare(size, other.size);
+  }
+
+  /**
+   * The order at the first position where the two sequences differ, or 0 if one is a prefix of the
+   * other. A nonzero result holds whatever is appended to both.
+   */
+  int differ(final Sequence other) {
     final var mine = new ArrayDeque<Sequence>();
     final var theirs = new ArrayDeque<Sequence>();
     push(mine, this);
@@ -84,6 +93,6 @@ final class Sequence implements Comparable<Sequence> {
         }
       }
     }
-    return Integer.compare(size, other.size);
+    return 0;
   }
 }

@@ -1,0 +1,8 @@
+{
+  "rules": [
+    "S-C7",
+    "S-L3",
+    "S-L4"
+  ],
+  "description": "Lexical at_end skips under the state stack after the token's transition: only A, which enters IN, can skip the trailing #."
+}

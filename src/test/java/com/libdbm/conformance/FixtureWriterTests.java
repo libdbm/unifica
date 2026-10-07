@@ -164,13 +164,6 @@ final class FixtureWriterTests {
         .parsingIssues()
         .forEach(failure -> entries.add(diagnostic("parsing", failure.span(), failure.position())));
     diagnostics
-        .regexFailures()
-        .forEach(failure -> entries.add(diagnostic("regex", failure.span(), failure.position())));
-    diagnostics
-        .quantifierLoops()
-        .forEach(
-            failure -> entries.add(diagnostic("quantifier", failure.span(), failure.position())));
-    diagnostics
         .unificationFailures()
         .forEach(
             failure -> entries.add(diagnostic("unification", failure.span(), failure.position())));
