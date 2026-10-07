@@ -39,6 +39,7 @@ final class Session {
   private final DiagnosticCollector collector;
   private final Map<Edge, Structure> renamed = new IdentityHashMap<>();
   private final Map<Integer, Structure> following = new HashMap<>();
+  private List<Structure> positions;
   private final long deadline;
   private Stop stop;
   private long fresh;
@@ -473,6 +474,36 @@ final class Session {
     }
   }
 
+  /**
+   * The token indexes at which {@code node} is reached, one feature each (S-C7): the number of
+   * tokens on every path from the start node. Computed for the whole graph on first use.
+   */
+  private Structure positions(final Node node) {
+    if (positions == null) {
+      // Node ids are a topological order, so every predecessor is visited first.
+      final var indexes = new ArrayList<Set<Integer>>();
+      graph.nodes().forEach(ignored -> indexes.add(new TreeSet<>()));
+      indexes.get(graph.start().id()).add(0);
+      for (final var from : graph.nodes()) {
+        for (final var edge : graph.edges(from)) {
+          for (final var index : indexes.get(from.id())) {
+            indexes.get(edge.to().id()).add(index + 1);
+          }
+        }
+      }
+      positions =
+          indexes.stream()
+              .map(
+                  set -> {
+                    final var builder = Structure.builder();
+                    set.forEach(index -> builder.with(index.toString(), BooleanConstant.of(true)));
+                    return builder.build();
+                  })
+              .toList();
+    }
+    return positions.get(node.id());
+  }
+
   /** The categories of the tokens leaving {@code node}, one feature each. */
   private Structure next(final Node node) {
     return following.computeIfAbsent(
@@ -506,13 +537,14 @@ final class Session {
       // Later entries replace earlier ones, as successive Environment.with calls would.
       final var values = new HashMap<>(variables(state.bindings));
       values.putAll(state.labels);
-      values.put(Environment.POSITION, NumericConstant.of(state.origin.id()));
+      values.put(Environment.POSITION, positions(state.origin));
       values.put(Environment.END, BooleanConstant.of(graph.isFinal(state.end)));
       values.put(Environment.NEXT, next(state.end));
       values.put(production.symbol(), Binding.of(text(state), state.features));
       final var environment =
           Environment.of(parser.compiled.predicates())
-              .lexical(state.origin.states(), state.origin.offset())
+              // S-C7: the first token's start, after skipped whitespace; the node for an empty one.
+              .lexical(state.origin.states(), state.start < 0 ? state.origin.offset() : state.start)
               .with(values);
       final var verdict =
           Evaluator.evaluate(production.plan(), call -> memo.test(environment, call));
@@ -560,7 +592,8 @@ final class Session {
    */
   private String text(final Child child) {
     return switch (child) {
-      case Child.Token(var edge) -> edge.text();
+      case Child.Token(var edge) ->
+          input != null ? input.substring(edge.start(), edge.end()) : edge.text();
       case State state -> {
         if (state.start < 0) {
           yield "";

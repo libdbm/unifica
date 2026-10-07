@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-L7"
+  ],
+  "description": "A grammar regex outside the portable subset, here a possessive quantifier, makes the grammar invalid."
+}

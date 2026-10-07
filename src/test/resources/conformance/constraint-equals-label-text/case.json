@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-C9"
+  ],
+  "description": "equals and not_equals compare a labelled constituent with a string by its text, which is the input substring including inner whitespace."
+}

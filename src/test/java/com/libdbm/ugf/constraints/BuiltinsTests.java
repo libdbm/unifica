@@ -328,6 +328,28 @@ class BuiltinsTests {
       final var result = eval("not_equals", Variable.of("?x"), StringConstant.of("hello"));
       assertTrue(result.passed());
     }
+
+    @Test
+    @DisplayName("a labelled constituent and a string compare by text (S-C9)")
+    void equals_label_and_string() {
+      context.withBinding("w", Binding.of("hello", Structure.builder().with("f", "v").build()));
+      assertTrue(eval("equals", Variable.of("?w"), StringConstant.of("hello")).passed());
+      assertTrue(eval("equals", StringConstant.of("hello"), Variable.of("?w")).passed());
+      assertFalse(eval("equals", Variable.of("?w"), StringConstant.of("world")).passed());
+      assertFalse(eval("not_equals", Variable.of("?w"), StringConstant.of("hello")).passed());
+      assertTrue(eval("not_equals", StringConstant.of("world"), Variable.of("?w")).passed());
+    }
+
+    @Test
+    @DisplayName("two labelled constituents compare by value")
+    void equals_two_labels() {
+      context.withBinding("a", Binding.of("hello", Structure.builder().with("f", "v").build()));
+      context.withBinding("b", Binding.of("hello", Structure.EMPTY));
+      context.withBinding("c", Binding.of("hello", Structure.builder().with("f", "v").build()));
+      assertFalse(eval("equals", Variable.of("?a"), Variable.of("?b")).passed());
+      assertTrue(eval("not_equals", Variable.of("?a"), Variable.of("?b")).passed());
+      assertTrue(eval("equals", Variable.of("?a"), Variable.of("?c")).passed());
+    }
   }
 
   @Nested
@@ -402,6 +424,39 @@ class BuiltinsTests {
     void is_bound_non_variable() {
       final var result = eval("is_bound", StringConstant.of("literal"));
       assertTrue(result.passed());
+    }
+
+    @Test
+    @DisplayName("is_bound passes for a path that leads to a value")
+    void is_bound_path_passes() {
+      context.withBinding("w", Binding.of("x", Structure.builder().with("f", "v").build()));
+      final var result = eval("is_bound", new FeaturePath(List.of("w", "f")));
+      assertTrue(result.passed());
+    }
+
+    @Test
+    @DisplayName("is_bound fails for a path that leads nowhere")
+    void is_bound_path_fails() {
+      context.withBinding("w", Binding.of("x", Structure.builder().with("f", "v").build()));
+      assertFalse(eval("is_bound", new FeaturePath(List.of("w", "missing"))).passed());
+      assertFalse(eval("is_bound", new FeaturePath(List.of("unknown", "f"))).passed());
+    }
+
+    @Test
+    @DisplayName("is_bound fails for a value that is a variable")
+    void is_bound_variable_value() {
+      context.withBinding(
+          "w", Binding.of("x", Structure.builder().with("f", Variable.of("Y")).build()));
+      context.withBinding("X", Variable.of("Y"));
+      assertFalse(eval("is_bound", new FeaturePath(List.of("w", "f"))).passed());
+      assertFalse(eval("is_bound", Variable.of("X")).passed());
+    }
+
+    @Test
+    @DisplayName("is_bound passes for a structure that contains variables")
+    void is_bound_partial_structure() {
+      context.withBinding("X", Structure.builder().with("f", Variable.of("Y")).build());
+      assertTrue(eval("is_bound", Variable.of("X")).passed());
     }
   }
 

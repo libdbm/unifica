@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-L7"
+  ],
+  "description": "$ is the end of the input, not before a final newline, and (?i) folds Unicode case."
+}

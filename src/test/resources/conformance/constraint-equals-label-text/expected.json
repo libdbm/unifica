@@ -1,0 +1,37 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "hi!",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    },
+    {
+      "input": "ho!",
+      "outcome": "rejected"
+    },
+    {
+      "input": "ho?",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    },
+    {
+      "input": "hi?",
+      "outcome": "rejected"
+    },
+    {
+      "input": "ab cd.",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    },
+    {
+      "input": "ab  cd.",
+      "outcome": "rejected"
+    }
+  ]
+}

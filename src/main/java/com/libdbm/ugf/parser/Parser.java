@@ -12,6 +12,7 @@ import com.libdbm.ugf.features.Structure;
 import com.libdbm.ugf.features.Variable;
 import com.libdbm.ugf.lexer.Graph;
 import com.libdbm.ugf.lexer.Lexer;
+import com.libdbm.ugf.lexer.TokenSource;
 import java.util.*;
 
 /**
@@ -120,9 +121,35 @@ public final class Parser {
     return lexer.tokenize(input);
   }
 
-  /** Parses a token graph, for example one built from caller-supplied tokens (S-L6). */
+  /**
+   * Parses a token graph, for example one built from caller-supplied tokens (S-L6). Without the
+   * input, a constituent's text is its token texts joined by single spaces.
+   */
   public ParseResult parse(final Graph graph) {
     return run(root, graph, null, System.nanoTime());
+  }
+
+  /**
+   * Parses a token graph whose offsets index {@code input}, so a constituent's text is the input it
+   * spans (S-C9). Fails with {@link TokenSource#TOKENS} if a node lies past the end of the input.
+   */
+  public Result<ParseResult, ErrorDetails> parse(final Graph graph, final String input) {
+    final var started = System.nanoTime();
+    for (final var node : graph.nodes()) {
+      if (node.offset() > input.length()) {
+        return Result.failure(
+            ErrorDetails.of(
+                TokenSource.TOKENS,
+                "node "
+                    + node.id()
+                    + " is at offset "
+                    + node.offset()
+                    + ", past the end of the input ("
+                    + input.length()
+                    + ")"));
+      }
+    }
+    return Result.success(run(root, graph, input, started));
   }
 
   /**

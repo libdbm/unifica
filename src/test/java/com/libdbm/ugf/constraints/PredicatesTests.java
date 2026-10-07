@@ -254,10 +254,25 @@ class PredicatesTests {
   @Test
   void testTokenPosition() {
     final var environment =
-        Environment.of(STANDARD).with(Environment.POSITION, NumericConstant.of(0));
+        Environment.of(STANDARD)
+            .with(
+                Environment.POSITION,
+                Structure.builder().with("0", BooleanConstant.of(true)).build());
+    final var several =
+        Environment.of(STANDARD)
+            .with(
+                Environment.POSITION,
+                Structure.builder()
+                    .with("1", BooleanConstant.of(true))
+                    .with("3", BooleanConstant.of(true))
+                    .build());
 
     assertTrue(test(environment, "at_start"));
     assertTrue(test(environment, "at_position", string("0")));
     assertFalse(test(environment, "at_position", string("1")));
+    assertFalse(test(several, "at_start"));
+    assertTrue(test(several, "at_position", string("1")));
+    assertTrue(test(several, "at_position", string("3")));
+    assertFalse(test(several, "at_position", string("2")));
   }
 }

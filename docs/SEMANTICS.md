@@ -26,12 +26,16 @@ letter in a feature value is a variable.
   top-level `|` separates alternatives that each become their own production, and an empty alternative is an empty
   production. Repetition (`?`, `*`, `+`), groups and alternation mean exactly the same as their expansion into
   productions, including the variables they share with the enclosing production (S-F5).
+- **S-G5.** The productions that groups, alternation and repetition expand into (S-G4) are auxiliary. Their symbols
+  are distinct from every symbol the grammar defines and never appear in a tree (S-P8). Whether equal groups share
+  auxiliary productions does not change any result.
 
 ## Lexical analysis
 
 - **S-L1.** Lexical analysis produces a directed acyclic **token graph**. A node is (character offset, lexical state
   stack). An edge is (source node, target node, text, category, features, cost). Costs are non-negative, and every edge
-  leads to a later node, so the graph is acyclic.
+  leads to a later node, so the graph is acyclic. Node and edge identifiers are implementation-defined, and no result
+  depends on them.
 - **S-L2.** Maximal munch. At each node, consider every lexical production whose state constraints and required lexical
   constraints hold. Take the longest match length among them. Every production that matches exactly that length
   contributes one edge, so categories that tie on length remain alternatives. Shorter matches contribute no edge.
@@ -48,7 +52,27 @@ letter in a feature value is a variable.
   with category `error`. No production accepts it unless one names `error` explicitly.
 - **S-L6.** A token stream supplied by the caller (for example POS-tagged tokens) is a token graph. A list of tokens is
   a linear graph. A list of alternative lists is a graph whose alternatives share boundaries. Caller tokens that
-  overlap, are out of order, or whose alternatives have different spans are not a token graph and are refused.
+  overlap, are out of order, or whose alternatives have different spans are not a token graph and are refused. A caller
+  token may have no category. It then matches only `{TOKEN}`, and adds no category to those `before` reads (S-C7).
+  The caller may supply the input text with the graph. Its offsets must then lie within the input, or the graph is
+  refused, and a constituent's text follows S-C9. Without the input text, a constituent's text is the texts of its
+  tokens joined by single spaces.
+- **S-L7.** Grammar regexes, the `whitespace` pattern and `matches` patterns use a portable subset of regular
+  expressions, matched over code points:
+  - literal characters, `\` followed by ASCII punctuation, `\n`, `\r`, `\t`, `\f`, `\xHH` and `\uHHHH`;
+  - `\d` (`[0-9]`), `\w` (`[A-Za-z0-9_]`), `\s` (`[ \t\n\x0B\f\r]`), their negations `\D`, `\W`, `\S`, and `\b`,
+    `\B` outside classes;
+  - `\p{C}` and `\P{C}` for a Unicode general category `C` such as `L`, `Lu` or `Nd`;
+  - classes `[...]` and `[^...]` with ranges and the escapes above, where `[`, and `]` first in a class, are escaped;
+  - `.`, any code point except `\n`, `\r`, `\u0085`, `\u2028` and `\u2029`, or any code point after a leading `(?s)`;
+  - `^` and `$`, the start and end of the text matched (the whole input when lexing);
+  - groups `(...)` and `(?:...)`, lookahead `(?=...)`, `(?!...)` and lookbehind `(?<=...)`, `(?<!...)`;
+  - `|`, and the quantifiers `*`, `+`, `?`, `{n}`, `{n,}` and `{n,m}`, each optionally lazy (`?`);
+  - a leading `(?i)`, `(?s)` or `(?is)`. `(?i)` matches with Unicode simple case folding.
+
+  A literal `{`, `}` or `]` outside a class is escaped. Anything else, such as backreferences, named groups,
+  possessive quantifiers, nested classes or other flags, is outside the subset. A grammar that uses it is invalid,
+  and a `matches` pattern computed at runtime that uses it is false.
 
 ## Constraints
 
@@ -66,17 +90,30 @@ letter in a feature value is a variable.
   or `not` is a compile error.
 - **S-C7.** Normalization and phase splitting preserve Boolean truth. Lexical predicates (`in_state`, `state_depth`,
   `state_contains`, `at_char_start`, `at_char_position`) read the lexical state stack and character position. In a
-  lexical production they are evaluated by the lexer for the token's start node, replaced by their truth values, and the
-  remaining expression is evaluated later. In a syntactic production they are evaluated against the state stack and
-  offset of the node where the constituent starts. Predicates are never deleted from an expression. Positional
-  predicates (`at_start`, `at_position`, `at_end`, `before`) read the constituent's span: the node where it starts,
-  whether it ends at a final node, and the categories of the edges leaving its end node.
+  lexical production they are evaluated by the lexer with the state stack of the token's start node and the offset where
+  the token starts, after skipped whitespace (S-L4), replaced by their truth values, and the remaining expression is
+  evaluated later. In a syntactic production they are evaluated with the state stack of the node where the constituent
+  starts and the offset where its first token starts, after skipped whitespace. A constituent with no tokens uses the
+  offset of its node. Predicates are never deleted from an expression. Positional
+  predicates (`at_start`, `at_position`, `at_end`, `before`) read the constituent's span. In a syntactic production,
+  `at_start` and `at_position(n)` hold when some path from the initial node to the node where the constituent starts
+  has 0 or `n` tokens, `at_end` holds when it ends at a final node, and `before` reads the categories of the edges
+  leaving its end node. In a lexical production, `at_start` and `at_position(n)` hold when the token starts at offset 0
+  or `n`, after skipped whitespace, `at_end` holds when only skipped text follows the token to the end of the input,
+  as for a final node, and `before` is false. The linter warns about `before` in a lexical production.
 - **S-C8.** A predicate name the grammar uses but that is not registered, or a call with the wrong arity, is a compile
   error. At runtime a predicate is either true or false.
-- **S-C9.** The text of a constituent is the input substring from its first token's start to its last token's end.
+- **S-C9.** The text of a constituent is the input substring from its first token's start to its last token's end,
+  for a single token as for several (S-L6 covers a caller graph without input text).
   String builtins treat a literal string, a labelled terminal, and a labelled nonterminal the same way, using that text.
+  `equals` compares a labelled constituent with a string by that text. Any other pair, including two labelled
+  constituents, compares by value. `not_equals` is the negation of `equals`.
 - **S-C10.** Penalties are non-negative 64-bit integers. If a sum would overflow, the parse ends with the `limit`
   outcome (S-P5).
+- **S-C11.** A predicate argument resolves to a value: a variable to its binding, a feature path to the value it names
+  through labelled constituents and structures, anything else to itself. An unbound variable, or a path that leads
+  nowhere, resolves to nothing. `is_bound(v)` is true when `v` resolves to a value that is not a variable. A constant
+  or a structure is bound, even a structure that contains variables.
 
 ## Features and unification
 

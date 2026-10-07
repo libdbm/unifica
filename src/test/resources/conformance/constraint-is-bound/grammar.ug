@@ -1,0 +1,7 @@
+start S;
+S --> N:w '!' where is_bound(w.n);
+S --> N:w '?' where !is_bound(w.n);
+S --> N:w '.' where is_bound(w.missing);
+S --> N{n: X} ';' where is_bound(X);
+N{n: Y} --> 'v';
+N{n: one} --> 'c';

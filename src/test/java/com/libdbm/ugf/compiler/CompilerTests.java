@@ -135,6 +135,34 @@ class CompilerTests {
   }
 
   @Test
+  void testHelperNamesAvoidGrammarSymbols() {
+    final var compiled =
+        compile(
+            "start S; S --> ('a' | 'b') alt_0 A+ A_plus_1;"
+                + " alt_0 --> 'c' 'd'; A_plus_1 --> 'e' 'f'; A --> 'a';");
+
+    final var rhs = compiled.productions("S").getFirst().rhs();
+    final var alternation = ((Element.Symbol) rhs.get(0)).name();
+    final var repetition = ((Element.Symbol) rhs.get(2)).name();
+    assertNotEquals("alt_0", alternation);
+    assertNotEquals("A_plus_1", repetition);
+    for (final var symbol : List.of("alt_0", "A_plus_1")) {
+      final var productions = compiled.productions(symbol);
+      assertEquals(1, productions.size(), symbol);
+      assertFalse(productions.getFirst().auxiliary(), symbol);
+    }
+  }
+
+  @Test
+  void testIdenticalGroupsShareHelper() {
+    final var compiled = compile("start S; S --> ([a-z] A) ([a-z] A) ([a-z] | A)*; A --> 'x';");
+
+    final var rhs = compiled.productions("S").getFirst().rhs();
+    assertEquals(((Element.Symbol) rhs.get(0)).name(), ((Element.Symbol) rhs.get(1)).name());
+    assertEquals(5, compiled.productions().stream().filter(Production::auxiliary).count());
+  }
+
+  @Test
   void testAlternationOfNonterminals() {
     final var compiled = compile("start S; S --> (A | B); A --> 'a'; B --> 'b';");
 
@@ -222,6 +250,29 @@ class CompilerTests {
   @Test
   void testInvalidConstantRegex() {
     failure("start S; S --> W:w where matches(w, '['); W --> 'x';");
+  }
+
+  /** S-L7: every grammar pattern must lie in the portable subset. */
+  @Test
+  void testPatternsOutsideSubset() {
+    for (final var source :
+        List.of(
+            "start S; S --> A; A --> [a-z]++;",
+            "start S; S --> A [a-z]++; A --> 'a';",
+            "start S; whitespace [\\h]+; S --> A; A --> 'a';",
+            "start S; S --> A:a where matches(a, '(?<n>a)'); A --> 'a';")) {
+      assertTrue(
+          failure(source).issues().stream().anyMatch(issue -> issue.contains("S-L7")), source);
+    }
+  }
+
+  /** S-L7: $ is the end of the input, also in a lexeme. */
+  @Test
+  void testDollarInLexeme() {
+    final var lexeme = lexemes(compile("start S; S --> A; A --> [a-z]+(?=$);"), "A").getFirst();
+
+    assertTrue(lexeme.pattern().matcher("ab").matches());
+    assertFalse(lexeme.pattern().matcher("ab\n").lookingAt());
   }
 
   @Test

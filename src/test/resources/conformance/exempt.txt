@@ -1,6 +1,6 @@
 # Rules that grammar text cannot exercise: <rule> <reason; covering test>
 S-F3 Structures are immutable and built bottom-up, so no grammar or API can construct a cycle (MOD-4); nothing to test in the corpus.
 S-F4 Grammar source has no numeric literals; covered by UnificationTests#testNumericEquality (task 11).
-S-L6 Caller-supplied tokens are an API input, not grammar text; covered by GraphTests and LexerTests#testExternalTokens (task 24).
+S-L6 Caller-supplied tokens are an API input, not grammar text; covered by GraphTests, LexerTests#testExternalTokens (task 24), ParserTests#testUncategorizedCallerTokens, ParserTests#testCallerTokenText and ParserTests#testCallerGraphPastInput.
 S-T1 A trust policy: grammar code is not isolated, so there is nothing for a case to check; documented in README, Trust and limits.
 S-T2 Caller graphs and limits are API inputs, not grammar text; covered by GraphTests (graph and caller token validation) and OptionsTests (limits and stop reasons).

@@ -2,10 +2,15 @@ package com.libdbm.ugf.parser;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.libdbm.ugf.ErrorDetails;
+import com.libdbm.ugf.Result;
 import com.libdbm.ugf.compiler.Compiler;
 import com.libdbm.ugf.constraints.Predicates;
 import com.libdbm.ugf.features.Structure;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
+import com.libdbm.ugf.lexer.Edge;
+import com.libdbm.ugf.lexer.Graph;
+import com.libdbm.ugf.lexer.Node;
 import com.libdbm.ugf.lexer.TokenSource;
 import java.util.*;
 import java.util.concurrent.Executors;
@@ -87,6 +92,67 @@ class ParserTests {
     assertEquals(
         List.of("NN", "VB"), root(result).children().stream().map(ParserTests::symbol).toList());
     assertFalse(result.ambiguous());
+  }
+
+  /** S-L6: a caller token with no category matches only {TOKEN} and is invisible to before. */
+  @Test
+  void testUncategorizedCallerTokens() {
+    final var graph =
+        TokenSource.of(
+                List.of(
+                    new Token("zz", Structure.EMPTY, 0, 2), new Token("zz", Structure.EMPTY, 3, 5)))
+            .tokenize("")
+            .orElseThrow();
+
+    assertEquals(
+        Outcome.ACCEPTED, parser("start S; S --> {TOKEN} {TOKEN};").parse(graph).outcome());
+    assertEquals(
+        Outcome.REJECTED, parser("start S; S --> W W; W --> 'zz';").parse(graph).outcome());
+    assertEquals(Outcome.REJECTED, parser("start S; S --> 'zz' 'zz';").parse(graph).outcome());
+    assertEquals(
+        Outcome.REJECTED,
+        parser("start S; S --> P {TOKEN}; P --> {TOKEN} where before('null');")
+            .parse(graph)
+            .outcome());
+  }
+
+  /**
+   * S-L6, S-C9: with the input, a caller constituent's text is the input it spans; without it, the
+   * token texts joined by single spaces.
+   */
+  @Test
+  void testCallerTokenText() {
+    final var graph =
+        TokenSource.of(
+                List.of(
+                    new Token("dogs", Structure.EMPTY, 0, 4),
+                    new Token("run", Structure.EMPTY, 6, 9)))
+            .tokenize("")
+            .orElseThrow();
+    final var spanned =
+        parser("start S; S --> P:p where equals(p, 'dogs  run'); P --> {TOKEN} {TOKEN};");
+    final var joined =
+        parser("start S; S --> P:p where equals(p, 'dogs run'); P --> {TOKEN} {TOKEN};");
+    final var single = parser("start S; S --> {TOKEN}:w P where equals(w, 'Dogs'); P --> {TOKEN};");
+
+    assertEquals(Outcome.ACCEPTED, spanned.parse(graph, "dogs  run").orElseThrow().outcome());
+    assertEquals(Outcome.REJECTED, joined.parse(graph, "dogs  run").orElseThrow().outcome());
+    assertEquals(Outcome.ACCEPTED, joined.parse(graph).outcome());
+    assertEquals(Outcome.REJECTED, spanned.parse(graph).outcome());
+    assertEquals(Outcome.ACCEPTED, single.parse(graph, "Dogs  run").orElseThrow().outcome());
+  }
+
+  /** S-T2: a graph whose offsets lie past the end of the input is refused. */
+  @Test
+  void testCallerGraphPastInput() {
+    final var graph =
+        TokenSource.of(List.of(new Token("dogs", Structure.EMPTY, 0, 4)))
+            .tokenize("")
+            .orElseThrow();
+
+    final var result = parser("start S; S --> {TOKEN};").parse(graph, "dog");
+    final var error = (ErrorDetails) assertInstanceOf(Result.Failure.class, result).error();
+    assertEquals(TokenSource.TOKENS, error.code());
   }
 
   /** LEX-9: tokenize and parse use the same lexer. */
@@ -317,6 +383,96 @@ class ParserTests {
 
     assertTrue(accepts(parser, "<ab"));
     assertFalse(accepts(parser, "ab"));
+  }
+
+  /** S-C7: a syntactic production's lexical predicates see its first token's start. */
+  @Test
+  void testLexicalPredicateSeesFirstTokenStart() {
+    final var parser =
+        parser(
+            "start S; S --> A P; P --> B C where at_char_position('2'); A --> 'a'; B --> 'b'; C --> 'c';");
+    final var empty =
+        parser("start S; S --> A E 'b'; E --> where at_char_position('1'); A --> 'a';");
+
+    assertTrue(accepts(parser, "a b c"));
+    assertFalse(accepts(parser, "a  b c"));
+    assertTrue(accepts(empty, "a b"));
+    assertFalse(accepts(empty, " a b"));
+  }
+
+  /**
+   * S-C7: in a syntactic production at_position reads the token index, which is independent of node
+   * ids. Nodes 1 and 2 share offset 1, so node 2 has token index 1; node 3 is reached by paths of
+   * one and two tokens.
+   */
+  @Test
+  void testPositionIsTokenIndex() {
+    final var states = List.of("DEFAULT");
+    final var nodes =
+        List.of(
+            new Node(0, 0, states),
+            new Node(1, 1, states),
+            new Node(2, 1, List.of("DEFAULT", "B")),
+            new Node(3, 2, states),
+            new Node(4, 3, states));
+    final var edges =
+        List.of(
+            List.of(
+                edge(0, nodes.get(0), nodes.get(1), "x"),
+                edge(1, nodes.get(0), nodes.get(2), "y"),
+                edge(2, nodes.get(0), nodes.get(3), "w")),
+            List.of(edge(3, nodes.get(1), nodes.get(3), "x")),
+            List.of(edge(4, nodes.get(2), nodes.get(3), "z")),
+            List.of(edge(5, nodes.get(3), nodes.get(4), "c")),
+            List.<Edge>of());
+    final var graph = new Graph(nodes, edges, Set.of(4));
+    final var symbols = " x --> 'x'; y --> 'y'; z --> 'z'; w --> 'w'; c --> 'c';";
+
+    assertEquals(
+        Outcome.ACCEPTED,
+        parser("start S; S --> y P c; P --> z where at_position('1');" + symbols)
+            .parse(graph)
+            .outcome());
+    assertEquals(
+        Outcome.REJECTED,
+        parser("start S; S --> y P c; P --> z where at_position('2');" + symbols)
+            .parse(graph)
+            .outcome());
+    for (final var index : List.of("1", "2")) {
+      assertEquals(
+          Outcome.ACCEPTED,
+          parser("start S; S --> w P; P --> c where at_position('" + index + "');" + symbols)
+              .parse(graph)
+              .outcome(),
+          index);
+    }
+  }
+
+  /** S-C7: in a lexical production at_start and at_position read the token's start offset. */
+  @Test
+  void testLexicalPosition() {
+    final var parser =
+        parser("start S; S --> A B; A --> 'a' where at_start(); B --> 'b' where at_position('2');");
+
+    assertTrue(accepts(parser, "a b"));
+    assertFalse(accepts(parser, "a  b"));
+    assertFalse(accepts(parser, " a b"));
+  }
+
+  /** S-C7: in a lexical production at_end holds when only skipped text follows the token. */
+  @Test
+  void testLexicalEnd() {
+    final var parser =
+        parser("start S; S --> X Y; X --> [a-z]+ where !at_end(); Y --> [a-z]+ where at_end();");
+
+    assertTrue(accepts(parser, "ab cd"));
+    assertTrue(accepts(parser, "ab cd  "));
+    assertFalse(accepts(parser, "ab"));
+    assertFalse(accepts(parser, "ab cd ef"));
+  }
+
+  private static Edge edge(final int id, final Node from, final Node to, final String category) {
+    return new Edge(id, from, to, from.offset(), category, category, Structure.EMPTY, 0);
   }
 
   @Test

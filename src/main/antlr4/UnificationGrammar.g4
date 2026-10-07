@@ -246,7 +246,11 @@ STRING
     ;
 
 fragment ESC_SEQ
-    : '\\' .
+    : '\\' ('u' HEX HEX HEX HEX | ~'u')
+    ;
+
+fragment HEX
+    : [0-9a-fA-F]
     ;
 
 REGEX

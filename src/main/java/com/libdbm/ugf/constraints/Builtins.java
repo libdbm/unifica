@@ -1,6 +1,7 @@
 package com.libdbm.ugf.constraints;
 
 import com.libdbm.ugf.ErrorDetails;
+import com.libdbm.ugf.Patterns;
 import com.libdbm.ugf.Result;
 import com.libdbm.ugf.features.*;
 import java.math.BigDecimal;
@@ -9,7 +10,6 @@ import java.util.function.BiPredicate;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 /**
  * The builtin predicates, registered with {@link Predicates.Builder#builtins()} (CON-6, CON-8):
@@ -83,7 +83,7 @@ final class Builtins {
         phase,
         (environment, args) -> {
           final var first = environment.resolve(args.get(0));
-          return first != null && first.equals(environment.resolve(args.get(1)));
+          return first != null && same(first, environment.resolve(args.get(1)));
         });
     builder.add(
         "not_equals",
@@ -92,7 +92,7 @@ final class Builtins {
         phase,
         (environment, args) -> {
           final var first = environment.resolve(args.get(0));
-          return first == null || !first.equals(environment.resolve(args.get(1)));
+          return first == null || !same(first, environment.resolve(args.get(1)));
         });
     builder.add(
         "is_string",
@@ -117,8 +117,10 @@ final class Builtins {
         1,
         1,
         phase,
-        (environment, args) ->
-            !(args.getFirst() instanceof Variable) || environment.resolve(args.getFirst()) != null);
+        (environment, args) -> {
+          final var value = environment.resolve(args.getFirst());
+          return value != null && !(value instanceof Variable);
+        });
     builder.add("starts_with", 2, 2, phase, strings(String::startsWith));
     builder.add("ends_with", 2, 2, phase, strings(String::endsWith));
     builder.add("contains", 2, 2, phase, strings(String::contains));
@@ -147,20 +149,15 @@ final class Builtins {
     builder.add("gt", 2, 2, phase, numbers(comparison -> comparison > 0));
     builder.add("ge", 2, 2, phase, numbers(comparison -> comparison >= 0));
     final var positional = Predicates.Phase.POSITIONAL;
-    builder.add(
-        "at_start",
-        0,
-        0,
-        positional,
-        (environment, args) -> position(environment.get(Environment.POSITION)) == 0);
+    builder.add("at_start", 0, 0, positional, (environment, args) -> at(environment, 0));
     builder.add(
         "at_position",
         1,
         1,
         positional,
         (environment, args) -> {
-          final var position = position(environment.get(Environment.POSITION));
-          return position >= 0 && position == position(args.getFirst());
+          final var position = position(args.getFirst());
+          return position >= 0 && at(environment, position);
         });
     builder.add(
         "at_end",
@@ -192,6 +189,17 @@ final class Builtins {
         && second != null
         && Unifier.unify(first, second, Bindings.EMPTY)
             instanceof Result.Success<Unification<Value>, ErrorDetails>;
+  }
+
+  /** Value equality, except that a labelled constituent and a string compare by text (S-C9). */
+  private static boolean same(final Value first, final Value second) {
+    return switch (first) {
+      case Binding binding when second instanceof StringConstant ->
+          binding.text().equals(second.text());
+      case StringConstant constant when second instanceof Binding binding ->
+          constant.text().equals(binding.text());
+      default -> first.equals(second);
+    };
   }
 
   /** The features of a structure or a constituent binding, or {@code null}. */
@@ -262,15 +270,21 @@ final class Builtins {
   private static boolean matches(final String text, final String pattern) {
     var compiled = CACHE.get(pattern);
     if (compiled == null) {
-      // Compiled outside the cache's lock, so other threads only wait for map operations.
-      try {
-        compiled = Pattern.compile(pattern);
-      } catch (final PatternSyntaxException exception) {
+      // Compiled outside the cache's lock, so other threads only wait for map operations. A
+      // pattern outside the portable subset never matches (S-L7).
+      if (!(Patterns.compile(pattern) instanceof Result.Success<Pattern, ErrorDetails>(var java))) {
         return false;
       }
+      compiled = java;
       CACHE.putIfAbsent(pattern, compiled);
     }
     return compiled.matcher(text).matches();
+  }
+
+  /** True if the constituent being checked can start at {@code position} (S-C7). */
+  private static boolean at(final Environment environment, final long position) {
+    final var positions = features(environment.get(Environment.POSITION));
+    return positions != null && positions.has(Long.toString(position));
   }
 
   /** A token position from a number or a numeric string, or -1. */

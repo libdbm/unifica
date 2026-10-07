@@ -1,0 +1,27 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "ab",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    },
+    {
+      "input": "ab\n",
+      "outcome": "rejected"
+    },
+    {
+      "input": "ÉÉ!",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    },
+    {
+      "input": "EE!",
+      "outcome": "rejected"
+    }
+  ]
+}

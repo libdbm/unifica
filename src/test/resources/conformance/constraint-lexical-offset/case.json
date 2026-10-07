@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "S-C7",
+    "S-L4"
+  ],
+  "description": "A lexical predicate in a syntactic production sees the offset where the constituent's first token starts, after skipped whitespace; an empty constituent sees its node's offset."
+}

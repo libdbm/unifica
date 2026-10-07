@@ -1,6 +1,7 @@
 package com.libdbm.ugf.compiler;
 
 import com.libdbm.ugf.ErrorDetails;
+import com.libdbm.ugf.Patterns;
 import com.libdbm.ugf.Result;
 import com.libdbm.ugf.constraints.Expression;
 import com.libdbm.ugf.constraints.Plan;
@@ -47,7 +48,7 @@ public final class Compiler {
   private final List<Lexeme> lexemes = new ArrayList<>();
   private final Map<String, Lexeme> anonymous = new HashMap<>();
   private final List<Production> productions = new ArrayList<>();
-  private final Map<String, String> auxiliaries = new HashMap<>();
+  private final Map<RuleElement, String> auxiliaries = new HashMap<>();
   private int counter;
 
   private Compiler(final Grammar grammar, final Predicates predicates) {
@@ -186,12 +187,26 @@ public final class Compiler {
     if (grammar.whitespace().isEmpty()) {
       return null;
     }
-    try {
-      return Pattern.compile(grammar.whitespace());
-    } catch (final PatternSyntaxException exception) {
-      errors.add("whitespace: invalid pattern: " + exception.getDescription());
-      return null;
-    }
+    return switch (Patterns.compile(grammar.whitespace())) {
+      case Result.Success<Pattern, ErrorDetails>(var pattern) -> pattern;
+      case Result.Failure<Pattern, ErrorDetails>(var error) -> {
+        errors.add("whitespace: " + error.message());
+        yield null;
+      }
+    };
+  }
+
+  /**
+   * The Java form of a grammar regex, or {@code null} after reporting it is not portable (S-L7).
+   */
+  private String portable(final String owner, final String regex) {
+    return switch (Patterns.portable(regex)) {
+      case Result.Success<String, ErrorDetails>(var java) -> java;
+      case Result.Failure<String, ErrorDetails>(var error) -> {
+        errors.add(owner + ": " + error.message());
+        yield null;
+      }
+    };
   }
 
   private Plan plan(final GrammarRule rule) {
@@ -210,8 +225,12 @@ public final class Compiler {
     final var pattern = new StringBuilder();
     final var states = new ArrayList<String>();
     final var labels = new ArrayList<String>();
+    final var reported = errors.size();
     for (final var element : rule.rhs()) {
       append(symbol, element, pattern, states, labels);
+    }
+    if (errors.size() > reported) {
+      return;
     }
     if (pattern.isEmpty()) {
       errors.add(symbol + ": lexical production matches no characters");
@@ -222,7 +241,7 @@ public final class Compiler {
           new Lexeme(
               lexemes.size(),
               symbol,
-              Pattern.compile(pattern.toString()),
+              Pattern.compile(pattern.toString(), Pattern.UNICODE_CASE),
               rule.lhs().features(),
               states,
               rule.transition(),
@@ -244,8 +263,12 @@ public final class Compiler {
     switch (element) {
       case RuleElement.Terminal terminal ->
           group(terminal.label(), Pattern.quote(terminal.text()), pattern, labels);
-      case RuleElement.Regex regex ->
-          group(regex.label(), "(?:" + regex.pattern() + ")", pattern, labels);
+      case RuleElement.Regex regex -> {
+        final var java = portable(symbol, regex.pattern());
+        if (java != null) {
+          group(regex.label(), "(?:" + java + ")", pattern, labels);
+        }
+      }
       case RuleElement.StateAnnotation annotation -> states.add(annotation.state());
       case RuleElement.Alternation alternation -> {
         pattern.append("(?:");
@@ -282,15 +305,18 @@ public final class Compiler {
     }
   }
 
-  /** The shared anonymous lexeme for an inline literal or regex (CMP-3). */
+  /**
+   * The shared anonymous lexeme for an inline literal or regex (CMP-3); none if {@code regex} is
+   * {@code null} because it was not portable.
+   */
   private String anonymous(final String category, final String regex) {
-    if (!anonymous.containsKey(category)) {
+    if (regex != null && !anonymous.containsKey(category)) {
       try {
         final var lexeme =
             new Lexeme(
                 lexemes.size(),
                 category,
-                Pattern.compile(regex),
+                Pattern.compile(regex, Pattern.UNICODE_CASE),
                 Structure.EMPTY,
                 List.of(),
                 null,
@@ -335,7 +361,8 @@ public final class Compiler {
               anonymous("'" + terminal.text() + "'", Pattern.quote(terminal.text())),
               terminal.label());
       case RuleElement.Regex regex ->
-          new Element.Terminal(anonymous(regex.pattern(), regex.pattern()), regex.label());
+          new Element.Terminal(
+              anonymous(regex.pattern(), portable(symbol, regex.pattern())), regex.label());
       case RuleElement.TokenMatch match -> new Element.Token(match.label());
       case RuleElement.Repetition repetition ->
           new Element.Symbol(repeat(symbol, repetition), null, link(repetition));
@@ -350,10 +377,18 @@ public final class Compiler {
     };
   }
 
+  /** The next auxiliary symbol name with {@code prefix} that no grammar rule uses (S-G5). */
+  private String fresh(final String prefix) {
+    var name = prefix + counter++;
+    while (grammar.rules().containsKey(name)) {
+      name = prefix + counter++;
+    }
+    return name;
+  }
+
   /** Lowers a repetition into an auxiliary symbol (CMP-5). */
   private String repeat(final String symbol, final RuleElement.Repetition repetition) {
-    final var key = repetition.element() + ":" + repetition.quantifier();
-    final var existing = auxiliaries.get(key);
+    final var existing = auxiliaries.get(repetition);
     if (existing != null) {
       return existing;
     }
@@ -363,8 +398,8 @@ public final class Compiler {
           case ZERO_OR_MORE -> "_star";
           case OPTIONAL -> "_opt";
         };
-    final var name = base(repetition.element()) + suffix + "_" + counter++;
-    auxiliaries.put(key, name);
+    final var name = fresh(base(repetition.element()) + suffix + "_");
+    auxiliaries.put(repetition, name);
     final var link = link(repetition);
     final var inner = element(symbol, repetition.element());
     final var self = new Element.Symbol(name, null, link);
@@ -387,13 +422,12 @@ public final class Compiler {
 
   /** Lowers an alternation into an auxiliary symbol with one production per option. */
   private String choose(final String symbol, final RuleElement.Alternation alternation) {
-    final var key = alternation.toString();
-    final var existing = auxiliaries.get(key);
+    final var existing = auxiliaries.get(alternation);
     if (existing != null) {
       return existing;
     }
-    final var name = "alt_" + counter++;
-    auxiliaries.put(key, name);
+    final var name = fresh("alt_");
+    auxiliaries.put(alternation, name);
     final var link = link(alternation);
     for (final var option : alternation.options()) {
       final var rhs =
@@ -407,13 +441,12 @@ public final class Compiler {
 
   /** Lowers a parenthesised sequence into an auxiliary symbol with one production (S-G4). */
   private String group(final String symbol, final RuleElement.Sequence sequence) {
-    final var key = sequence.toString();
-    final var existing = auxiliaries.get(key);
+    final var existing = auxiliaries.get(sequence);
     if (existing != null) {
       return existing;
     }
-    final var name = "seq_" + counter++;
-    auxiliaries.put(key, name);
+    final var name = fresh("seq_");
+    auxiliaries.put(sequence, name);
     add(
         name,
         link(sequence),
@@ -473,10 +506,8 @@ public final class Compiler {
                 + call.args().size());
       } else if (call.name().equals("matches")
           && call.args().get(1) instanceof StringConstant(String regex)) {
-        try {
-          Pattern.compile(regex);
-        } catch (final PatternSyntaxException exception) {
-          errors.add(symbol + ": invalid regex in matches: " + exception.getDescription());
+        if (Patterns.compile(regex) instanceof Result.Failure<Pattern, ErrorDetails>(var error)) {
+          errors.add(symbol + ": invalid regex in matches: " + error.message());
         }
       }
     }

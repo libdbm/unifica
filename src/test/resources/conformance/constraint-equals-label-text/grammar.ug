@@ -1,0 +1,6 @@
+start S;
+S --> W:w '!' where equals(w, 'hi');
+S --> W:w '?' where not_equals('hi', w);
+S --> P:p '.' where equals(p, 'ab cd');
+P --> W W;
+W --> [a-z]+;

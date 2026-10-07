@@ -2,6 +2,8 @@ package com.libdbm.ugf.grammar;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.libdbm.ugf.ErrorDetails;
+import com.libdbm.ugf.Result;
 import com.libdbm.ugf.constraints.Expression;
 import com.libdbm.ugf.grammar.loader.UnificationGrammarParserFactory;
 import java.util.List;
@@ -309,6 +311,19 @@ class ConstraintParsingTests {
               .map(element -> ((RuleElement.Terminal) element).text())
               .toList();
       assertEquals(List.of("'", "\n", "\\", "\"", "A"), texts);
+    }
+
+    @Test
+    void testMalformedUnicodeEscape() {
+      for (final var literal : List.of("'\\u12'", "'\\uzz12'", "'\\u'")) {
+        final var result =
+            UnificationGrammarParserFactory.unvalidated("start S; S --> " + literal + ";");
+        assertInstanceOf(Result.Failure.class, result, literal);
+        assertEquals(
+            UnificationGrammarParserFactory.SYNTAX,
+            ((Result.Failure<Grammar, ErrorDetails>) result).error().code(),
+            literal);
+      }
     }
 
     @Test

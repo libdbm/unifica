@@ -1,0 +1,31 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "acz",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    },
+    {
+      "input": "bcxxz",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    },
+    {
+      "input": "aa",
+      "outcome": "rejected"
+    },
+    {
+      "input": "ac",
+      "outcome": "rejected"
+    },
+    {
+      "input": "bcx",
+      "outcome": "rejected"
+    }
+  ]
+}

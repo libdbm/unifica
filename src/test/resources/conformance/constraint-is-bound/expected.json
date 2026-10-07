@@ -1,0 +1,41 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "c!",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    },
+    {
+      "input": "v!",
+      "outcome": "rejected"
+    },
+    {
+      "input": "v?",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    },
+    {
+      "input": "c?",
+      "outcome": "rejected"
+    },
+    {
+      "input": "c.",
+      "outcome": "rejected"
+    },
+    {
+      "input": "c;",
+      "outcome": "accepted",
+      "penalty": 0,
+      "ambiguous": false
+    },
+    {
+      "input": "v;",
+      "outcome": "rejected"
+    }
+  ]
+}

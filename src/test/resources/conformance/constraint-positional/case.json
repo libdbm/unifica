@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-C7"
+  ],
+  "description": "at_start and at_position count tokens in a syntactic production and read the token's start offset, after skipped whitespace, in a lexical production."
+}

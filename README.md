@@ -99,9 +99,12 @@ A --> 'if' Expr 'then';    # quoted literals
 Id --> [a-z_][a-z0-9_]*;   # a regular expression, written without delimiters
 ```
 
-Literals use single or double quotes, with backslash escapes. Regular expressions are written inline using Java regex
-syntax: character classes, `(?:...)` groups, lookahead and lookbehind, `.`, and quantifiers including `{n,m}`. An
-element can be labelled with `:name` so that constraints can refer to it. `{TOKEN}` matches any single token.
+Literals use single or double quotes, with backslash escapes. Regular expressions are written inline in a portable
+subset that every Unifica implementation reads the same way ([S-L7](docs/SEMANTICS.md)): character classes, `\p{..}`
+Unicode categories, `(?:...)` groups, lookahead and lookbehind, `.`, `^` and `$`, greedy and lazy quantifiers including
+`{n,m}`, and a leading `(?i)` or `(?s)`. Backreferences, named groups, possessive quantifiers, nested classes and other
+flags make a grammar invalid. An element can be labelled with `:name` so that constraints can refer to it. `{TOKEN}`
+matches any single token.
 
 ### Lexical and syntactic productions
 
@@ -348,6 +351,10 @@ final var result = parser.parse(graph);
 `TokenSource.of(tokens)` builds a graph from a plain list. Tokens that overlap or are out of order, and alternatives with different spans, make `tokenize` return a `Failure`; a hand-built `Graph` or `Edge` that breaks the graph invariants (negative cost, an edge that does not lead to a later node) is refused by its constructor. `Parser.tokenize(input)` returns the graph the parser's
 own lexer produces.
 
+Pass the input as well, `parser.parse(graph, "dogs bark")`, and constraints see each constituent's text as the input it
+spans (S-C9). Without the input, a constituent's text is its token texts joined by single spaces. `parse(graph, input)`
+returns a `Failure` with code `graph.tokens` if a token lies past the end of the input.
+
 ## Generation
 
 <!-- example: generation -->
@@ -380,7 +387,7 @@ by the builder's `terminal` and `vocabulary` methods.
 <!-- builtins -->
 | Predicate | True when |
 |---|---|
-| `equals(a, b)` | `a` and `b` are equal values. |
+| `equals(a, b)` | `a` and `b` are equal values. A label and a string compare by the label's text. |
 | `not_equals(a, b)` | `a` and `b` are not equal, or `a` is unbound. |
 | `lt(a, b)` | `a` < `b` as numbers. |
 | `le(a, b)` | `a` <= `b` as numbers. |
@@ -397,16 +404,16 @@ by the builder's `terminal` and `vocabulary` methods.
 | `is_string(v)` | `v` is a string. |
 | `is_number(v)` | `v` is a number. |
 | `is_structure(v)` | `v` is a feature structure. |
-| `is_bound(v)` | `v` is a constant, or a variable with a binding. |
+| `is_bound(v)` | `v` resolves to a value that is not a variable: a constant, or a variable or feature path whose value is not an unbound variable (S-C11). |
 | `agree(a, b)` | The features of `a` and `b` unify. |
 | `unify(a, b)` | The same as `agree`. |
 | `has_feature(s, name)` | The features of `s` include `name`. |
 | `get_feature(s, name, value)` | Feature `name` of `s` equals `value`. |
 | `feature_eq(s, name, t, other)` | Feature `name` of `s` equals feature `other` of `t`. |
-| `at_start()` | The constituent starts at the first node of the token graph. |
-| `at_position(n)` | The constituent starts at token graph node `n`. |
-| `at_end()` | The constituent ends at the end of the input. |
-| `before(C, ...)` | A token of one of the categories `C` follows the constituent. |
+| `at_start()` | The constituent starts after 0 tokens; in a lexical production, the token starts at character 0. |
+| `at_position(n)` | The constituent starts after `n` tokens on some path; in a lexical production, the token starts at character `n`. |
+| `at_end()` | The constituent ends at the end of the input, ignoring trailing skipped text. Also works in a lexical production. |
+| `before(C, ...)` | A token of one of the categories `C` follows the constituent. Always false in a lexical production, and the linter warns about it. |
 | `in_state(S, ...)` | The current lexical state is one of the arguments. Lexical. |
 | `state_depth(n)` | The lexical state stack holds at most `n` states. Lexical. |
 | `state_contains(S, ...)` | The lexical state stack contains one of the arguments. Lexical. |

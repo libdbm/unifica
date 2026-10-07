@@ -1,0 +1,5 @@
+start S;
+S --> ('a' | 'b') alt_0 A* A_star_1;
+alt_0 --> 'c';
+A --> 'x';
+A_star_1 --> 'z';

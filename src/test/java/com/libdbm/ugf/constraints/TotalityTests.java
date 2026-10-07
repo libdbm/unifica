@@ -33,7 +33,9 @@ class TotalityTests {
   private static Environment environment(final int position) {
     return Environment.of(STANDARD)
         .lexical(List.of("DEFAULT"), position)
-        .with(Environment.POSITION, NumericConstant.of(position))
+        .with(
+            Environment.POSITION,
+            Structure.builder().with(Integer.toString(position), BooleanConstant.of(true)).build())
         .with(Environment.END, BooleanConstant.of(false))
         .with(Environment.NEXT, Structure.EMPTY);
   }

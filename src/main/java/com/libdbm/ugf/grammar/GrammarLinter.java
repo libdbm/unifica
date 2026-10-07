@@ -2,6 +2,8 @@ package com.libdbm.ugf.grammar;
 
 import com.libdbm.ugf.constraints.Expression;
 import com.libdbm.ugf.constraints.Predicates;
+import com.libdbm.ugf.features.Structure;
+import com.libdbm.ugf.features.Value;
 import com.libdbm.ugf.features.Variable;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -15,9 +17,6 @@ public final class GrammarLinter {
 
   private final Predicates predicates;
 
-  /** Predicates that read the lexical state or character position (S-C7). */
-  private final Set<String> lexical;
-
   /** A linter for grammars that use the standard predicates. */
   public GrammarLinter() {
     this(Predicates.standard());
@@ -26,7 +25,6 @@ public final class GrammarLinter {
   /** A linter for grammars evaluated with {@code predicates}. */
   public GrammarLinter(final Predicates predicates) {
     this.predicates = predicates;
-    this.lexical = predicates.names(Predicates.Phase.LEXICAL);
   }
 
   private static boolean nested(final Expression expression, final boolean inside) {
@@ -163,6 +161,9 @@ public final class GrammarLinter {
         // Also add the LHS symbol (it's implicitly bound)
         labels.add(symbol);
 
+        // Variables in the LHS features are bound by unification (S-F5)
+        variables(rule.lhs().features(), labels);
+
         // Check each constraint
         for (final var constraint : rule.constraints()) {
           final var usedVars = extractVariables(constraint);
@@ -242,23 +243,16 @@ public final class GrammarLinter {
                   sym));
         }
 
-        // Check 3: Lexer-only predicates in non-lexical constraints
-        // This is a WARNING rather than ERROR because these predicates on non-lexical rules
-        // can be intentional (e.g., to restrict when certain nonterminals can be expanded)
-        if (!lex) {
-          final var preds = new HashSet<String>();
-          rule.constraints().forEach(expression -> collectLexerPredicates(expression, preds));
-          if (!preds.isEmpty()) {
-            issues.add(
-                new LintIssue(
-                    LintIssue.Severity.WARNING,
-                    "Lexer-only predicate on non-lexical rule",
-                    String.format(
-                        "Rule '%s' uses lexer-only predicate(s) %s but is not a lexical rule. "
-                            + "This is unusual; consider if this is intentional.",
-                        sym, preds),
-                    sym));
-          }
+        // Check 3: before in a lexical rule, where the following tokens are not yet known (S-C7)
+        if (lex
+            && rule.constraints().stream().anyMatch(expression -> calls(expression, "before"))) {
+          issues.add(
+              new LintIssue(
+                  LintIssue.Severity.WARNING,
+                  "before in lexical rule",
+                  String.format(
+                      "Rule '%s' is a lexical rule, where before() is always false.", sym),
+                  sym));
         }
       }
     }
@@ -266,19 +260,16 @@ public final class GrammarLinter {
     return issues;
   }
 
-  private void collectLexerPredicates(final Expression expression, final Set<String> out) {
-    switch (expression) {
-      case Expression.Call call -> {
-        if (lexical.contains(call.name())) {
-          out.add(call.name());
-        }
-      }
-      case Expression.And and -> and.terms().forEach(term -> collectLexerPredicates(term, out));
-      case Expression.Or or -> or.terms().forEach(term -> collectLexerPredicates(term, out));
-      case Expression.Not not -> collectLexerPredicates(not.term(), out);
-      case Expression.Weighted weighted -> collectLexerPredicates(weighted.term(), out);
-      case Expression.Literal literal -> {}
-    }
+  /** True if {@code expression} calls the predicate {@code name}. */
+  private static boolean calls(final Expression expression, final String name) {
+    return switch (expression) {
+      case Expression.Call call -> call.name().equals(name);
+      case Expression.And and -> and.terms().stream().anyMatch(term -> calls(term, name));
+      case Expression.Or or -> or.terms().stream().anyMatch(term -> calls(term, name));
+      case Expression.Not not -> calls(not.term(), name);
+      case Expression.Weighted weighted -> calls(weighted.term(), name);
+      case Expression.Literal literal -> false;
+    };
   }
 
   /** Check if any element in the list contains a state annotation. */
@@ -294,6 +285,8 @@ public final class GrammarLinter {
       case RuleElement.Alternation alt ->
           alt.options().stream().anyMatch(this::containsStateAnnotation);
       case RuleElement.Repetition rep -> containsStateAnnotation(rep.element());
+      case RuleElement.Sequence sequence ->
+          sequence.elements().stream().anyMatch(this::containsStateAnnotation);
       default -> false;
     };
   }
@@ -310,6 +303,11 @@ public final class GrammarLinter {
       case RuleElement.Alternation alt -> {
         for (final var opt : alt.options()) {
           collectNonterminals(opt, reachable, queue);
+        }
+      }
+      case RuleElement.Sequence sequence -> {
+        for (final var inner : sequence.elements()) {
+          collectNonterminals(inner, reachable, queue);
         }
       }
       default -> {} // Terminal, Regex
@@ -337,6 +335,11 @@ public final class GrammarLinter {
       case RuleElement.Alternation alt -> {
         for (final var opt : alt.options()) {
           collectUndefinedNonterminals(opt, defined, context, issues);
+        }
+      }
+      case RuleElement.Sequence sequence -> {
+        for (final var inner : sequence.elements()) {
+          collectUndefinedNonterminals(inner, defined, context, issues);
         }
       }
       default -> {} // Terminal, Regex
@@ -381,6 +384,8 @@ public final class GrammarLinter {
         if (nt.label() != null) labels.add(nt.label());
         // Also add the nonterminal name itself (it's accessible in constraints)
         labels.add(nt.name());
+        // Variables in its features are bound by unification (S-F5)
+        variables(nt.features(), labels);
       }
       case RuleElement.Terminal term -> {
         if (term.label() != null) labels.add(term.label());
@@ -405,6 +410,15 @@ public final class GrammarLinter {
       case RuleElement.TokenMatch tm -> {
         if (tm.label() != null) labels.add(tm.label());
       }
+    }
+  }
+
+  private static void variables(final Value value, final Set<String> names) {
+    switch (value) {
+      case Variable variable -> names.add(variable.name());
+      case Structure structure ->
+          structure.keys().forEach(key -> variables(structure.get(key), names));
+      default -> {}
     }
   }
 

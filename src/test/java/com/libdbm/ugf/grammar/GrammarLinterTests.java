@@ -641,41 +641,6 @@ final class GrammarLinterTests {
   }
 
   @Test
-  void test_warns_about_state_predicate_on_non_lexical_rule() {
-    final Grammar grammar =
-        Grammar.builder()
-            .start("S")
-            // S -> NP VP where in_state("CONTENT") (unusual: non-lexical with state predicate)
-            .add(
-                new GrammarRule(
-                    new GrammarRule.LHS("S"),
-                    List.of(new RuleElement.Nonterminal("NP"), new RuleElement.Nonterminal("VP")),
-                    List.of(
-                        new Expression.Call("in_state", List.of(StringConstant.of("CONTENT"))))))
-            // NP -> "the"
-            .add(
-                new GrammarRule(
-                    new GrammarRule.LHS("NP"),
-                    List.of(new RuleElement.Terminal("the", null)),
-                    List.of()))
-            // VP -> "runs"
-            .add(
-                new GrammarRule(
-                    new GrammarRule.LHS("VP"),
-                    List.of(new RuleElement.Terminal("runs", null)),
-                    List.of()))
-            .build();
-
-    final var linter = new GrammarLinter();
-    final var report = linter.lint(grammar);
-
-    // State predicates on non-lexical rules are warnings, not errors (can be intentional)
-    assertFalse(report.hasErrors());
-    assertTrue(report.hasWarnings());
-    assertTrue(report.warnings().stream().anyMatch(e -> e.message().contains("in_state")));
-  }
-
-  @Test
   void test_allows_state_predicate_on_lexical_rule() {
     final Grammar grammar =
         Grammar.builder()
@@ -733,6 +698,100 @@ final class GrammarLinterTests {
     final var report = linter.lint(grammar);
 
     assertTrue(report.hasErrors());
+    assertTrue(
+        report.errors().stream()
+            .anyMatch(e -> e.title().contains("State annotation in non-lexical")));
+  }
+
+  @Test
+  void test_feature_variables_are_bound_in_constraints() {
+    final var linter = new GrammarLinter();
+    final var title = "Unbound label in constraint";
+
+    assertTrue(
+        issues(
+                linter,
+                "start S; S --> N{num: X} V{num: Y} where equals(X, Y); N --> 'n'; V --> 'v';",
+                title)
+            .isEmpty());
+    assertTrue(
+        issues(linter, "start S; S{n: Z} --> N where is_bound(Z); N --> 'n';", title).isEmpty());
+    assertTrue(
+        issues(linter, "start S; S --> (N{m: {k: W}})? where is_bound(W); N --> 'n';", title)
+            .isEmpty());
+    assertEquals(
+        1, issues(linter, "start S; S --> N{num: X} where is_bound(Q); N --> 'n';", title).size());
+  }
+
+  @Test
+  void test_lexical_predicates_allowed_in_syntactic_rule() {
+    final var grammar =
+        UnificationGrammarParserFactory.unvalidated(
+                "start S; S --> A B where in_state('DEFAULT'), at_char_position('0'); A --> 'a'; B --> 'b';")
+            .orElseThrow();
+
+    assertTrue(new GrammarLinter().lint(grammar).issues().isEmpty());
+  }
+
+  @Test
+  void test_warns_before_in_lexical_rule() {
+    final var linter = new GrammarLinter();
+    final var title = "before in lexical rule";
+
+    final var warnings =
+        issues(linter, "start S; S --> A B; A --> 'a' where before('B'); B --> 'b';", title);
+    assertEquals(1, warnings.size());
+    assertEquals(GrammarLinter.LintIssue.Severity.WARNING, warnings.getFirst().severity());
+    assertTrue(
+        issues(
+                linter,
+                "start S; S --> P B; P --> A where before('B'); A --> 'a'; B --> 'b';",
+                title)
+            .isEmpty());
+  }
+
+  @Test
+  void test_undefined_nonterminal_in_group() {
+    final var linter = new GrammarLinter();
+    final var errors = issues(linter, "start S; S --> ('a' Missing) 'b';", "Undefined nonterminal");
+
+    assertEquals(1, errors.size());
+    assertTrue(errors.getFirst().message().contains("Missing"));
+  }
+
+  @Test
+  void test_reachability_through_group() {
+    final var linter = new GrammarLinter();
+
+    assertTrue(
+        issues(linter, "start S; S --> ('a' T) 'b'; T --> 'q' 'r';", "Unreachable rule").isEmpty());
+  }
+
+  @Test
+  void test_detects_state_annotation_in_group() {
+    final Grammar grammar =
+        Grammar.builder()
+            .start("S")
+            // S -> ({STATE} NP) (invalid: non-lexical with state annotation)
+            .add(
+                new GrammarRule(
+                    new GrammarRule.LHS("S"),
+                    List.of(
+                        new RuleElement.Sequence(
+                            List.of(
+                                new RuleElement.StateAnnotation("STATE"),
+                                new RuleElement.Nonterminal("NP")))),
+                    List.of()))
+            // NP -> "the"
+            .add(
+                new GrammarRule(
+                    new GrammarRule.LHS("NP"),
+                    List.of(new RuleElement.Terminal("the", null)),
+                    List.of()))
+            .build();
+
+    final var report = new GrammarLinter().lint(grammar);
+
     assertTrue(
         report.errors().stream()
             .anyMatch(e -> e.title().contains("State annotation in non-lexical")));
@@ -872,26 +931,6 @@ final class GrammarLinterTests {
                 "start S; S --> 'a' where ((equals('a', 'a'), equals('b', 'b')):3 | equals('c', 'c')):7;",
                 "Weight inside a weighted group")
             .size());
-  }
-
-  /** Lexical predicate names come from the registry, including caller-registered ones. */
-  @Test
-  void testLexicalPredicatesFromRegistry() {
-    final var predicates =
-        Predicates.builder()
-            .builtins()
-            .lexical()
-            .add("in_comment", 0, 0, Predicates.Phase.LEXICAL, (environment, args) -> false)
-            .build();
-
-    final var warnings =
-        issues(
-            new GrammarLinter(predicates),
-            "start S; S --> A B where in_comment(); A --> 'a'; B --> 'b';",
-            "Lexer-only predicate on non-lexical rule");
-
-    assertEquals(1, warnings.size());
-    assertTrue(warnings.getFirst().message().contains("in_comment"));
   }
 
   /** S-G1: a sequence of plain literals is syntactic, so an unused one is unreachable. */

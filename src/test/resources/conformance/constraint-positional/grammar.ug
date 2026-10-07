@@ -1,0 +1,6 @@
+start S;
+S --> A P;
+P --> B C where at_position('1');
+A --> 'a' where at_start();
+B --> 'b' where at_position('2');
+C --> 'c';

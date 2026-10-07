@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-C11"
+  ],
+  "description": "is_bound is false for a path that leads nowhere and for a value that is an unbound variable, through a label path or a feature variable."
+}

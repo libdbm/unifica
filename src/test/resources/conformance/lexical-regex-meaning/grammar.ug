@@ -1,0 +1,5 @@
+start S;
+S --> A;
+S --> W:w '!' where matches(w, '(?i)é+');
+A --> [a-z]+(?=$);
+W --> [\p{L}]+;

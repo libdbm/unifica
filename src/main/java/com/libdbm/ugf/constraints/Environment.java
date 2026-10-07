@@ -14,8 +14,9 @@ import java.util.Objects;
 public final class Environment {
 
   /**
-   * The binding holding the token graph node where the constituent being checked starts. No grammar
-   * identifier can name it.
+   * The binding holding where the constituent being checked starts, as a structure with one feature
+   * per position (S-C7): during parsing, the token index of every path that reaches its start node;
+   * during lexing, the offset where the token starts. No grammar identifier can name it.
    */
   public static final String POSITION = "@position";
 

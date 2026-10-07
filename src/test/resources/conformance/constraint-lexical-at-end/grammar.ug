@@ -1,0 +1,4 @@
+start S;
+S --> X Y;
+X --> [a-z]+ where !at_end();
+Y --> [a-z]+ where at_end();

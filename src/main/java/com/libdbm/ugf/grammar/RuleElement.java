@@ -70,6 +70,19 @@ public sealed interface RuleElement {
     public Regex with(final String label) {
       return new Regex(pattern, label, compiled);
     }
+
+    /** Equal when the pattern and label are equal; the compiled form follows from the pattern. */
+    @Override
+    public boolean equals(final Object other) {
+      return other instanceof Regex(String text, String name, Pattern ignored)
+          && pattern.equals(text)
+          && Objects.equals(label, name);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(pattern, label);
+    }
   }
 
   /**

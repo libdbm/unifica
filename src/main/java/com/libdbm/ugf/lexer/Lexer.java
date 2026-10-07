@@ -8,6 +8,7 @@ import com.libdbm.ugf.constraints.Environment;
 import com.libdbm.ugf.constraints.Evaluator;
 import com.libdbm.ugf.constraints.Verdict;
 import com.libdbm.ugf.features.Binding;
+import com.libdbm.ugf.features.BooleanConstant;
 import com.libdbm.ugf.features.Structure;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -96,11 +97,22 @@ public final class Lexer implements TokenSource {
       final Environment environment,
       final Lexeme lexeme,
       final Matcher matcher,
-      final String text) {
+      final String text,
+      final boolean end) {
     if (lexeme.plan().isEmpty()) {
       return environment;
     }
-    var bound = environment.with(lexeme.category(), Binding.of(text, lexeme.features()));
+    var bound =
+        environment
+            .with(lexeme.category(), Binding.of(text, lexeme.features()))
+            // S-C7: positional predicates in a lexical production read the token's start offset,
+            // and whether only skipped text follows it.
+            .with(
+                Environment.POSITION,
+                Structure.builder()
+                    .with(Integer.toString(environment.position()), BooleanConstant.of(true))
+                    .build())
+            .with(Environment.END, BooleanConstant.of(end));
     for (var i = 0; i < lexeme.labels().size(); i++) {
       final var part = matcher.group(Lexeme.group(i));
       if (part != null) {
@@ -309,8 +321,12 @@ public final class Lexer implements TokenSource {
       if (length < longest) {
         continue;
       }
+      final var end =
+          !lexeme.plan().isEmpty()
+              && skip(input, matcher.end(), apply(key.states(), lexeme.transition()))
+                  == input.length();
       final var bound =
-          bind(environment, lexeme, matcher, input.substring(position, matcher.end()));
+          bind(environment, lexeme, matcher, input.substring(position, matcher.end()), end);
       final long cost;
       switch (Evaluator.evaluate(lexeme.plan(), bound)) {
         case Verdict.Rejected rejected -> {
@@ -348,7 +364,10 @@ public final class Lexer implements TokenSource {
       return true;
     }
     final var environment = Environment.of(compiled.predicates()).lexical(states, position);
-    final var bound = bind(environment, lexeme, matcher, input.substring(position, matcher.end()));
+    // Skip categories apply no transitions (S-L4).
+    final var end = skip(input, matcher.end(), states) == input.length();
+    final var bound =
+        bind(environment, lexeme, matcher, input.substring(position, matcher.end()), end);
     return Evaluator.evaluate(lexeme.plan(), bound) instanceof Verdict.Accepted;
   }
 

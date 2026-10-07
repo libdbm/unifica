@@ -32,7 +32,7 @@ failure is a programming error, or switch over the two cases.
 | `ParserFactory.parser()`, `grammar()`, `enhancer()`                                                             | `Parser.compiled()`; the enhancer is part of `Options`.                                                                                                                        |
 | `ChartParser`, `new ChartParser(grammar)`, `new ChartParser(context, grammar)`                                  | `Compiler.compile(grammar, predicates)` then `Parser.of(compiled)` or `Parser.of(compiled, options)`.                                                                          |
 | `LexicalAnalyzer`, `LexicalAnalyzer.build(grammar, skip)`, `LexicalRule`, `LexicalContext`, `TerminalExtractor` | `com.libdbm.ugf.lexer.Lexer`, built from a `Compiled` grammar. `Parser.tokenize` uses it.                                                                                      |
-| `TokenStream`, `List<List<Token>>` lattices                                                                     | `com.libdbm.ugf.lexer.Graph`, a token graph. `TokenSource.of(tokens)` and `TokenSource.alternatives(cells)` build one from caller tokens, and `parser.parse(graph)` parses it. |
+| `TokenStream`, `List<List<Token>>` lattices                                                                     | `com.libdbm.ugf.lexer.Graph`, a token graph. `TokenSource.of(tokens)` and `TokenSource.alternatives(cells)` build one from caller tokens, and `parser.parse(graph)` parses it; `parser.parse(graph, input)` also takes the input text, so constraints see the input a constituent spans. |
 | `TokenEnhancer.enhance(List<Token>)`                                                                            | `TokenEnhancer.enhance(Graph)`, set through `Options`.                                                                                                                         |
 | `TokenTransducer`, `parser.Utilities`                                                                           | Removed; they had no remaining use.                                                                                                                                            |
 | `GrammarNormalizer`, `GrammarLinter.normalize(grammar)`                                                         | Removed. The compiler lowers groups, alternation and repetition.                                                                                                               |
@@ -178,10 +178,32 @@ S{num: N} --> NP{num: N} VP{num: N};
 Each use of a production has its own variables, and variables bound on the right-hand side can be used as constraint
 arguments, as in `where equals(N, M)`.
 
+### Regular expressions use a portable subset (S-L7)
+
+Grammar regexes, `whitespace` patterns and `matches` patterns must lie in the subset that S-L7 defines, or the grammar
+is invalid; a `matches` pattern computed at runtime outside it is false. Backreferences, named groups, possessive
+quantifiers, atomic groups, nested classes, `\Q...\E`, Java-only escapes and properties (`\h`, `\R`, `\p{Alpha}`),
+and flags other than a leading `(?i)` or `(?s)` are rejected. Two meanings change: `$` is the end of the text only, not
+also the position before a final line terminator, and `(?i)` folds Unicode case rather than only ASCII.
+
 ### Labels work with every builtin (S-C9)
 
 String builtins such as `starts_with` and feature builtins such as `has_feature` accept labels for terminals and
-nonterminals. A label's text is the input it covers. In 1.x they failed for labels.
+nonterminals. A label's text is the input it covers. In 1.x they failed for labels. `equals(label, 'x')` and
+`not_equals` compare a label with a string by that text; two labels still compare by value.
+
+### Lexical predicates are evaluated in syntactic productions (S-C7)
+
+In 1.x, `in_state`, `state_depth` and `state_contains` always held in a syntactic production, and `at_char_start` and
+`at_char_position` were removed from its constraints. They are now evaluated with the state stack of the node where the
+constituent starts and the offset where its first token starts, after skipped whitespace. A constituent with no tokens
+uses the offset of its node.
+
+### Positional predicates count tokens (S-C7)
+
+`at_start()` and `at_position(n)` hold when the constituent starts after 0 or `n` tokens on some path through the token
+graph. They no longer read token graph node ids, which are implementation-defined (S-L1). In a lexical production they
+read the character offset where the token starts.
 
 ### Numbers compare by value (S-F4)
 

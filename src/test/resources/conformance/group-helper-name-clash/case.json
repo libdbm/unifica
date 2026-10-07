@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "S-G4",
+    "S-G5"
+  ],
+  "description": "A grammar symbol named like a generated helper (alt_0, A_star_1) keeps its own productions: the group and repetition still mean their expansion."
+}

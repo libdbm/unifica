@@ -1,0 +1,8 @@
+start S;
+S --> A P;
+S --> A E 'c';
+P --> B C where at_char_position('2');
+E --> where at_char_position('1');
+A --> 'a';
+B --> 'b';
+C --> 'c';

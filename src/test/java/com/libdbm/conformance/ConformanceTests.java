@@ -93,7 +93,7 @@ final class ConformanceTests {
     Grammar grammar = null;
     Function<String, ParseResult> parse = null;
     try {
-      final var loaded = UnificationGrammarParserFactory.unvalidated(source);
+      final var loaded = UnificationGrammarParserFactory.parse(source);
       switch (loaded) {
         case Result.Success<Grammar, ErrorDetails>(var value) -> grammar = value;
         case Result.Failure<Grammar, ErrorDetails>(var error) -> {

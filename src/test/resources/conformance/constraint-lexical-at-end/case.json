@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "S-C7",
+    "S-L4"
+  ],
+  "description": "In a lexical production at_end holds when only skipped text follows the token to the end of the input."
+}
