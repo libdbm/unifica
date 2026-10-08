@@ -1,0 +1,6 @@
+p a1 a1
+p a1 b2
+n a1
+n b2
+m c3
+m a1

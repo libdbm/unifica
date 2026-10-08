@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.1.0]
+
+### Added
+
+- `{TOKEN}` takes a feature block, `{TOKEN}{cat: noun, lemma: $L}`, which unifies with the features of the token that
+  fills it (S-F5): a conflicting token does not fill it, and variables bind from the token for the rest of the
+  production. A `{TOKEN}` inside a group or repetition shares its variables with the enclosing production (S-G4), and
+  the linter counts them as bound. Conformance case `feature-token-match`.
+
+### Changed
+
+- `RuleElement.TokenMatch` and `compiler.Element.Token` have a `features` component.
+
 ## [2.0.0]
 
 2.0.0 replaces the parsing pipeline and is not source compatible with 1.x. See [MIGRATION.md](MIGRATION.md) for

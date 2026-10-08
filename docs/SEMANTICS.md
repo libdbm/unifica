@@ -137,7 +137,10 @@ whatever its case. In a predicate argument, a bare identifier names a label or a
   with the features of the constituent or token that fills it, and the resulting bindings hold for the rest of that use
   of the production. A completed constituent's features are its left-hand features with those bindings substituted; its
   remaining variables are renamed apart from every other constituent's. Features written on right-hand-side elements are
-  never copied into the parent: a parent sees a child's features only through shared variables.
+  never copied into the parent: a parent sees a child's features only through shared variables. `{TOKEN}` is such an
+  element: features written on it (`{TOKEN}{cat: noun, lemma: $L}`) unify with the features of the token that fills
+  it, and a token whose features do not unify does not fill it. A feature the token lacks unifies with anything and
+  leaves its variable unbound.
 
 ## Parsing and selection
 

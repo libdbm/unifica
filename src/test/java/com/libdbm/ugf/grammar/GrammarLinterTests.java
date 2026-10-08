@@ -426,6 +426,14 @@ final class GrammarLinterTests {
     assertTrue(report.errors().stream().anyMatch(e -> e.message().contains("unbound")));
   }
 
+  /** S-F5: a variable written on {TOKEN} is bound by unification, so a constraint may use it. */
+  @Test
+  void test_token_features_bind_variables() {
+    final var source = "start S; S --> {TOKEN}{num: $N} where is_bound($N);";
+
+    assertTrue(issues(new GrammarLinter(), source, "Unbound label in constraint").isEmpty());
+  }
+
   @Test
   void test_labeled_terminals_are_valid_in_constraints() {
     final Grammar grammar =

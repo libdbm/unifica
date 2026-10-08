@@ -142,7 +142,7 @@ baseElement
 
 // Special case used for grammars with no lexical rules
 tokenMatch
-    : '{TOKEN}'
+    : '{TOKEN}' featureStruct?
     ;
 
 stateAnnotation

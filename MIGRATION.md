@@ -219,7 +219,9 @@ Penalties are `long`. A sum that would overflow ends the parse with outcome `LIM
 
 A `Token` fills a grammar symbol whose name equals the token's category, and the token's features unify with the
 features written on that symbol. In 1.x a caller token's category was visible only through its `cat` feature, as in
-`{TOKEN}:w where equals(w.cat, 'NN')`; write `NN` instead.
+`{TOKEN}:w where equals(w.cat, 'NN')`; write `NN` instead. From 2.1.0 a token's features can also be matched on
+`{TOKEN}` itself, `{TOKEN}{cat: NN}`, which binds the token's other features to variables as well (see
+[Features on `{TOKEN}`](#features-on-token-210)).
 
 ### Transitions belong to the production
 
@@ -235,3 +237,19 @@ replaces the top of the state stack, is new.
 - `@N` production costs and the `==> ^S` transition.
 - The builtins `at_end()` (the constituent ends at the end of the input) and `before(C, ...)` (a token of category `C`
   follows), which express ANTLR's `EOF` and one-token lookahead inside rules.
+
+## Features on `{TOKEN}` (2.1.0)
+
+2.1.0 is additive: every 2.0.0 grammar loads and parses as before. `{TOKEN}` may now carry a feature block, which
+unifies with the features of the token that fills it (S-F5). A 2.0.0 terminal that filtered tokens with a constraint
+can say the same by unification, and pass the token's features on:
+
+```
+# 2.0.0
+noun --> {TOKEN}:w where equals(w.cat, 'noun');
+# 2.1.0
+noun{lemma: $L} --> {TOKEN}{cat: noun, lemma: $L};
+```
+
+`RuleElement.TokenMatch` and `compiler.Element.Token` gain a `features` component; code that builds them directly
+passes `Structure.EMPTY` for the 2.0.0 behaviour.

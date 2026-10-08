@@ -1,0 +1,6 @@
+{
+  "rules": [
+    "S-F5"
+  ],
+  "description": "Features written on {TOKEN} unify with the features of the token that fills it, as a nonterminal's do: a conflicting token does not fill it, a shared variable binds across tokens and into the parent, and a missing feature leaves its variable unbound."
+}

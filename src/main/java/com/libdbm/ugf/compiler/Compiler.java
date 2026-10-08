@@ -95,6 +95,7 @@ public final class Compiler {
   private static void variables(final RuleElement element, final Set<String> names) {
     switch (element) {
       case RuleElement.Nonterminal nonterminal -> variables(nonterminal.features(), names);
+      case RuleElement.TokenMatch match -> variables(match.features(), names);
       case RuleElement.Repetition repetition -> variables(repetition.element(), names);
       case RuleElement.Alternation alternation ->
           alternation.options().forEach(option -> variables(option, names));
@@ -363,7 +364,7 @@ public final class Compiler {
       case RuleElement.Regex regex ->
           new Element.Terminal(
               anonymous(regex.pattern(), portable(symbol, regex.pattern())), regex.label());
-      case RuleElement.TokenMatch match -> new Element.Token(match.label());
+      case RuleElement.TokenMatch match -> new Element.Token(match.label(), match.features());
       case RuleElement.Repetition repetition ->
           new Element.Symbol(repeat(symbol, repetition), null, link(repetition));
       case RuleElement.Alternation alternation ->
@@ -372,7 +373,7 @@ public final class Compiler {
           new Element.Symbol(group(symbol, sequence), null, link(sequence));
       case RuleElement.StateAnnotation annotation -> {
         errors.add(symbol + ": a state annotation is only allowed in a lexical production");
-        yield new Element.Token(null);
+        yield new Element.Token(null, Structure.EMPTY);
       }
     };
   }

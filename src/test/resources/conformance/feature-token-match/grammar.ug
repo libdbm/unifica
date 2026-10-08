@@ -1,0 +1,9 @@
+start s;
+# Features on {TOKEN} unify with the token's (S-F5): they select tokens and bind variables.
+s{k: $K} --> 'p' {TOKEN}{k: $K} {TOKEN}{k: $K};
+s --> 'n' {TOKEN}{k: one};
+# A token without the feature leaves the variable unbound.
+s --> 'm' {TOKEN}{k: $K} where !is_bound($K);
+a{k: one} --> 'a1';
+b{k: two} --> 'b2';
+c --> 'c3';

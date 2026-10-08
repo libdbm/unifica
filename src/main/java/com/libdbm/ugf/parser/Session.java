@@ -137,6 +137,15 @@ final class Session {
     return new Stop(Stop.PENALTY, -1, -1, "a penalty sum overflowed 64 bits (S-C10)");
   }
 
+  /** The features written on an element, which its child's must unify with (S-F5). */
+  private static Structure written(final Element element) {
+    return switch (element) {
+      case Element.Symbol symbol -> symbol.features();
+      case Element.Token token -> token.features();
+      case Element.Terminal terminal -> Structure.EMPTY;
+    };
+  }
+
   /** Whether a token edge can be advanced over as {@code element}. */
   static boolean matches(final Element element, final Edge edge) {
     return switch (element) {
@@ -306,16 +315,17 @@ final class Session {
 
     // S-F5: the features written on the element unify with the child's, under this use's bindings.
     var bindings = state.bindings;
-    if (element instanceof Element.Symbol symbol && !symbol.features().isEmpty()) {
+    final var written = written(element);
+    if (!written.isEmpty()) {
       unifications++;
-      final var unified = Unifier.unify(symbol.features(), childFeatures, state.bindings);
+      final var unified = Unifier.unify(written, childFeatures, state.bindings);
       if (observer != ParseObserver.NOOP) {
         observer.onUnification(
             new ParseEvents.Unification(
                 target.id(),
                 state.production.features(),
                 childFeatures,
-                symbol.features(),
+                written,
                 unified
                     .map(unification -> Optional.of(unification.value()))
                     .orElse(Optional.empty()),
@@ -325,10 +335,10 @@ final class Session {
           instanceof Result.Success<Unification<Structure>, ErrorDetails>(var unification))) {
         if (unified instanceof Result.Failure<Unification<Structure>, ErrorDetails>(var error)) {
           collector.unification(
-              symbol.name(),
+              DiagnosticCollector.describe(element),
               state.production.features(),
               childFeatures,
-              symbol.features(),
+              written,
               error.message(),
               target,
               childStart);

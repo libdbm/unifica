@@ -287,7 +287,7 @@ public final class UnificationGrammarVisitorImpl extends UnificationGrammarBaseV
     } else if (context.stateAnnotation() != null) {
       return buildStateAnnotation(context.stateAnnotation());
     } else if (context.tokenMatch() != null) {
-      return new RuleElement.TokenMatch();
+      return buildTokenMatch(context.tokenMatch());
     }
 
     throw new RuntimeException("Unknown base lexical element");
@@ -353,7 +353,7 @@ public final class UnificationGrammarVisitorImpl extends UnificationGrammarBaseV
     } else if (context.regex() != null) {
       return buildRegex(context.regex());
     } else if (context.tokenMatch() != null) {
-      return new RuleElement.TokenMatch();
+      return buildTokenMatch(context.tokenMatch());
     }
 
     throw new RuntimeException("Unknown base element");
@@ -383,6 +383,14 @@ public final class UnificationGrammarVisitorImpl extends UnificationGrammarBaseV
       return "^" + replace.IDENTIFIER().getText();
     }
     throw new IllegalArgumentException("Unknown state transition syntax");
+  }
+
+  private RuleElement buildTokenMatch(final UnificationGrammarParser.TokenMatchContext context) {
+    final var features =
+        context.featureStruct() != null
+            ? buildFeatureStruct(context.featureStruct())
+            : Structure.EMPTY;
+    return new RuleElement.TokenMatch(null, features);
   }
 
   private RuleElement buildNonterminal(final UnificationGrammarParser.NonterminalContext context) {

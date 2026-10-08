@@ -1,0 +1,42 @@
+{
+  "grammar": {
+    "ok": true
+  },
+  "inputs": [
+    {
+      "input": "p a1 a1",
+      "outcome": "accepted",
+      "penalty": 0,
+      "tree": {
+        "symbol": "s",
+        "features": {
+          "k": {
+            "s": "one"
+          }
+        }
+      }
+    },
+    {
+      "input": "p a1 b2",
+      "outcome": "rejected"
+    },
+    {
+      "input": "n a1",
+      "outcome": "accepted",
+      "penalty": 0
+    },
+    {
+      "input": "n b2",
+      "outcome": "rejected"
+    },
+    {
+      "input": "m c3",
+      "outcome": "accepted",
+      "penalty": 0
+    },
+    {
+      "input": "m a1",
+      "outcome": "rejected"
+    }
+  ]
+}

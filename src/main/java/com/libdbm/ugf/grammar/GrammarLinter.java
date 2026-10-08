@@ -480,6 +480,8 @@ public final class GrammarLinter {
       }
       case RuleElement.TokenMatch tm -> {
         if (tm.label() != null) labels.add(tm.label());
+        // Variables in its features are bound by unification (S-F5)
+        variables(tm.features(), labels);
       }
     }
   }

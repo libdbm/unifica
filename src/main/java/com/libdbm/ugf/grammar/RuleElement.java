@@ -115,21 +115,26 @@ public sealed interface RuleElement {
   /**
    * Token match - matches any token and binds its features.
    *
-   * <p>Used with constraints to filter by token properties:
+   * <p>Features written on it unify with the token's, as a nonterminal's do with its constituent
+   * (S-F5), so they select tokens and bind variables:
    *
    * <pre>
-   * noun --> {TOKEN}:W where equals(W.cat, "NN");
+   * noun{lemma: $L} --> {TOKEN}{cat: noun, lemma: $L};
    * </pre>
    *
    * <p>The label binds the token's features (including text, name) for constraint evaluation.
    */
-  record TokenMatch(String label) implements RuleElement {
+  record TokenMatch(String label, Structure features) implements RuleElement {
+    public TokenMatch {
+      Objects.requireNonNull(features, "features must not be null");
+    }
+
     public TokenMatch() {
-      this(null);
+      this(null, Structure.EMPTY);
     }
 
     public TokenMatch with(final String label) {
-      return new TokenMatch(label);
+      return new TokenMatch(label, features);
     }
   }
 }

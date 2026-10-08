@@ -27,6 +27,13 @@ public sealed interface Element {
     }
   }
 
-  /** Any caller-supplied token ({@code {TOKEN}}). */
-  record Token(String label) implements Element {}
+  /**
+   * Any token ({@code {TOKEN}}), whose features must unify with {@code features} (S-F5); a token
+   * with features of its own that conflict does not fill it.
+   */
+  record Token(String label, Structure features) implements Element {
+    public Token {
+      Objects.requireNonNull(features, "features");
+    }
+  }
 }
