@@ -45,12 +45,20 @@ jobs:
       - name: Build and test
         run: mvn clean verify
 
+      - name: Show Maven version
+        run: mvn -v
+
       - name: Publish to Maven Central
         run: mvn deploy -Prelease -DskipTests
         env:
           MAVEN_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      # The staging directory is what the Central bundle is built from; listed even when publishing fails.
+      - name: List Central staging
+        if: always()
+        run: find target/central-staging -type f | sort || true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
