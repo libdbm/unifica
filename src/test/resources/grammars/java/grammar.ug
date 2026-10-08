@@ -277,9 +277,9 @@ localTypeDeclaration --> classOrInterfaceModifier* (classDeclaration | interface
 
 statement{open: no} --> block | 'assert' expression (':' expression)? ';' ;
 statement{open: yes} --> 'if' '(' expression ')' statement ;
-statement{open: X} --> 'if' '(' expression ')' statement{open: no} 'else' statement{open: X}
-                    | 'for' '(' forControl ')' statement{open: X}
-                    | 'while' '(' expression ')' statement{open: X} ;
+statement{open: $X} --> 'if' '(' expression ')' statement{open: no} 'else' statement{open: $X}
+                    | 'for' '(' forControl ')' statement{open: $X}
+                    | 'while' '(' expression ')' statement{open: $X} ;
 statement{open: no} --> 'do' statement 'while' '(' expression ')' ';'
                      | 'try' block (catchClause+ finallyBlock? | finallyBlock)
                      | 'try' resourceSpecification block catchClause* finallyBlock?
@@ -294,7 +294,7 @@ statement{open: no} --> 'do' statement 'while' '(' expression ')' ';'
                      | expression ';' ;
 # ANTLR: switchExpression ';'?  The optional ';' is an empty statement here.
 statement{open: no} --> 'switch' '(' expression ')' '{' switchLabeledRule* '}' @1 ;
-statement{open: X} --> identifier ':' statement{open: X} ;
+statement{open: $X} --> identifier ':' statement{open: $X} ;
 
 catchClause --> 'catch' '(' variableModifier* catchType identifier ')' block ;
 

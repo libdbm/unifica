@@ -18,7 +18,7 @@ class OptionsTests {
 
   private static final String AMBIGUOUS = "start S; S --> S S; S --> A; A --> 'a';";
   private static final String AGREEMENT =
-      "start S; S --> N{num: X} V{num: X};"
+      "start S; S --> N{num: $X} V{num: $X};"
           + " N{num: sg} --> 'dog'; V{num: sg} --> 'runs'; V{num: pl} --> 'run';";
   private static final String BRANCHING =
       "start S; S --> T*; T --> A | B; A --> 'a' ==> X; B --> 'a' ==> Y;";

@@ -2,7 +2,7 @@
 # only when the parser lexes text itself.
 start S;
 
-S --> Noun{num: N} Verb{num: N};
+S --> Noun{num: $N} Verb{num: $N};
 
 Noun --> [a-z]+;
 Verb --> [a-z]+;

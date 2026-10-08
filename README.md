@@ -127,12 +127,12 @@ no production matches becomes a one-character `error` token, which only a produc
 
 <!-- example: agreement.ug -->
 ```
-# Subject and verb agree in number through the shared variable N.
+# Subject and verb agree in number through the shared variable $N.
 start S;
 
-S{num: N} --> NP{num: N} VP{num: N};
-NP{num: N} --> Det{num: N} Noun{num: N};
-VP{num: N} --> Verb{num: N};
+S{num: $N} --> NP{num: $N} VP{num: $N};
+NP{num: $N} --> Det{num: $N} Noun{num: $N};
+VP{num: $N} --> Verb{num: $N};
 
 Det{num: sg} --> 'a';
 Det --> 'the';
@@ -142,11 +142,12 @@ Verb{num: sg} --> 'barks';
 Verb{num: pl} --> 'bark';
 ```
 
-Features are written in braces after a symbol. A value that starts with an uppercase letter is a variable. Each use
+Features are written in braces after a symbol. A value prefixed with `$`, such as `$N`, is a variable; any other
+identifier is an atom, whatever its case. Each use
 of a production has its own variables: the features written on a right-hand side element must unify with the
 features of the constituent that fills it, and the resulting bindings hold for the rest of that production, including
 its constraints. Features are never copied implicitly from a child to its parent; a parent sees a child's features
-only through shared variables, as `N` above.
+only through shared variables, as `$N` above.
 
 ### Constraints and costs
 
@@ -163,7 +164,7 @@ Name --> [A-Za-z]+;
 ```
 
 A `where` clause holds a Boolean expression. `,` is and, `|` is or, `!` is not, and parentheses group. Arguments are
-quoted strings, variables, labels and feature paths such as `subject.num`. A label stands for its constituent: string
+quoted strings, variables such as `$N`, labels and feature paths such as `subject.num` or `$N.num`. A label stands for its constituent: string
 predicates use the constituent's text, and feature predicates use its features.
 
 An unweighted top-level conjunct is **required**: if it is false, the derivation is rejected. A weighted one, written
@@ -327,7 +328,7 @@ a part-of-speech tagger. Given a parser for this grammar:
 # only when the parser lexes text itself.
 start S;
 
-S --> Noun{num: N} Verb{num: N};
+S --> Noun{num: $N} Verb{num: $N};
 
 Noun --> [a-z]+;
 Verb --> [a-z]+;

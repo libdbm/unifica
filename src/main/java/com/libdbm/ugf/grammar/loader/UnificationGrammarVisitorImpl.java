@@ -423,13 +423,10 @@ public final class UnificationGrammarVisitorImpl extends UnificationGrammarBaseV
   }
 
   private Value buildFeatureValue(final UnificationGrammarParser.FeatureValueContext context) {
-    if (context.IDENTIFIER() != null) {
-      final var text = context.IDENTIFIER().getText();
-      // Variables start with uppercase
-      if (!text.isEmpty() && Character.isUpperCase(text.charAt(0))) {
-        return new Variable(text);
-      }
-      return new StringConstant(text);
+    if (context.VARIABLE() != null) {
+      return new Variable(context.VARIABLE().getText());
+    } else if (context.IDENTIFIER() != null) {
+      return new StringConstant(context.IDENTIFIER().getText());
     } else if (context.STRING() != null) {
       return new StringConstant(stripQuotes(context.STRING().getText()));
     } else if (context.featureStruct() != null) {
@@ -523,18 +520,20 @@ public final class UnificationGrammarVisitorImpl extends UnificationGrammarBaseV
   }
 
   private Value buildFeaturePath(final UnificationGrammarParser.FeaturePathContext context) {
-    final var ids = context.IDENTIFIER();
-    if (ids.size() == 1) {
-      // Simple variable: W
-      return Variable.of(ids.getFirst().getText());
-    } else {
-      // Feature path: W.cat -> FeaturePath(W, cat)
-      final var parts = new ArrayList<String>();
-      for (final var id : ids) {
-        parts.add(id.getText());
-      }
-      return new FeaturePath(parts);
+    // A variable can only be the root, so it comes first
+    final var parts = new ArrayList<String>();
+    if (context.VARIABLE() != null) {
+      parts.add(context.VARIABLE().getText());
     }
+    for (final var id : context.IDENTIFIER()) {
+      parts.add(id.getText());
+    }
+    if (parts.size() == 1) {
+      // Simple name: a variable $X, or a label or symbol w
+      return Variable.of(parts.getFirst());
+    }
+    // Feature path: w.cat -> FeaturePath(w, cat)
+    return new FeaturePath(parts);
   }
 
   /** Removes the quotes from a string literal and resolves its escapes. */

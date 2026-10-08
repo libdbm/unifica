@@ -30,13 +30,16 @@ public record Variable(String name) implements Value {
     return false;
   }
 
+  /**
+   * Shows the variable as {@code ?name}, without the {@code $} a grammar variable is named with.
+   */
   @Override
   public String display() {
-    return "?" + name;
+    return "?" + (name.startsWith("$") ? name.substring(1) : name);
   }
 
   @Override
   public String toString() {
-    return "?" + name;
+    return display();
   }
 }

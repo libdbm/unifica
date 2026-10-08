@@ -88,7 +88,7 @@ class IdentityTests {
   void testNullableFeatureCycleTerminates() {
     final var parser =
         Parser.of(
-            compile("start S; S{v: X} --> S{v: X}; S{v: X} --> ;"),
+            compile("start S; S{v: $X} --> S{v: $X}; S{v: $X} --> ;"),
             new Options(Limits.NONE.states(1_000), ParseObserver.NOOP, false));
 
     final var result = parser.parse("");
@@ -103,8 +103,8 @@ class IdentityTests {
     final var parser =
         Parser.of(
             compile(
-                "start S; S --> A{n: X} B{n: X}; A{n: X} --> A{n: X} | N{n: X};"
-                    + " B{n: X} --> V{n: X}; N{n: sg} --> 'dog'; V{n: sg} --> 'runs';"
+                "start S; S --> A{n: $X} B{n: $X}; A{n: $X} --> A{n: $X} | N{n: $X};"
+                    + " B{n: $X} --> V{n: $X}; N{n: sg} --> 'dog'; V{n: sg} --> 'runs';"
                     + " V{n: pl} --> 'run';"));
 
     assertEquals(Outcome.ACCEPTED, parser.parse("dog runs").outcome());

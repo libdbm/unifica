@@ -106,7 +106,7 @@ final class BenchmarkTests {
     final var parser =
         parser(
             load(
-                "start D; D --> S+; S --> N{num: X} V{num: X} '.';"
+                "start D; D --> S+; S --> N{num: $X} V{num: $X} '.';"
                     + " N{num: sg} --> 'dog'; N{num: pl} --> 'dogs';"
                     + " V{num: sg} --> 'runs'; V{num: pl} --> 'run';"),
             Predicates.standard());

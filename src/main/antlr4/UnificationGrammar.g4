@@ -170,7 +170,8 @@ featurePair
     ;
 
 featureValue
-    : IDENTIFIER       // atom or variable
+    : VARIABLE         // variable
+    | IDENTIFIER       // atom
     | STRING           // quoted atom
     | featureStruct    // nested structure
     ;
@@ -231,10 +232,14 @@ arg
     ;
 
 featurePath
-    : IDENTIFIER ('.' IDENTIFIER)*
+    : (VARIABLE | IDENTIFIER) ('.' IDENTIFIER)*
     ;
 
 // Lexer rules
+
+VARIABLE
+    : '$' [a-zA-Z_][a-zA-Z0-9_]*
+    ;
 
 IDENTIFIER
     : [a-zA-Z_][a-zA-Z0-9_]*

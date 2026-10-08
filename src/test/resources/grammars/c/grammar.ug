@@ -109,7 +109,7 @@ declarationSpecifiers{t: builtin} --> declarationSpecifier{t: none}* declaration
     (declarationSpecifier{t: none} | declarationSpecifier{t: builtin})* ;
 
 declarationSpecifier{t: none} --> storageClassSpecifier ;
-declarationSpecifier{t: T} --> typeSpecifier{t: T} ;
+declarationSpecifier{t: $T} --> typeSpecifier{t: $T} ;
 declarationSpecifier{t: none} --> typeQualifier | functionSpecifier | alignmentSpecifier ;
 
 initDeclaratorList --> initDeclarator (',' initDeclarator)* ;
@@ -162,7 +162,7 @@ specifierQualifierList --> gnuAttributes? typeSpecifierQualifier{t: none}* typeS
 specifierQualifierList --> gnuAttributes? typeSpecifierQualifier{t: none}* typeSpecifierQualifier{t: builtin}
     (typeSpecifierQualifier{t: none} | typeSpecifierQualifier{t: builtin})* attributeSpecifierSequence? ;
 
-typeSpecifierQualifier{t: T} --> typeSpecifier{t: T} ;
+typeSpecifierQualifier{t: $T} --> typeSpecifier{t: $T} ;
 typeSpecifierQualifier{t: none} --> typeQualifier | alignmentSpecifier ;
 
 memberDeclaratorList --> memberDeclarator (',' gnuAttributes? memberDeclarator)* ;
@@ -272,16 +272,16 @@ balancedToken --> '(' balancedTokenSequence? ')'
 
 # ----------------------------------------------------------------- statements
 
-statement{open: X} --> labeledStatement{open: X} ;
+statement{open: $X} --> labeledStatement{open: $X} ;
 statement{open: no} --> compoundStatement | expressionStatement ;
-statement{open: X} --> selectionStatement{open: X} | iterationStatement{open: X} ;
+statement{open: $X} --> selectionStatement{open: $X} | iterationStatement{open: $X} ;
 statement{open: no} --> jumpStatement | asmStatement ;
 
-labeledStatement{open: X} --> Identifier ':' statement{open: X} ;
+labeledStatement{open: $X} --> Identifier ':' statement{open: $X} ;
 labeledStatement{open: no} --> Identifier ':' @1 ;
 labeledStatement{open: no} --> Label Identifier ';' ;
-labeledStatement{open: X} --> 'case' constantExpression ':' statement{open: X}
-                           | 'default' ':' statement{open: X} ;
+labeledStatement{open: $X} --> 'case' constantExpression ':' statement{open: $X}
+                           | 'default' ':' statement{open: $X} ;
 
 compoundStatement --> '{' blockItemList? '}' ;
 
@@ -292,12 +292,12 @@ blockItem --> statement | declaration ;
 expressionStatement --> expression? ';' @1 ;
 
 selectionStatement{open: yes} --> 'if' '(' expression ')' statement ;
-selectionStatement{open: X} --> 'if' '(' expression ')' statement{open: no} 'else' statement{open: X} ;
-selectionStatement{open: X} --> 'switch' '(' expression ')' statement{open: X} ;
+selectionStatement{open: $X} --> 'if' '(' expression ')' statement{open: no} 'else' statement{open: $X} ;
+selectionStatement{open: $X} --> 'switch' '(' expression ')' statement{open: $X} ;
 
-iterationStatement{open: X} --> While '(' expression ')' statement{open: X} ;
+iterationStatement{open: $X} --> While '(' expression ')' statement{open: $X} ;
 iterationStatement{open: no} --> Do statement While '(' expression ')' ';' ;
-iterationStatement{open: X} --> For '(' forCondition ')' statement{open: X} ;
+iterationStatement{open: $X} --> For '(' forCondition ')' statement{open: $X} ;
 
 forCondition --> (forDeclaration | expression?) ';' forExpression? ';' forExpression? ;
 

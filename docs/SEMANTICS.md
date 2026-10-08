@@ -7,8 +7,9 @@ are checked against the conformance corpus in `src/test/resources/conformance/`,
 this document, never from implementation output.
 
 The grammar surface syntax is defined by `src/main/antlr4/UnificationGrammar.g4`. In constraint expressions, `,` is and,
-`|` is or, `!` is not, and `:N` attaches a weight to a group or predicate. An identifier starting with an uppercase
-letter in a feature value is a variable.
+`|` is or, `!` is not, and `:N` attaches a weight to a group or predicate. A variable is an identifier prefixed with
+`$`, as in `$N`, in a feature value or as a predicate argument. Any other identifier in a feature value is an atom,
+whatever its case. In a predicate argument, a bare identifier names a label or a symbol, never a variable.
 
 ## Grammar classification
 

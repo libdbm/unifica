@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 class LoggingObserverTests {
 
   private static final String AGREEMENT =
-      "start S; S --> N{num: X} V{num: X} where equals(X, X);"
+      "start S; S --> N{num: $X} V{num: $X} where equals($X, $X);"
           + " N{num: sg} --> 'dog'; V{num: sg} --> 'runs';";
 
   private LoggingObserver observer;

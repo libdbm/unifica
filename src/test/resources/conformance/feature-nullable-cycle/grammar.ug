@@ -1,2 +1,2 @@
 start S;
-S{v: X} --> S{v: X} | ;
+S{v: $X} --> S{v: $X} | ;

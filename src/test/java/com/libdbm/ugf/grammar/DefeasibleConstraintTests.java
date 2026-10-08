@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Weight notation in grammar files ({@code pred(X):N}, {@code (...):N}) and the plan it compiles
+ * Weight notation in grammar files ({@code pred($X):N}, {@code (...):N}) and the plan it compiles
  * to: unweighted top-level conjuncts are required, weighted ones are soft groups (S-C2, S-C6).
  * Ported from the 1.x strength/priority tests.
  */
@@ -49,7 +49,7 @@ class DefeasibleConstraintTests {
 
     @Test
     void testPredicateWithoutWeightIsRequired() {
-      final var plan = plan("rule --> 'a' where foo(X);", "rule");
+      final var plan = plan("rule --> 'a' where foo($X);", "rule");
 
       assertEquals(List.of("foo"), required(plan));
       assertTrue(plan.soft().isEmpty());
@@ -57,7 +57,7 @@ class DefeasibleConstraintTests {
 
     @Test
     void testPredicateWithWeightIsSoft() {
-      final var plan = plan("rule --> 'a' where foo(X):10;", "rule");
+      final var plan = plan("rule --> 'a' where foo($X):10;", "rule");
 
       assertTrue(plan.required().isEmpty());
       assertEquals(List.of("foo:10"), soft(plan));
@@ -67,12 +67,12 @@ class DefeasibleConstraintTests {
     void testDifferentWeights() {
       assertEquals(
           List.of("foo:5", "bar:100"),
-          soft(plan("rule --> 'a' where foo(X):5, bar(Y):100;", "rule")));
+          soft(plan("rule --> 'a' where foo($X):5, bar($Y):100;", "rule")));
     }
 
     @Test
     void testMixedRequiredAndSoft() {
-      final var plan = plan("rule --> 'a' where foo(X), bar(Y):10;", "rule");
+      final var plan = plan("rule --> 'a' where foo($X), bar($Y):10;", "rule");
 
       assertEquals(List.of("foo"), required(plan));
       assertEquals(List.of("bar:10"), soft(plan));
@@ -85,7 +85,7 @@ class DefeasibleConstraintTests {
 
     @Test
     void testGroupedConjunctionWithWeightIsOneSoftGroup() {
-      final var plan = plan("rule --> 'a' where (foo(X), bar(Y)):5;", "rule");
+      final var plan = plan("rule --> 'a' where (foo($X), bar($Y)):5;", "rule");
 
       assertEquals(1, plan.soft().size());
       assertEquals(5, plan.soft().getFirst().weight());
@@ -98,7 +98,7 @@ class DefeasibleConstraintTests {
 
     @Test
     void testGroupedDisjunctionWithWeight() {
-      final var plan = plan("rule --> 'a' where (foo(X) | bar(Y)):8;", "rule");
+      final var plan = plan("rule --> 'a' where (foo($X) | bar($Y)):8;", "rule");
 
       assertEquals(8, plan.soft().getFirst().weight());
       assertInstanceOf(Expression.Or.class, plan.soft().getFirst().expression());
@@ -107,7 +107,7 @@ class DefeasibleConstraintTests {
     @Test
     void testUnweightedGroupIsFlattenedIntoRequired() {
       assertEquals(
-          List.of("foo", "bar"), required(plan("rule --> 'a' where (foo(X), bar(Y));", "rule")));
+          List.of("foo", "bar"), required(plan("rule --> 'a' where (foo($X), bar($Y));", "rule")));
     }
   }
 
@@ -118,20 +118,20 @@ class DefeasibleConstraintTests {
     /** S-C6: a weight under 'not' is a compile error (1.x applied it to the inner predicate). */
     @Test
     void testWeightUnderNotRejected() {
-      assertInstanceOf(Result.Failure.class, compile("rule --> 'a' where !foo(X):10;", "rule"));
+      assertInstanceOf(Result.Failure.class, compile("rule --> 'a' where !foo($X):10;", "rule"));
     }
 
     /** S-C6: a weight under 'or' is a compile error. */
     @Test
     void testWeightUnderOrRejected() {
       assertInstanceOf(
-          Result.Failure.class, compile("rule --> 'a' where foo(X):5 | bar(Y);", "rule"));
+          Result.Failure.class, compile("rule --> 'a' where foo($X):5 | bar($Y);", "rule"));
     }
 
     /** S-C5: a weight inside a weighted group is ignored; the outer weight is charged once. */
     @Test
     void testNestedWeightIgnored() {
-      final var plan = plan("rule --> 'a' where ((foo(X), bar(Y)):3 | baz(Z)):7;", "rule");
+      final var plan = plan("rule --> 'a' where ((foo($X), bar($Y)):3 | baz($Z)):7;", "rule");
 
       assertEquals(1, plan.soft().size());
       assertEquals(7, plan.soft().getFirst().weight());

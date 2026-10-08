@@ -1,5 +1,5 @@
 start S;
-S --> N{num: X} V{num: Y} where equals(X, Y);
+S --> N{num: $X} V{num: $Y} where equals($X, $Y);
 N{num: sg} --> 'dog';
 N{num: pl} --> 'dogs';
 V{num: sg} --> 'runs';

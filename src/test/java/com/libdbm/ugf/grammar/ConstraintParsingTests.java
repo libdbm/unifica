@@ -34,7 +34,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("parses single predicate")
     void single() {
-      final var c = parse("s --> 'a' where foo(X);");
+      final var c = parse("s --> 'a' where foo($X);");
       assertInstanceOf(Expression.Call.class, c);
       assertEquals("foo", ((Expression.Call) c).name());
     }
@@ -42,7 +42,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("parses predicate with multiple arguments")
     void multiple_args() {
-      final var c = parse("s --> 'a' where agree(X, Y);");
+      final var c = parse("s --> 'a' where agree($X, $Y);");
       assertInstanceOf(Expression.Call.class, c);
       final var p = (Expression.Call) c;
       assertEquals("agree", p.name());
@@ -57,7 +57,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("parses negated predicate")
     void negated() {
-      final var c = parse("s --> 'a' where !reserved(X);");
+      final var c = parse("s --> 'a' where !reserved($X);");
       assertInstanceOf(Expression.Not.class, c);
       final var inner = ((Expression.Not) c).term();
       assertInstanceOf(Expression.Call.class, inner);
@@ -67,7 +67,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("parses double negation")
     void double_negation() {
-      final var c = parse("s --> 'a' where !!confirmed(X);");
+      final var c = parse("s --> 'a' where !!confirmed($X);");
       assertInstanceOf(Expression.Not.class, c);
       final var inner1 = ((Expression.Not) c).term();
       assertInstanceOf(Expression.Not.class, inner1);
@@ -84,7 +84,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("parses simple disjunction")
     void simple() {
-      final var c = parse("s --> 'a' where british(X) | american(X);");
+      final var c = parse("s --> 'a' where british($X) | american($X);");
       assertInstanceOf(Expression.Or.class, c);
       final var or = (Expression.Or) c;
       assertEquals(2, or.terms().size());
@@ -95,7 +95,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("parses three-way disjunction")
     void three_way() {
-      final var c = parse("s --> 'a' where a(X) | b(X) | c(X);");
+      final var c = parse("s --> 'a' where a($X) | b($X) | c($X);");
       assertInstanceOf(Expression.Or.class, c);
       assertEquals(3, ((Expression.Or) c).terms().size());
     }
@@ -108,7 +108,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("parses conjunction as And")
     void simple() {
-      final var c = parse("s --> 'a' where foo(X), bar(Y);");
+      final var c = parse("s --> 'a' where foo($X), bar($Y);");
       assertInstanceOf(Expression.And.class, c);
       final var and = (Expression.And) c;
       assertEquals(2, and.terms().size());
@@ -117,7 +117,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("parses three-way conjunction")
     void three_way() {
-      final var c = parse("s --> 'a' where a(X), b(X), c(X);");
+      final var c = parse("s --> 'a' where a($X), b($X), c($X);");
       assertInstanceOf(Expression.And.class, c);
       assertEquals(3, ((Expression.And) c).terms().size());
     }
@@ -130,7 +130,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("AND binds tighter than OR: a, b | c parses as (a AND b) OR c")
     void and_before_or() {
-      final var c = parse("s --> 'a' where a(X), b(X) | c(X);");
+      final var c = parse("s --> 'a' where a($X), b($X) | c($X);");
       // Should be: Or(And(a, b), c)
       assertInstanceOf(Expression.Or.class, c);
       final var or = (Expression.Or) c;
@@ -146,7 +146,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("NOT binds tighter than AND: !a, b parses as (NOT a) AND b")
     void not_before_and() {
-      final var c = parse("s --> 'a' where !a(X), b(X);");
+      final var c = parse("s --> 'a' where !a($X), b($X);");
       // Should be: And(Not(a), b)
       assertInstanceOf(Expression.And.class, c);
       final var and = (Expression.And) c;
@@ -158,7 +158,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("NOT binds tighter than OR: !a | b parses as (NOT a) OR b")
     void not_before_or() {
-      final var c = parse("s --> 'a' where !a(X) | b(X);");
+      final var c = parse("s --> 'a' where !a($X) | b($X);");
       // Should be: Or(Not(a), b)
       assertInstanceOf(Expression.Or.class, c);
       final var or = (Expression.Or) c;
@@ -175,7 +175,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("parentheses override precedence: a, (b | c)")
     void paren_overrides_precedence() {
-      final var c = parse("s --> 'a' where a(X), (b(X) | c(X));");
+      final var c = parse("s --> 'a' where a($X), (b($X) | c($X));");
       // Should be: And(a, Or(b, c))
       assertInstanceOf(Expression.And.class, c);
       final var and = (Expression.And) c;
@@ -187,7 +187,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("negation of grouped expression: !(a | b)")
     void negation_of_group() {
-      final var c = parse("s --> 'a' where !(a(X) | b(X));");
+      final var c = parse("s --> 'a' where !(a($X) | b($X));");
       // Should be: Not(Or(a, b))
       assertInstanceOf(Expression.Not.class, c);
       final var inner = ((Expression.Not) c).term();
@@ -198,7 +198,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("nested grouping: ((a | b), c) | d")
     void nested_grouping() {
-      final var c = parse("s --> 'a' where ((a(X) | b(X)), c(X)) | d(X);");
+      final var c = parse("s --> 'a' where ((a($X) | b($X)), c($X)) | d($X);");
       // Should be: Or(And(Or(a, b), c), d)
       assertInstanceOf(Expression.Or.class, c);
       final var or = (Expression.Or) c;
@@ -232,7 +232,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("de Morgan style: !(error | warning)")
     void de_morgan() {
-      final var c = parse("s --> 'a' where !(error(X) | warning(X));");
+      final var c = parse("s --> 'a' where !(error($X) | warning($X));");
       assertInstanceOf(Expression.Not.class, c);
       final var inner = ((Expression.Not) c).term();
       assertInstanceOf(Expression.Or.class, inner);
@@ -241,7 +241,7 @@ class ConstraintParsingTests {
     @Test
     @DisplayName("multiple negations in conjunction: !a, !b, !c")
     void multiple_negations() {
-      final var c = parse("s --> 'a' where !a(X), !b(X), !c(X);");
+      final var c = parse("s --> 'a' where !a($X), !b($X), !c($X);");
       assertInstanceOf(Expression.And.class, c);
       final var and = (Expression.And) c;
       assertEquals(3, and.terms().size());

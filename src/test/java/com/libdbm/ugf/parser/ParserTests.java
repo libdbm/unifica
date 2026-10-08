@@ -279,7 +279,7 @@ class ParserTests {
   void testAgreement() {
     final var parser =
         parser(
-            "start S; S{num: X} --> N{num: X} V{num: X};"
+            "start S; S{num: $X} --> N{num: $X} V{num: $X};"
                 + " N{num: sg} --> 'dog'; N{num: pl} --> 'dogs'; V{num: sg} --> 'runs'; V{num: pl} --> 'run';");
 
     assertTrue(accepts(parser, "dog runs"));
@@ -293,8 +293,8 @@ class ParserTests {
   void testSyntacticAgreement() {
     final var parser =
         parser(
-            "start S; S --> NP{num: X} VP{num: X}; NP{num: Y} --> D N{num: Y};"
-                + " VP{num: Y} --> V{num: Y}; D --> 'the'; N{num: sg} --> 'dog'; N{num: pl} --> 'dogs';"
+            "start S; S --> NP{num: $X} VP{num: $X}; NP{num: $Y} --> D N{num: $Y};"
+                + " VP{num: $Y} --> V{num: $Y}; D --> 'the'; N{num: sg} --> 'dog'; N{num: pl} --> 'dogs';"
                 + " V{num: sg} --> 'runs'; V{num: pl} --> 'run';");
 
     assertTrue(accepts(parser, "the dogs run"));
@@ -741,19 +741,19 @@ class ParserTests {
   void testVariablesLinkFeatures() {
     final var parser =
         parser(
-            "start s; s --> 'v' a{nl: yes}; a{nl: E} --> l{nl: no} b{nl: E};"
-                + " l{nl: E} --> I{nl: E}; b{nl: E} --> I{nl: E};"
+            "start s; s --> 'v' a{nl: yes}; a{nl: $E} --> l{nl: no} b{nl: $E};"
+                + " l{nl: $E} --> I{nl: $E}; b{nl: $E} --> I{nl: $E};"
                 + " I{nl: yes} --> [a-z]+ (?=[\\n]|$); I{nl: no} --> [a-z]+ (?![\\n]|$);");
 
     assertTrue(accepts(parser, "v x y"));
   }
 
-  /** S-G4, S-F5: X{f: V}? means the same as its expansion; the binding survives the lowering. */
+  /** S-G4, S-F5: X{f: $V}? means the same as its expansion; the binding survives the lowering. */
   @Test
   void testOptionalKeepsBinding() {
     final var parser =
         parser(
-            "start s; s --> w{open: no}; w{open: O} --> 'w' x{open: O}?;"
+            "start s; s --> w{open: no}; w{open: $O} --> 'w' x{open: $O}?;"
                 + " x{open: yes} --> 'a'; x{open: no} --> 'b';");
 
     assertFalse(accepts(parser, "w a"));
@@ -765,7 +765,7 @@ class ParserTests {
   void testRepetitionSharesVariables() {
     final var parser =
         parser(
-            "start s; s --> x{v: V}+ y{v: V}; x{v: a} --> 'xa'; x{v: b} --> 'xb';"
+            "start s; s --> x{v: $V}+ y{v: $V}; x{v: a} --> 'xa'; x{v: b} --> 'xb';"
                 + " y{v: a} --> 'ya'; y{v: b} --> 'yb';");
 
     assertTrue(accepts(parser, "xa xa ya"));

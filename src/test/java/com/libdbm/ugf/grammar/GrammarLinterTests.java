@@ -711,16 +711,20 @@ final class GrammarLinterTests {
     assertTrue(
         issues(
                 linter,
-                "start S; S --> N{num: X} V{num: Y} where equals(X, Y); N --> 'n'; V --> 'v';",
+                "start S; S --> N{num: $X} V{num: $Y} where equals($X, $Y); N --> 'n'; V --> 'v';",
                 title)
             .isEmpty());
     assertTrue(
-        issues(linter, "start S; S{n: Z} --> N where is_bound(Z); N --> 'n';", title).isEmpty());
+        issues(linter, "start S; S{n: $Z} --> N where is_bound($Z); N --> 'n';", title).isEmpty());
     assertTrue(
-        issues(linter, "start S; S --> (N{m: {k: W}})? where is_bound(W); N --> 'n';", title)
+        issues(linter, "start S; S --> (N{m: {k: $W}})? where is_bound($W); N --> 'n';", title)
             .isEmpty());
     assertEquals(
-        1, issues(linter, "start S; S --> N{num: X} where is_bound(Q); N --> 'n';", title).size());
+        1,
+        issues(linter, "start S; S --> N{num: $X} where is_bound($Q); N --> 'n';", title).size());
+    // A variable is named with its '$' in a constraint; a bare name is a label or symbol
+    assertEquals(
+        1, issues(linter, "start S; S --> N{num: $X} where is_bound(X); N --> 'n';", title).size());
   }
 
   @Test

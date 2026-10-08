@@ -305,7 +305,7 @@ class GrammarGeneratorTests {
   class Guarantees {
 
     private static final String AGREEMENT =
-        "start S; S --> N{num: X} V{num: X};"
+        "start S; S --> N{num: $X} V{num: $X};"
             + " N{num: sg} --> 'dog'; N{num: pl} --> 'dogs'; V{num: sg} --> 'runs'; V{num: pl} --> 'run';";
 
     private GrammarGenerator generator(final String source, final long seed) {
@@ -332,7 +332,7 @@ class GrammarGeneratorTests {
     @Test
     void testRequestedFeatures() {
       final var grammar =
-          "start S; S{num: X} --> N{num: X} V{num: X};"
+          "start S; S{num: $X} --> N{num: $X} V{num: $X};"
               + " N{num: sg} --> 'dog'; N{num: pl} --> 'dogs'; V{num: sg} --> 'runs'; V{num: pl} --> 'run';";
       final var plural = Structure.builder().with("num", "pl").build();
 
@@ -356,7 +356,7 @@ class GrammarGeneratorTests {
     @Test
     void testFailureReported() {
       final var grammar =
-          "start S; S{num: X} --> N{num: X} V{num: X};"
+          "start S; S{num: $X} --> N{num: $X} V{num: $X};"
               + " N{num: sg} --> 'dog'; N{num: pl} --> 'dogs'; V{num: sg} --> 'runs'; V{num: pl} --> 'run';";
       final var result =
           generator(grammar, 4).generateOne("S", Structure.builder().with("num", "dual").build());

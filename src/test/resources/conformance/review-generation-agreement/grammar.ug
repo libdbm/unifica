@@ -1,5 +1,5 @@
 start S;
-S --> N{num: X} V{num: X};
+S --> N{num: $X} V{num: $X};
 N{num: sg} --> 'dog';
 N{num: pl} --> 'dogs';
 V{num: sg} --> 'runs';
