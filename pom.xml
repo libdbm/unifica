@@ -156,6 +156,10 @@
                 <groupId>org.cyclonedx</groupId>
                 <artifactId>cyclonedx-maven-plugin</artifactId>
                 <version>2.9.3</version>
+                <configuration>
+                    <!-- Not deployed: the Central bundle carries only the jar, sources, javadoc and pom. -->
+                    <skipAttach>true</skipAttach>
+                </configuration>
                 <executions>
                     <execution>
                         <phase>package</phase>
