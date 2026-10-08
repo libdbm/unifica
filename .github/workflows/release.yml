@@ -32,7 +32,7 @@ jobs:
         id: version
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-          POM_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          POM_VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "Tag version: $TAG_VERSION"
           echo "POM version: $POM_VERSION"
           if [ "$TAG_VERSION" != "$POM_VERSION" ]; then
@@ -43,13 +43,13 @@ jobs:
           echo "VERSION=$POM_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Build and test
-        run: mvn clean verify
+        run: ./mvnw clean verify
 
       - name: Show Maven version
-        run: mvn -v
+        run: ./mvnw -v
 
       - name: Publish to Maven Central
-        run: mvn deploy -Prelease -DskipTests
+        run: ./mvnw deploy -Prelease -DskipTests
         env:
           MAVEN_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
